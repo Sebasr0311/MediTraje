@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** M0
-- **Tarea actual:** M0.3
+- **Tarea actual:** M0.4
 - **Última etiqueta:** (ninguna)
 - **Rama de trabajo:** feature/m0-cimientos
 
@@ -15,7 +15,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ### M0 — Cimientos de diseño
 - [x] M0.1 Repo y estructura
 - [x] M0.2 Casos de uso y reglas de negocio
-- [ ] M0.3 Modelo de dominio y MER
+- [x] M0.3 Modelo de dominio y MER
 - [ ] M0.4 Modelo relacional y normalización
 - [ ] M0.5 Aprobación (manual)
 
@@ -88,3 +88,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 (Fecha · tarea · qué se hizo · pruebas ejecutadas · commit)
 - 2026-10-01 · M0.1 · Creación de estructura de carpetas según §38, .gitignore estricto para Oracle ATP y secretos, ubicación definitiva de documentos de especificación (AGENTS.md, MVP.md, DECISIONES.md, PLAN_DE_TRABAJO.md, PROGRESO.md, DISENO_UI_UX.md, HERRAMIENTAS_CLI.md, DOCUMENTO_MAESTRO.md, tokens.css, skills y comandos .opencode), README.md inicial y configuración de ramas main, develop y feature/m0-cimientos · Verificación de git status limpio y exclusión de wallet/secretos · chore: estructura inicial del repositorio y cimientos m0.1
 - 2026-10-01 · M0.2 · Especificación formal de casos de uso (CU-01 a CU-11) y reglas de negocio (RB-01 a RB-25) alineadas con ADR-001..013 y Documento Maestro §44 · Verificación de consistencia y ausencia de contradicciones con ADRs · docs(requirements): casos de uso y reglas de negocio m0.2
+- 2026-10-01 · M0.3 · Diseño del modelo de dominio y diagrama entidad-relación (MER) en Mermaid cubriendo 25 entidades, cardinalidades y descripción conceptual · Verificación visual de relaciones y atributos clave · docs(database): modelo entidad-relacion mer m0.3
