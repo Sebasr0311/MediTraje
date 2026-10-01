@@ -103,8 +103,10 @@ Lee `DECISIONES.md`, `MER.md` y `MODELO_RELACIONAL.md`. Cambia lo que no te gust
 ### Prerrequisito manual (lo haces tú)
 1. Crea tu cuenta de Oracle Cloud y una **Autonomous Transaction Processing** (opción Always Free).
 2. Descarga el **wallet** (Instance Wallet) a una carpeta **fuera del repo** (p. ej. `~/oracle/wallet`).
-3. Crea en ATP un usuario para la app (p. ej. `MEDITRIAJE`) con privilegios mínimos (`CREATE SESSION`, `CREATE TABLE`, `CREATE SEQUENCE`, `CREATE TRIGGER`, `CREATE INDEX`, cuota en el tablespace). **No uses `ADMIN`.**
-4. Define variables de entorno: `DB_URL` (formato `jdbc:oracle:thin:@<alias>_tp?TNS_ADMIN=/ruta/al/wallet`), `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`.
+3. Crea en ATP los **dos usuarios** según ADR-012 (no uses `ADMIN`):
+   - **`MEDITRIAJE_OWNER`** (para Flyway / DDL): privilegios `CREATE SESSION`, `CREATE TABLE`, `CREATE SEQUENCE`, `CREATE TRIGGER`, `CREATE INDEX`, cuota en el tablespace.
+   - **`MEDITRIAJE_APP`** (para runtime de Spring Boot): privilegios `CREATE SESSION`, `SELECT`, `INSERT`, `UPDATE` sobre las tablas del esquema `MEDITRIAJE_OWNER`. Sin `DELETE` en tablas clínicas, y sin `UPDATE`/`DELETE` en `AUDITORIA` y `ATENCION_ENMIENDA`.
+4. Define variables de entorno: `DB_URL` (formato `jdbc:oracle:thin:@<alias>_tp?TNS_ADMIN=/ruta/al/wallet`), `DB_USER` (`MEDITRIAJE_APP`), `DB_PASSWORD`, `FLYWAY_USER` (`MEDITRIAJE_OWNER`), `FLYWAY_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`.
 
 ### M1.1 Proyecto Spring Boot base
 **Qué:** proyecto Maven (Java 21, Spring Boot 3) en `backend/`, paquetes por capas del documento maestro §8, perfiles `dev`/`test`/`prod`, endpoint `GET /api/v1/ping`.

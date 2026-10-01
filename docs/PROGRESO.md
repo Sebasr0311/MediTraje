@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M1
-- **Tarea actual:** M1.1
+- **Fase actual:** M0
+- **Tarea actual:** M0.5 (Aprobada - Cierre final de cimientos)
 - **Última etiqueta:** v0.0
-- **Rama de trabajo:** develop
+- **Rama de trabajo:** feature/m0-cimientos
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -81,11 +81,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
 - 2026-10-01 · Aprobación formal de decisiones de arquitectura ADR-001 a ADR-013, Casos de Uso, Reglas de Negocio, MER y Modelo Relacional · Cierre exitoso de Fase M0 · Todos los ADRs
+- 2026-10-01 · Ajustes finales aprobados de M0: ES_ALARMA exclusivamente en SINTOMA con corte de emergencia (alarma O Nivel I) y default conservador Nivel III; EVOLUCION en VARCHAR2(4000 CHAR) con validación DTO @Size(max=4000) por MAX_STRING_SIZE; segregación dual de usuarios DB (MEDITRIAJE_OWNER y MEDITRIAJE_APP); SIGNO_VITAL trigger bloquea INSERT en atención CERRADA; RECETA emitida sobre atención CERRADA con inmutabilidad desde INSERT; coherencia CITA-TRIAJE por clave foránea compuesta UQ(ID, PACIENTE_ID) y FK(TRIAJE_ID, PACIENTE_ID); TIME_ZONE configurado en connectionInitSql de HikariCP · Robustez técnica y seguridad relacional en Oracle ATP · ADR-005, ADR-008, ADR-009, ADR-012
 
 ## Pendientes y dudas abiertas
 (Todo lo marcado como PENDIENTE DE DECISIÓN)
 - Catálogo definitivo y validación clínica formal de reglas de triaje (mantenidas como prototipo según ADR-009).
-- Datos de conexión a Oracle ATP (wallet, usuario y clave para el perfil dev de M1).
+- Datos de conexión a Oracle ATP (wallet, usuarios MEDITRIAJE_OWNER / MEDITRIAJE_APP y claves para el perfil dev de M1).
 
 ## Bitácora de sesiones
 (Fecha · tarea · qué se hizo · pruebas ejecutadas · commit)
@@ -93,4 +94,6 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-01 · M0.2 · Especificación formal de casos de uso (CU-01 a CU-11) y reglas de negocio (RB-01 a RB-25) alineadas con ADR-001..013 y Documento Maestro §44 · Verificación de consistencia y ausencia de contradicciones con ADRs · docs(requirements): casos de uso y reglas de negocio m0.2
 - 2026-10-01 · M0.3 · Diseño del modelo de dominio y diagrama entidad-relación (MER) en Mermaid cubriendo 25 entidades, cardinalidades y descripción conceptual · Verificación visual de relaciones y atributos clave · docs(database): modelo entidad-relacion mer m0.3
 - 2026-10-01 · M0.4 · Especificación completa del modelo relacional en Oracle ATP (25 tablas, tipos, constraints, índice funcional único uq_cita_slot_activa, triggers de inmutabilidad clínica, política ON DELETE y análisis 3FN) · Verificación de tipos Oracle y ausencia de borrado en tablas clínicas · docs(database): modelo relacional y normalizacion m0.4
+- 2026-10-01 · M0.4-Rev · Corrección profunda del modelo relacional: eliminación de ON DELETE RESTRICT (NO ACTION en Oracle), EMAIL minúsculas con CHECK y sin índice redundante, ATENCION con transición ABIERTA->CERRADA y campos obligatorios al cierre, triggers/grants de inmutabilidad para todas las entidades clínicas, FK cita-triaje, condiciones estructuradas de triaje, UQ slot-profesional-inicio, reescritura de 3FN sin afirmar BCNF con 4 desnormalizaciones controladas, snapshot cuádruple en receta, rangos en signos vitales y consentimiento revocable · docs(database): correccion integral del modelo relacional segun observaciones
 - 2026-10-01 · M0.5 · Aprobación formal de especificaciones y diseño de la Fase M0 por parte de Juan. Actualización de DECISIONES.md a APROBADO, cierre de fase M0, merge a develop y creación de etiqueta v0.0 · Puerta de salida M0 cumplida · chore: aprobacion de diseno y cierre de fase m0 (v0.0)
+- 2026-10-01 · M0.5-Ajustes · Incorporación de decisiones finales aprobadas: ES_ALARMA en SINTOMA con corte de emergencia y default Nivel III, EVOLUCION VARCHAR2(4000 CHAR) con validación DTO, segregación MEDITRIAJE_OWNER/MEDITRIAJE_APP en ADR-012 y PLAN_DE_TRABAJO, trigger de SIGNO_VITAL bloqueando INSERT en CERRADA, emisión de RECETA sobre atención cerrada, validación de integridad referencial CITA-TRIAJE mediante clave compuesta UQ y FK en BD, y time zone en HikariCP · Verificación de consistencia cruzada en docs/ · docs(database): ajustes finales de modelo relacional, adrs y prerrequisitos m0

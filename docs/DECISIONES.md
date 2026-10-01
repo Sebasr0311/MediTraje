@@ -54,7 +54,7 @@ Cada decisión resuelve uno o más de los 22 pendientes del Documento Maestro §
 **Nota:** verificar compatibilidad de la versión de Flyway con la versión de Oracle de ATP; si falla, usar Liquibase.
 
 ## ADR-005 Fechas y zona horaria
-**Decisión:** zona del proyecto `America/Bogota`. Instantes en `TIMESTAMP WITH TIME ZONE`; fechas de nacimiento en `DATE`. La API usa ISO-8601 con offset.
+**Decisión:** zona del proyecto `America/Bogota`. Instantes en `TIMESTAMP WITH TIME ZONE`; fechas de nacimiento en `DATE`. La API usa ISO-8601 con offset. El pool de conexiones (HikariCP) configura obligatoriamente `connectionInitSql = "ALTER SESSION SET TIME_ZONE = 'America/Bogota'"` al inicializar cada conexión física.
 
 ## ADR-006 Citas, disponibilidad y concurrencia
 **Disponibilidad:** tabla `DISPONIBILIDAD_SLOT` generada por el admin (profesional, sede, especialidad, modalidad, inicio, fin, estado LIBRE/OCUPADO/BLOQUEADO). Duración por defecto 20 min, configurable por especialidad.
@@ -85,10 +85,12 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 ## ADR-009 Triaje
 **Decisión:**
 - Prioridad en 5 niveles (I–V), alineada con la Resolución 5596 de 2015. **Verificar la norma vigente y los tiempos objetivo antes de mostrarlos.**
-- Reglas en tabla `REGLA_TRIAJE` versionada (síntoma, condición, nivel, bandera de alarma), no en el código. Cada triaje guarda la versión de reglas usada.
-- Síntomas de alarma ⇒ **corte de emergencia**: mensaje "llama al 123 o ve a urgencias", sin ofrecer cita, evento registrado.
+- Reglas en tabla `REGLA_TRIAJE` versionada con columnas estructuradas (`duracion_min_horas`, `duracion_max_horas`, `intensidad_min`, `intensidad_max`, `nivel_prioridad`), no en código. Cada triaje guarda la versión de reglas usada.
+- **Bandera de alarma:** `ES_ALARMA` reside **exclusivamente en `SINTOMA`** (alarma incondicional e intrínseca). Se elimina de `REGLA_TRIAJE`.
+- **Corte de emergencia:** Emergencia = presencia de síntoma con `ES_ALARMA = 1` O evaluación de `NIVEL_PRIORIDAD = 'I'`. Mensaje "llama al 123 o ve a urgencias", sin ofrecer cita, evento registrado en auditoría.
+- **Nivel por defecto conservador:** Si los síntomas reportados no coinciden con ninguna regla específica en `REGLA_TRIAJE`, el motor asigna por defecto **Nivel III (Urgencia menor / Prioritaria)**. **Nunca se asigna Nivel V** ante sintomatología no tipificada.
 - Catálogo semilla pequeño (≈20 síntomas), marcado como **reglas de prototipo, no validadas clínicamente**. Si se quiere validez clínica, debe revisarlas personal de salud.
-- Ruta sugerida: Atención prioritaria / Cita presencial / Cita remota / Consulta programada.
+- Ruta sugerida: Urgencias / Atención prioritaria / Cita presencial / Cita remota / Consulta programada.
 - El triaje nunca produce un diagnóstico ni recomienda medicamentos.
 
 ## ADR-010 QR temporal (fase 2)
@@ -97,7 +99,10 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 ## ADR-011 Auditoría
 **Decisión:** tabla `AUDITORIA` insert-only (usuario, acción, tipo de recurso, id de recurso, resultado, IP, fecha). Prohibido guardar contenido clínico o secretos. Eventos del MVP listados en HU-11.
 
-## ADR-012 Entornos, backups y despliegue
+## ADR-012 Entornos, usuarios de BD, backups y despliegue
+- **Segregación de usuarios de base de datos:**
+  - `MEDITRIAJE_OWNER`: propietario del esquema, utilizado exclusivamente por Flyway para migraciones y operaciones DDL (`CREATE`, `ALTER`, `DROP`, triggers, secuencias).
+  - `MEDITRIAJE_APP`: usuario de mínimos privilegios utilizado por la aplicación en runtime (Spring Boot / HikariCP). Permisos `SELECT`, `INSERT`, `UPDATE` estrictamente necesarios. Sin `DELETE` en tablas clínicas (`ATENCION`, `SIGNO_VITAL`, `ATENCION_ENMIENDA`, `RECETA`, `RECETA_DETALLE`, `CONSENTIMIENTO`, `AUDITORIA`), y sin `UPDATE`/`DELETE` en `AUDITORIA` y `ATENCION_ENMIENDA`.
 - Desarrollo local con Oracle Free en Docker (o ATP directo) y pruebas de integración con Testcontainers.
 - Perfiles `dev`, `test`, `prod`; secretos por variables de entorno (`DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`). Wallet fuera del repo y en `.gitignore`.
 - Backups: los automáticos de ATP; documentar en `DATABASE.md` cómo restaurar.
