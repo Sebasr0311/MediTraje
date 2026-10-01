@@ -1,0 +1,13 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+
+cors:
+  origins: "*"
+
+security:
+  jwt:
+    secret: test-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256
+    expiration-minutes: 5
+    refresh-expiration-days: 1

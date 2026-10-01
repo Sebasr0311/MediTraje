@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M0
-- **Tarea actual:** M0.5 (Aprobada - Cierre final de cimientos)
+- **Fase actual:** M1
+- **Tarea actual:** M1.2 (Conexión a Oracle ATP)
 - **Última etiqueta:** v0.0
-- **Rama de trabajo:** develop
+- **Rama de trabajo:** feature/m1-base-oracle
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -21,7 +21,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 ### M1 — Proyecto base y Oracle
 - [ ] Prerrequisito manual: ATP, wallet, usuario, variables de entorno
-- [ ] M1.1 Proyecto Spring Boot base
+- [x] M1.1 Proyecto Spring Boot base
 - [ ] M1.2 Conexión a Oracle ATP
 - [ ] M1.3 Flyway
 - [ ] M1.4 Errores, logs y CORS
@@ -97,3 +97,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-01 · M0.4-Rev · Corrección profunda del modelo relacional: eliminación de ON DELETE RESTRICT (NO ACTION en Oracle), EMAIL minúsculas con CHECK y sin índice redundante, ATENCION con transición ABIERTA->CERRADA y campos obligatorios al cierre, triggers/grants de inmutabilidad para todas las entidades clínicas, FK cita-triaje, condiciones estructuradas de triaje, UQ slot-profesional-inicio, reescritura de 3FN sin afirmar BCNF con 4 desnormalizaciones controladas, snapshot cuádruple en receta, rangos en signos vitales y consentimiento revocable · docs(database): correccion integral del modelo relacional segun observaciones
 - 2026-10-01 · M0.5 · Aprobación formal de especificaciones y diseño de la Fase M0 por parte de Juan. Actualización de DECISIONES.md a APROBADO, cierre de fase M0, merge a develop y creación de etiqueta v0.0 · Puerta de salida M0 cumplida · chore: aprobacion de diseno y cierre de fase m0 (v0.0)
 - 2026-10-01 · M0.5-Ajustes · Incorporación de decisiones finales aprobadas: ES_ALARMA en SINTOMA con corte de emergencia y default Nivel III, EVOLUCION VARCHAR2(4000 CHAR) con validación DTO, segregación MEDITRIAJE_OWNER/MEDITRIAJE_APP en ADR-012 y PLAN_DE_TRABAJO, trigger de SIGNO_VITAL bloqueando INSERT en CERRADA, emisión de RECETA sobre atención cerrada, validación de integridad referencial CITA-TRIAJE mediante clave compuesta UQ y FK en BD, y time zone en HikariCP · Verificación de consistencia cruzada en docs/ · docs(database): ajustes finales de modelo relacional, adrs y prerrequisitos m0
+- 2026-10-01 · M1.1 · Creación de backend/ con Spring Boot 3 y Java 21, configuración de dependencias Maven (web, validation, security, jdbc, flyway, ojdbc11, actuator, test), estructura de paquetes por capas (§8), perfiles dev/test/prod sin secretos y endpoint GET /api/v1/ping · mvn clean verify exitoso y verificación de respuesta UP en vivo · feat(backend): inicializar proyecto base spring boot 3 con java 21 y endpoint de ping m1.1
