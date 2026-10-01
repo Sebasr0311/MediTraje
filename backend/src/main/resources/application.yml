@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: meditriaje-api
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    locations: classpath:database/migrations
+    user: ${FLYWAY_USER:MEDITRIAJE_OWNER}
+    password: ${FLYWAY_PASSWORD:}
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  datasource:
+    url: ${DB_URL:}
+    username: ${DB_USER:MEDITRIAJE_APP}
+    password: ${DB_PASSWORD:}
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      pool-name: MediTriajeHikariPool
+      connection-test-query: SELECT 1 FROM DUAL
+      connection-init-sql: "BEGIN EXECUTE IMMEDIATE 'ALTER SESSION SET TIME_ZONE = ''America/Bogota'''; EXECUTE IMMEDIATE 'ALTER SESSION SET CURRENT_SCHEMA = MEDITRIAJE_OWNER'; END;"
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      initialization-fail-timeout: -1
+
+server:
+  port: ${PORT:${SERVER_PORT:8080}}
+  servlet:
+    context-path: /
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+cors:
+  origins: ${CORS_ORIGINS:http://localhost:5500,http://127.0.0.1:5500}
+
+logging:
+  level:
+    root: INFO
+    com.meditriaje: INFO
+    org.springframework.security: WARN
+    com.zaxxer.hikari: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
