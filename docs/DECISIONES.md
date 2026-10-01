@@ -112,8 +112,11 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
   - **GRANTs mínimos por migración:** cada script Flyway (`database/migrations/V###__*.sql`), ejecutado por `MEDITRIAJE_OWNER`, incluye al final las sentencias `GRANT` mínimas indispensables para `MEDITRIAJE_APP` (`SELECT`, `INSERT`, `UPDATE` estrictamente necesarios; sin privilegios de `DELETE` en tablas clínicas y sin `UPDATE`/`DELETE` en `AUDITORIA` y `ATENCION_ENMIENDA`).
 - Desarrollo local con Oracle Free en Docker (o ATP directo) y pruebas de integración con Testcontainers.
 - Perfiles `dev`, `test`, `prod`; secretos por variables de entorno (`DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`). Wallet fuera del repo y en `.gitignore`.
-- Backups: los automáticos de ATP; documentar en `DATABASE.md` cómo restaurar.
-- Despliegue: demo local en el MVP; luego backend + frontend en OCI (cuenta Always Free) conservando HTTPS. El frontend nunca habla con Oracle.
+- Despliegue en la nube:
+  - **Frontend:** Alojado en **Vercel** como sitio web estático (HTML/CSS/JS vanilla sin build, entrega CDN global, HTTPS nativo).
+  - **Backend:** Desplegado en **Render** como Web Service (Java 21 / Docker). Render asigna dinámicamente la variable de entorno `$PORT` (manejada con `server.port = ${PORT:${SERVER_PORT:8080}}`). Las credenciales y el wallet de Oracle ATP se inyectan como variables de entorno y *Secret Files* (`/etc/secrets/wallet`) sin tocar el repositorio.
+  - **Base de Datos:** Oracle ATP permanece en OCI Always Free.
+  - El frontend nunca interactúa directamente con Oracle; `CORS_ORIGINS` en Render se configura con el dominio de Vercel.
 
 ## ADR-013 Datos personales y cumplimiento (verificar con la norma vigente)
 - Consentimiento de tratamiento de datos (Ley 1581 de 2012) obligatorio en el registro, guardado en `CONSENTIMIENTO` con versión y fecha.

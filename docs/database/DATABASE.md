@@ -148,3 +148,30 @@ Oracle Autonomous Database realiza copias de seguridad automáticas continuas:
    * Haz clic en **More Actions** → **Restore**.
    * Selecciona **Select a Backup** o **Restore to a Point in Time (PITR)** (marca de tiempo exacta).
    * Confirma la operación. La base de datos pasará a estado `RESTORE_IN_PROGRESS` y volverá a `AVAILABLE` al finalizar.
+
+---
+
+## 7. Despliegue en la Nube (Render y Vercel)
+
+El proyecto adopta una arquitectura desacoplada para el despliegue en producción (ADR-012):
+
+### Backend en Render (Web Service):
+1. **Manejo del Wallet sin exponer secretos en Git:**
+   * En el dashboard de **Render**, en la configuración de tu servicio, accede a **Environment** → **Secret Files**.
+   * Crea los archivos requeridos del wallet (p. ej. `cwallet.sso`, `tnsnames.ora`, `sqlnet.ora`, etc.) montados en la ruta `/etc/secrets/wallet/`.
+   * Alternativamente, si en ATP habilitas **TLS sin mTLS (puerto 1522)**, puedes conectar directamente sin archivos de wallet.
+2. **Variables de Entorno en Render:**
+   * `DB_URL`: `jdbc:oracle:thin:@meditriaje_tp?TNS_ADMIN=/etc/secrets/wallet`
+   * `DB_USER`: `MEDITRIAJE_APP`
+   * `DB_PASSWORD`: *(valor secreto)*
+   * `FLYWAY_USER`: `MEDITRIAJE_OWNER`
+   * `FLYWAY_PASSWORD`: *(valor secreto)*
+   * `JWT_SECRET`: *(secreto de al menos 256 bits)*
+   * `CORS_ORIGINS`: `https://tu-proyecto.vercel.app`
+3. **Puerto Dinámico:**
+   * Render asigna automáticamente la variable de entorno `$PORT`. La aplicación Spring Boot la detecta y enlaza a través de `server.port = ${PORT:${SERVER_PORT:8080}}`.
+
+### Frontend en Vercel:
+* El directorio `frontend/` se despliega como sitio estático sin fase de compilación.
+* Las peticiones hacia la API se direccionan al dominio del Web Service en Render (`https://tu-backend.onrender.com/api/v1`).
+
