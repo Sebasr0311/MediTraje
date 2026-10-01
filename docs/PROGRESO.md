@@ -84,6 +84,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 ## Pendientes y dudas abiertas
 (Todo lo marcado como PENDIENTE DE DECISIÓN)
+- PENDIENTE: Ubicación de ES_ALARMA (se propone centralizar únicamente en REGLA_TRIAJE y eliminar de SINTOMA).
+- PENDIENTE: Tipo de dato de ATENCION.EVOLUCION (propuesto VARCHAR2(4000 CHAR) como default de MVP; alternativa CLOB si se requieren notas ilimitadas).
 - Catálogo definitivo y validación clínica formal de reglas de triaje (mantenidas como prototipo según ADR-009).
 - Datos de conexión a Oracle ATP (wallet, usuario y clave para el perfil dev de M1).
 
@@ -93,4 +95,5 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-01 · M0.2 · Especificación formal de casos de uso (CU-01 a CU-11) y reglas de negocio (RB-01 a RB-25) alineadas con ADR-001..013 y Documento Maestro §44 · Verificación de consistencia y ausencia de contradicciones con ADRs · docs(requirements): casos de uso y reglas de negocio m0.2
 - 2026-10-01 · M0.3 · Diseño del modelo de dominio y diagrama entidad-relación (MER) en Mermaid cubriendo 25 entidades, cardinalidades y descripción conceptual · Verificación visual de relaciones y atributos clave · docs(database): modelo entidad-relacion mer m0.3
 - 2026-10-01 · M0.4 · Especificación completa del modelo relacional en Oracle ATP (25 tablas, tipos, constraints, índice funcional único uq_cita_slot_activa, triggers de inmutabilidad clínica, política ON DELETE y análisis 3FN) · Verificación de tipos Oracle y ausencia de borrado en tablas clínicas · docs(database): modelo relacional y normalizacion m0.4
+- 2026-10-01 · M0.4-Rev · Corrección profunda del modelo relacional: eliminación de ON DELETE RESTRICT (NO ACTION en Oracle), EMAIL minúsculas con CHECK y sin índice redundante, ATENCION con transición ABIERTA->CERRADA y campos obligatorios al cierre, triggers/grants de inmutabilidad para todas las entidades clínicas, FK cita-triaje, condiciones estructuradas de triaje, UQ slot-profesional-inicio, reescritura de 3FN sin afirmar BCNF con 4 desnormalizaciones controladas, snapshot cuádruple en receta, rangos en signos vitales y consentimiento revocable · docs(database): correccion integral del modelo relacional segun observaciones
 - 2026-10-01 · M0.5 · Aprobación formal de especificaciones y diseño de la Fase M0 por parte de Juan. Actualización de DECISIONES.md a APROBADO, cierre de fase M0, merge a develop y creación de etiqueta v0.0 · Puerta de salida M0 cumplida · chore: aprobacion de diseno y cierre de fase m0 (v0.0)
