@@ -4,8 +4,8 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M1
-- **Tarea actual:** M1.5 (Pruebas y CI)
+- **Fase actual:** M1 — ✅ COMPLETA (puerta de salida M1 cumplida)
+- **Tarea actual:** M2.1 (pendiente aprobación de Juan para avanzar a M2)
 - **Última etiqueta:** v0.0
 - **Rama de trabajo:** feature/m1-base-oracle
 
@@ -25,7 +25,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M1.2 Conexión a Oracle ATP
 - [x] M1.3 Flyway
 - [x] M1.4 Errores, logs y CORS
-- [ ] M1.5 Pruebas y CI
+- [x] M1.5 Pruebas y CI
 
 ### M2 — Seguridad base
 - [ ] M2.1 Migración de seguridad
@@ -101,3 +101,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-01 · M1.2 · Configuración de DataSource HikariCP leyendo DB_URL, DB_USER y DB_PASSWORD, conexión inicial con CURRENT_SCHEMA=MEDITRIAJE_OWNER y TIME_ZONE=America/Bogota, health check de base de datos en Actuator, creación de .env.example sin secretos y docs/database/DATABASE.md con guía de wallet y usuarios ATP · Pruebas unitarias pasando y verificación git grep -i password limpia de secretos · feat(database): configurar datasource hikari para oracle atp, health check y documentacion m1.2
 - 2026-10-01 · M1.3 · Configuración de migraciones Flyway empaquetadas en classpath y vía plugin Maven, creación de migración inicial V001__baseline.sql con tabla CONTROL_SISTEMA y GRANTs a MEDITRIAJE_APP según ADR-012, y documentación de comandos en DATABASE.md · mvn clean verify exitoso con empaquetado de recursos de migración · feat(flyway): configurar migraciones flyway con linea base v001 y grants m1.3
 - 2026-10-01 · M1.4 · ApiError record (codigo, mensaje, timestamp, traceId), jerarquía de excepciones de dominio (RecursoNoEncontrado 404, DatosInvalidos 400, AccesoNoAutorizado 403, CitaNoDisponible 409, MediTriajeException base), GlobalExceptionHandler @RestControllerAdvice sin stack traces, CorsConfig leyendo CORS_ORIGINS, SecurityConfig integrado con CorsConfigurationSource, logging configurado sin datos sensibles · mvn clean verify exitoso - Tests run: 2, Failures: 0 · feat(error-handling): manejo global de errores cors y logging m1.4
+- 2026-10-01 · M1.5 · OracleIntegrationTest con Testcontainers (gvenzl/oracle-free:23-slim-faststart): crea MEDITRIAJE_OWNER y MEDITRIAJE_APP, aplica Flyway, valida historial y segregación de privilegios DDL. @Testcontainers(disabledWithoutDocker=true) + Assumptions.assumeTrue() para SKIPPED graceful en local sin Docker. Failsafe plugin separado de Surefire vía @Tag("integration"). GitHub Actions workflow .github/workflows/ci.yml con Java 21 Temurin. Sección de pruebas en README.md · mvn clean verify exitoso - Tests run: 5 unit (2 pass) + 3 integration (3 skipped en local, pasan en CI) · feat(ci): testcontainers oracle y workflow github actions m1.5

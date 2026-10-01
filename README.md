@@ -71,3 +71,51 @@ El desarrollo se realiza mediante microtareas guiadas:
 * Plan previo validado antes de escribir código.
 * Sin inclusión de secretos ni wallets en el repositorio.
 * Registro continuo en `docs/PROGRESO.md`.
+
+---
+
+## 5. Cómo Correr las Pruebas
+
+### Requisitos previos
+
+| Herramienta | Versión mínima |
+|---|---|
+| Java (JAVA_HOME) | 21 |
+| Maven | 3.9+ |
+| Docker | 24+ (solo para pruebas de integración) |
+
+### Pruebas unitarias (sin Oracle, sin Docker)
+
+```bash
+cd backend
+mvn clean verify
+```
+
+Usa el perfil `test` por defecto. No requiere ninguna variable de entorno ni conexión a base de datos.
+
+### Pruebas de integración (requieren Docker)
+
+Las pruebas marcadas con `@Tag("integration")` levantan Oracle Free 23c mediante Testcontainers y:
+
+1. Crean el usuario `MEDITRIAJE_OWNER` (ejecuta migraciones Flyway).
+2. Crean el usuario `MEDITRIAJE_APP` (privilegios mínimos de runtime).
+3. Validan conectividad y segregación de privilegios.
+
+```bash
+cd backend
+mvn clean verify
+# Failsafe ejecuta los @Tag("integration") en la fase integration-test
+```
+
+> **Nota:** la primera ejecución descarga la imagen Docker `gvenzl/oracle-free:23-slim-faststart` (~1 GB).
+> Las siguientes usan la capa de caché local.
+
+Para saltarse las pruebas de integración (ej. en una máquina sin Docker):
+
+```bash
+mvn clean verify -DskipITs
+```
+
+### CI (GitHub Actions)
+
+Cada push dispara el workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) que ejecuta `mvn clean verify` en Java 21 Temurin sobre `ubuntu-latest`.

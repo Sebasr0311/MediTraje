@@ -1,0 +1,11 @@
+# Perfil para pruebas de integración con Testcontainers.
+# El datasource y Flyway se sobreescriben por OracleContainerInitializer
+# vía DynamicPropertySource en la clase de test.
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+
+# La prueba de integración no arranca servidor HTTP.
+spring.main.web-application-type: none
