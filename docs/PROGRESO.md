@@ -6,7 +6,7 @@
 ## Estado actual
 - **Fase actual:** M1 — ✅ COMPLETA (puerta de salida M1 cumplida)
 - **Tarea actual:** M2.1 (pendiente aprobación de Juan para avanzar a M2)
-- **Última etiqueta:** v0.0
+- **Última etiqueta:** v0.1 (M1 completa)
 - **Rama de trabajo:** feature/m1-base-oracle
 
 ## Tareas
