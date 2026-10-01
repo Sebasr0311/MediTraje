@@ -1,0 +1,54 @@
+# ==============================================================================
+# MediTriaje 2.0 — .gitignore
+# Regla no negociable: Ningún secreto ni credencial real debe llegar a Git.
+# ==============================================================================
+
+# Oracle ATP Wallet & Conexiones seguras
+*wallet*
+*Wallet*
+*.sso
+*.p12
+cwallet.*
+ewallet.*
+tnsnames.ora
+sqlnet.ora
+ojdbc.properties
+ojdbc.jar
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Compilación y paquetes (Maven / Java)
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# Logs y volcados
+*.log
+logs/
+*.stackdump
+
+# Herramientas de desarrollo e IDEs
+.idea/
+*.iml
+.vscode/
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Reportes de pruebas y cobertura
+coverage/
+.nyc_output/
+test-output/
