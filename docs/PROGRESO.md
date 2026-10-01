@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** M1
-- **Tarea actual:** M1.4 (Errores, logs y CORS)
+- **Tarea actual:** M1.5 (Pruebas y CI)
 - **Última etiqueta:** v0.0
 - **Rama de trabajo:** feature/m1-base-oracle
 
@@ -24,7 +24,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M1.1 Proyecto Spring Boot base
 - [x] M1.2 Conexión a Oracle ATP
 - [x] M1.3 Flyway
-- [ ] M1.4 Errores, logs y CORS
+- [x] M1.4 Errores, logs y CORS
 - [ ] M1.5 Pruebas y CI
 
 ### M2 — Seguridad base
@@ -100,3 +100,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-01 · M1.1 · Creación de backend/ con Spring Boot 3 y Java 21, configuración de dependencias Maven (web, validation, security, jdbc, flyway, ojdbc11, actuator, test), estructura de paquetes por capas (§8), perfiles dev/test/prod sin secretos y endpoint GET /api/v1/ping · mvn clean verify exitoso y verificación de respuesta UP en vivo · feat(backend): inicializar proyecto base spring boot 3 con java 21 y endpoint de ping m1.1
 - 2026-10-01 · M1.2 · Configuración de DataSource HikariCP leyendo DB_URL, DB_USER y DB_PASSWORD, conexión inicial con CURRENT_SCHEMA=MEDITRIAJE_OWNER y TIME_ZONE=America/Bogota, health check de base de datos en Actuator, creación de .env.example sin secretos y docs/database/DATABASE.md con guía de wallet y usuarios ATP · Pruebas unitarias pasando y verificación git grep -i password limpia de secretos · feat(database): configurar datasource hikari para oracle atp, health check y documentacion m1.2
 - 2026-10-01 · M1.3 · Configuración de migraciones Flyway empaquetadas en classpath y vía plugin Maven, creación de migración inicial V001__baseline.sql con tabla CONTROL_SISTEMA y GRANTs a MEDITRIAJE_APP según ADR-012, y documentación de comandos en DATABASE.md · mvn clean verify exitoso con empaquetado de recursos de migración · feat(flyway): configurar migraciones flyway con linea base v001 y grants m1.3
+- 2026-10-01 · M1.4 · ApiError record (codigo, mensaje, timestamp, traceId), jerarquía de excepciones de dominio (RecursoNoEncontrado 404, DatosInvalidos 400, AccesoNoAutorizado 403, CitaNoDisponible 409, MediTriajeException base), GlobalExceptionHandler @RestControllerAdvice sin stack traces, CorsConfig leyendo CORS_ORIGINS, SecurityConfig integrado con CorsConfigurationSource, logging configurado sin datos sensibles · mvn clean verify exitoso - Tests run: 2, Failures: 0 · feat(error-handling): manejo global de errores cors y logging m1.4
