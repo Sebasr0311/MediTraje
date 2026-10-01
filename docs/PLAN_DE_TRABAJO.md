@@ -139,10 +139,11 @@ Implementa manejo global de errores con una respuesta ApiError consistente (sin 
 **Verifica:** un error provocado devuelve JSON estructurado sin stack trace.
 
 ### M1.5 Pruebas y CI
-**Qué:** una prueba de integración con Testcontainers (Oracle Free) y un workflow de GitHub Actions que ejecute `mvn verify`.
+**Qué:** una prueba de integración con Testcontainers (Oracle Free) que cree ambos usuarios de BD (`MEDITRIAJE_OWNER` y `MEDITRIAJE_APP`) y un workflow de GitHub Actions que ejecute `mvn verify`.
 ```
-Agrega una prueba de integración con Testcontainers (Oracle Free) que aplique las migraciones, y un workflow de GitHub Actions que ejecute mvn clean verify en cada push. Documenta cómo correr las pruebas en README.
+Agrega una prueba de integración con Testcontainers (Oracle Free) que inicialice el contenedor aprovisionando ambos usuarios de BD (MEDITRIAJE_OWNER para ejecutar migraciones Flyway y MEDITRIAJE_APP con privilegios mínimos para el datasource de la aplicación), aplique las migraciones y valide la conectividad. Añade un workflow de GitHub Actions que ejecute mvn clean verify en cada push. Documenta cómo correr las pruebas en README.
 ```
+**Verifica:** Testcontainers levanta Oracle Free, crea ambos usuarios, corre Flyway como `MEDITRIAJE_OWNER`, ejecuta la app como `MEDITRIAJE_APP` con sus `GRANT`s y `mvn clean verify` pasa en local y en CI.
 **Puerta de salida M1:** la app arranca, conecta a ATP, migra, `mvn clean verify` pasa en local y en CI. Etiqueta `v0.1`.
 
 ---

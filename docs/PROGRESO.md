@@ -86,7 +86,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ## Pendientes y dudas abiertas
 (Todo lo marcado como PENDIENTE DE DECISIÓN)
 - Catálogo definitivo y validación clínica formal de reglas de triaje (mantenidas como prototipo según ADR-009).
-- Datos de conexión a Oracle ATP (wallet, usuarios MEDITRIAJE_OWNER / MEDITRIAJE_APP y claves para el perfil dev de M1).
+- Variables de entorno del entorno dev de M1: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `FLYWAY_USER`, `FLYWAY_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`.
 
 ## Bitácora de sesiones
 (Fecha · tarea · qué se hizo · pruebas ejecutadas · commit)
