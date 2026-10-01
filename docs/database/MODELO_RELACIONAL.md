@@ -1,7 +1,7 @@
 # MediTriaje 2.0 — Modelo Relacional y Normalización
 
 > Contrato formal de base de datos para Oracle Autonomous Transaction Processing (ATP) / Oracle 21c+.
-> Basado en `docs/database/MER.md`, `docs/DECISIONES.md` (ADR-003, ADR-005, ADR-006, ADR-008, ADR-011, ADR-013) y `docs/requirements/REGLAS_NEGOCIO.md`.
+> Basado en `docs/database/MER.md`, `docs/DECISIONES.md` (ADR-003, ADR-005, ADR-006, ADR-008, ADR-009, ADR-011, ADR-012, ADR-013) y `docs/requirements/REGLAS_NEGOCIO.md`.
 
 ---
 
@@ -18,12 +18,22 @@
    - Restricciones de unicidad: `UQ_<TABLA>_<COLUMNA(S)>`
    - Restricciones de chequeo: `CK_<TABLA>_<COLUMNA>`
    - Índices secundarios: `IX_<TABLA>_<COLUMNA(S)>`
-4. **Tipos de Datos y Temporalidad (ADR-005):**
+4. **Tipos de Datos, Temporalidad y Pool (ADR-005):**
    - Fechas y horas con zona horaria: `TIMESTAMP WITH TIME ZONE`.
-   - **Ajuste de Sesión Obligatorio:** El pool de conexiones (HikariCP) debe ejecutar `ALTER SESSION SET TIME_ZONE = 'America/Bogota';` al inicializar cada conexión física.
+   - **Ajuste de Sesión en Pool de Conexiones:** El pool HikariCP debe configurar obligatoriamente:
+     ```properties
+     connectionInitSql = "ALTER SESSION SET TIME_ZONE = 'America/Bogota'"
+     ```
+     asegurando que cada conexión física opere bajo la zona horaria del proyecto (`America/Bogota`).
    - Fechas sin componente horario: `DATE` (fechas de nacimiento).
    - Booleanos lógicos: `NUMBER(1)` con constraint `CHECK (col IN (0, 1))`.
-5. **Política de Integridad Referencial (`ON DELETE`):**
+5. **Segregación de Usuarios de Base de Datos y Privilegios (ADR-012):**
+   - **`MEDITRIAJE_OWNER`:** Usuario propietario del esquema utilizado exclusivamente por Flyway para migraciones y operaciones DDL (`CREATE`, `ALTER`, `DROP`, índices, triggers, secuencias). No tiene acceso desde la aplicación web en runtime.
+   - **`MEDITRIAJE_APP`:** Usuario de mínimos privilegios utilizado por la aplicación Spring Boot en runtime (HikariCP).
+     - Privilegios concedidos: `SELECT`, `INSERT`, `UPDATE` estrictamente sobre las tablas necesarias.
+     - **Prohibición de `DELETE`:** Sin permisos `DELETE` sobre tablas clínicas y asistenciales (`ATENCION`, `SIGNO_VITAL`, `ATENCION_ENMIENDA`, `RECETA`, `RECETA_DETALLE`, `CONSENTIMIENTO`, `AUDITORIA`).
+     - **Prohibición de `UPDATE` y `DELETE`:** Sin permisos `UPDATE` ni `DELETE` sobre `AUDITORIA` y `ATENCION_ENMIENDA` (tablas insert-only / append-only).
+6. **Política de Integridad Referencial (`ON DELETE`):**
    - **Oracle NO soporta la sintaxis `ON DELETE RESTRICT`**. En consecuencia, en todas las claves foráneas donde se requiera proteger la integridad referencial se **omite** la cláusula `ON DELETE`. En Oracle, la omisión equivale al comportamiento estándar `NO ACTION` (el motor rechaza cualquier borrado de fila padre con filas dependientes activas mediante el error `ORA-02292`).
    - **Excepciones con `ON DELETE CASCADE`:** Únicamente se aplica `ON DELETE CASCADE` en las tablas técnicas secundarias dependientes del ciclo de vida de `USUARIO` (`USUARIO_ROL` y `REFRESH_TOKEN`). Ninguna tabla asistencial o clínica permite borrado en cascada.
 
@@ -51,8 +61,6 @@ Cuenta de autenticación global en el sistema.
   * `UQ_USUARIO_EMAIL`: `UNIQUE (EMAIL)`
   * `CK_USUARIO_EMAIL_LOWER`: `CHECK (EMAIL = LOWER(EMAIL))` (garantiza minúsculas sin necesidad de índice funcional duplicado)
   * `CK_USUARIO_ESTADO`: `CHECK (ESTADO IN ('ACTIVO', 'INACTIVO', 'BLOQUEADO'))`
-* **Índices:**
-  * La restricción `UQ_USUARIO_EMAIL` ya genera el índice B-Tree óptimo sobre `EMAIL`; no se requiere índice adicional.
 
 #### 2. `ROL`
 Catálogo de roles autorizados.
@@ -73,7 +81,7 @@ Asignación N:M de roles a usuarios.
 * **Constraints:**
   * `PK_USUARIO_ROL`: `PRIMARY KEY (USUARIO_ID, ROL_ID)`
   * `FK_USUARIO_ROL_USUARIO`: `FOREIGN KEY (USUARIO_ID) REFERENCES USUARIO(ID) ON DELETE CASCADE`
-  * `FK_USUARIO_ROL_ROL`: `FOREIGN KEY (ROL_ID) REFERENCES ROL(ID)` (sin cláusula = NO ACTION)
+  * `FK_USUARIO_ROL_ROL`: `FOREIGN KEY (ROL_ID) REFERENCES ROL(ID)`
 * **Índices:**
   * `IX_USUARIO_ROL_ROL`: `ON (ROL_ID)`
 
@@ -112,7 +120,7 @@ Registro inmutable de consentimiento con soporte de revocación (Ley 1581 / ADR-
   * `CK_CONSENTIMIENTO_REVOCADO`: `CHECK (REVOCADO IN (0, 1))`
   * `CK_CONSENTIMIENTO_FECHA_REV`: `CHECK ((REVOCADO = 0 AND FECHA_REVOCACION IS NULL) OR (REVOCADO = 1 AND FECHA_REVOCACION IS NOT NULL))`
 * **Inmutabilidad:**
-  * Trigger `TR_CONSENTIMIENTO_INMUTABILIDAD`: Bloquea `DELETE` en su totalidad. En `UPDATE`, solo permite modificar `REVOCADO` de 0 a 1 y asignar `FECHA_REVOCACION`. Cualquier otro cambio de columna es rechazado.
+  * Trigger `TR_CONSENTIMIENTO_INMUTABILIDAD`: Bloquea sentencias `DELETE`. En `UPDATE`, solo permite modificar `REVOCADO` de 0 a 1 y fijar `FECHA_REVOCACION`. Cualquier otro cambio de columna es rechazado.
 
 #### 6. `AUDITORIA`
 Bitácora centralizada insert-only sin datos clínicos ni secretos (ADR-011).
@@ -130,7 +138,7 @@ Bitácora centralizada insert-only sin datos clínicos ni secretos (ADR-011).
   * `CK_AUDITORIA_RESULTADO`: `CHECK (RESULTADO IN ('EXITO', 'FALLO', 'BLOQUEADO'))`
 * **Inmutabilidad y Permisos:**
   * Trigger `TR_AUDITORIA_INMUTABILIDAD`: Bloquea incondicionalmente sentencias `UPDATE` y `DELETE`.
-  * El usuario de base de datos de la aplicación no recibe privilegios `GRANT UPDATE, DELETE ON AUDITORIA`.
+  * El usuario `MEDITRIAJE_APP` no tiene privilegios de `UPDATE` ni `DELETE` sobre `AUDITORIA`.
 * **Índices:**
   * `IX_AUDITORIA_FECHA`: `ON (FECHA_HORA DESC)`
   * `IX_AUDITORIA_USUARIO`: `ON (USUARIO_ID, FECHA_HORA DESC)`
@@ -258,13 +266,13 @@ Turnos pregenerados ofertados por la administración.
   * `CK_SLOT_MODALIDAD`: `CHECK (MODALIDAD IN ('PRESENCIAL', 'TELEMEDICINA'))`
   * `CK_SLOT_ESTADO`: `CHECK (ESTADO IN ('LIBRE', 'OCUPADO', 'BLOQUEADO'))`
 * **Control de Solapes Horarios:**
-  * La constraint `UQ_SLOT_PROFESIONAL_INICIO` impide en base de datos la creación de dos turnos con idéntico instante de inicio para un mismo profesional.
-  * El control de **solape general de intervalos** (ejemplo: turno existente 08:00–08:30 versus nuevo turno 08:15–08:45) se valida a nivel de la capa de servicio (`SlotGeneratorService`) mediante consulta transaccional de no solape (`WHERE profesional_id = :p AND NOT (fecha_hora_fin <= :inicio OR fecha_hora_inicio >= :fin)`), dado que Oracle no posee índices de exclusión temporal nativos tipo GiST.
+  * `UQ_SLOT_PROFESIONAL_INICIO` impide a nivel relacional que se creen dos turnos con idéntico instante de inicio para un mismo profesional.
+  * El control de **solape general de intervalos** (ejemplo: turno 08:00–08:30 versus turno 08:15–08:45) se valida en la capa de servicio (`SlotGeneratorService`) mediante consulta transaccional de exclusión (`WHERE profesional_id = :p AND NOT (fecha_hora_fin <= :inicio OR fecha_hora_inicio >= :fin)`), dado que Oracle no posee índices de exclusión temporal nativos (tipo GiST).
 * **Índices:**
   * `IX_SLOT_BUSQUEDA`: `ON (ESPECIALIDAD_ID, SEDE_ID, ESTADO, FECHA_HORA_INICIO)`
 
 #### 13. `CITA`
-Reserva de turno con protección concurrente a nivel de Oracle.
+Reserva de turno con protección concurrente a nivel de Oracle y FK compuesta con Triaje.
 * **Columnas:**
   * `ID`: `NUMBER GENERATED ALWAYS AS IDENTITY` | `NOT NULL`
   * `PUBLIC_ID`: `VARCHAR2(36 CHAR)` | `NOT NULL`
@@ -281,17 +289,15 @@ Reserva de turno con protección concurrente a nivel de Oracle.
   * `UQ_CITA_PUBLIC_ID`: `UNIQUE (PUBLIC_ID)`
   * `FK_CITA_SLOT`: `FOREIGN KEY (SLOT_ID) REFERENCES DISPONIBILIDAD_SLOT(ID)`
   * `FK_CITA_PACIENTE`: `FOREIGN KEY (PACIENTE_ID) REFERENCES PACIENTE(ID)`
-  * `FK_CITA_TRIAJE`: `FOREIGN KEY (TRIAJE_ID) REFERENCES TRIAJE(ID)`
+  * `FK_CITA_TRIAJE_PACIENTE`: `FOREIGN KEY (TRIAJE_ID, PACIENTE_ID) REFERENCES TRIAJE(ID, PACIENTE_ID)` (Clave foránea compuesta que garantiza en BD que el triaje pertenece al mismo paciente de la cita)
   * `FK_CITA_ORIGEN`: `FOREIGN KEY (CITA_ORIGEN_ID) REFERENCES CITA(ID)`
   * `CK_CITA_ESTADO`: `CHECK (ESTADO IN ('PROGRAMADA', 'CONFIRMADA', 'ATENDIDA', 'CANCELADA', 'NO_ASISTIO', 'REPROGRAMADA'))`
-* **Regla de Coherencia Cita-Triaje:**
-  * Cuando `TRIAJE_ID` no es nulo, el triaje debe corresponder inequívocamente al mismo paciente de la cita (`CITA.PACIENTE_ID = TRIAJE.PACIENTE_ID`). Esto se valida obligatoriamente en `CitaService` antes del registro.
 * **Índice Funcional Único de Concurrencia (ADR-006):**
   * `UQ_CITA_SLOT_ACTIVA`: `CREATE UNIQUE INDEX UQ_CITA_SLOT_ACTIVA ON CITA (CASE WHEN ESTADO IN ('PROGRAMADA', 'CONFIRMADA') THEN SLOT_ID END)`
 * **Índices Secundarios:**
   * `IX_CITA_PACIENTE`: `ON (PACIENTE_ID, ESTADO, CREATED_AT DESC)`
   * `IX_CITA_SLOT`: `ON (SLOT_ID)`
-  * `IX_CITA_TRIAJE`: `ON (TRIAJE_ID)`
+  * `IX_CITA_TRIAJE_PAC`: `ON (TRIAJE_ID, PACIENTE_ID)`
 
 ---
 
@@ -305,17 +311,19 @@ Catálogo de síntomas observables.
   * `CODIGO`: `VARCHAR2(30 CHAR)` | `NOT NULL`
   * `NOMBRE`: `VARCHAR2(100 CHAR)` | `NOT NULL`
   * `CATEGORIA`: `VARCHAR2(50 CHAR)` | `NOT NULL`
+  * `ES_ALARMA`: `NUMBER(1) DEFAULT 0` | `NOT NULL`
   * `ESTADO`: `VARCHAR2(20 CHAR)` | `DEFAULT 'ACTIVO' NOT NULL`
 * **Constraints:**
   * `PK_SINTOMA`: `PRIMARY KEY (ID)`
   * `UQ_SINTOMA_PUBLIC_ID`: `UNIQUE (PUBLIC_ID)`
   * `UQ_SINTOMA_CODIGO`: `UNIQUE (CODIGO)`
+  * `CK_SINTOMA_ALARMA`: `CHECK (ES_ALARMA IN (0, 1))`
   * `CK_SINTOMA_ESTADO`: `CHECK (ESTADO IN ('ACTIVO', 'INACTIVO'))`
-* **Decisión de Diseño sobre Alarma:**
-  * Se elimina `ES_ALARMA` de `SINTOMA`. La condición de alarma es una regla clínica de evaluación dinámica (condición + duración + intensidad) y reside exclusivamente en `REGLA_TRIAJE` *(Propuesta explicada en §4; marcada PENDIENTE de confirmación)*.
+* **Regla de Alarma Incondicional (ADR-009):**
+  * `ES_ALARMA` reside **exclusivamente en `SINTOMA`**. Si un síntoma tiene `ES_ALARMA = 1`, se considera alarma incondicional y activa de inmediato el corte de emergencia al 123 / urgencias, sin importar su intensidad o duración.
 
 #### 15. `REGLA_TRIAJE`
-Reglas deterministas versionadas con condiciones estructuradas (ADR-009).
+Reglas deterministas versionadas con rangos numéricos estructurados (ADR-009).
 * **Columnas:**
   * `ID`: `NUMBER GENERATED ALWAYS AS IDENTITY` | `NOT NULL`
   * `VERSION`: `VARCHAR2(20 CHAR)` | `NOT NULL`
@@ -325,7 +333,6 @@ Reglas deterministas versionadas con condiciones estructuradas (ADR-009).
   * `INTENSIDAD_MIN`: `NUMBER(2) DEFAULT 0` | `NOT NULL`
   * `INTENSIDAD_MAX`: `NUMBER(2) DEFAULT 10` | `NOT NULL`
   * `NIVEL_PRIORIDAD`: `VARCHAR2(5 CHAR)` | `NOT NULL`
-  * `ES_ALARMA`: `NUMBER(1) DEFAULT 0` | `NOT NULL`
   * `ESTADO`: `VARCHAR2(20 CHAR)` | `DEFAULT 'ACTIVO' NOT NULL`
 * **Constraints:**
   * `PK_REGLA_TRIAJE`: `PRIMARY KEY (ID)`
@@ -333,8 +340,9 @@ Reglas deterministas versionadas con condiciones estructuradas (ADR-009).
   * `CK_REGLA_INTENSIDAD`: `CHECK (INTENSIDAD_MIN >= 0 AND INTENSIDAD_MAX <= 10 AND INTENSIDAD_MIN <= INTENSIDAD_MAX)`
   * `CK_REGLA_DURACION`: `CHECK (DURACION_MIN_HORAS >= 0 AND (DURACION_MAX_HORAS IS NULL OR DURACION_MAX_HORAS >= DURACION_MIN_HORAS))`
   * `CK_REGLA_NIVEL`: `CHECK (NIVEL_PRIORIDAD IN ('I', 'II', 'III', 'IV', 'V'))`
-  * `CK_REGLA_ALARMA`: `CHECK (ES_ALARMA IN (0, 1))`
   * `CK_REGLA_ESTADO`: `CHECK (ESTADO IN ('ACTIVO', 'INACTIVO'))`
+* **Nivel por Defecto Conservador:**
+  * Si un paciente reporta síntomas que no coinciden con ninguna regla en `REGLA_TRIAJE`, el motor de triaje asigna por defecto **Nivel III (Urgencia menor / Prioritaria)**. **Bajo ninguna circunstancia se asigna Nivel V (no urgente) a síntomas sin tipificación.**
 * **Índices:**
   * `IX_REGLA_TRIAJE_VERSION`: `ON (VERSION, ESTADO, SINTOMA_ID)`
 
@@ -353,10 +361,13 @@ Evaluación completada por un paciente.
 * **Constraints:**
   * `PK_TRIAJE`: `PRIMARY KEY (ID)`
   * `UQ_TRIAJE_PUBLIC_ID`: `UNIQUE (PUBLIC_ID)`
+  * `UQ_TRIAJE_PACIENTE`: `UNIQUE (ID, PACIENTE_ID)` (Habilita la FK compuesta desde `CITA`)
   * `FK_TRIAJE_PACIENTE`: `FOREIGN KEY (PACIENTE_ID) REFERENCES PACIENTE(ID)`
   * `CK_TRIAJE_NIVEL`: `CHECK (NIVEL_PRIORIDAD IN ('I', 'II', 'III', 'IV', 'V'))`
   * `CK_TRIAJE_RUTA`: `CHECK (RUTA_SUGERIDA IN ('URGENCIAS', 'ATENCION_PRIORITARIA', 'CITA_PRESENCIAL', 'CITA_TELEMEDICINA', 'CONSULTA_PROGRAMADA'))`
   * `CK_TRIAJE_EMERGENCIA`: `CHECK (ES_EMERGENCIA IN (0, 1))`
+* **Definición de Emergencia:**
+  * `ES_EMERGENCIA = 1` si al menos un síntoma seleccionado tiene `SINTOMA.ES_ALARMA = 1` O si la regla clínica evaluada determina `NIVEL_PRIORIDAD = 'I'`.
 * **Índices:**
   * `IX_TRIAJE_PACIENTE`: `ON (PACIENTE_ID, CREATED_AT DESC)`
 
@@ -417,6 +428,9 @@ Acto médico profesional inmutable (ADR-008).
   * `FK_ATENCION_CIE10`: `FOREIGN KEY (DIAGNOSTICO_PRINCIPAL_ID) REFERENCES DIAGNOSTICO_CIE10(ID)`
   * `CK_ATENCION_ESTADO`: `CHECK (ESTADO IN ('ABIERTA', 'CERRADA'))`
   * `CK_ATENCION_CAMPOS_CIERRE`: `CHECK (ESTADO = 'ABIERTA' OR (FECHA_CIERRE IS NOT NULL AND MOTIVO_CONSULTA IS NOT NULL AND EVOLUCION IS NOT NULL AND DIAGNOSTICO_PRINCIPAL_ID IS NOT NULL AND INDICACIONES IS NOT NULL))`
+* **Consideración de Longitud de `EVOLUCION`:**
+  * El tipo es `VARCHAR2(4000 CHAR)`. En Oracle con `MAX_STRING_SIZE = STANDARD` (por defecto en muchas instancias), el límite absoluto de la fila son 4000 **bytes**. Caracteres UTF-8 multibyte (ej. tildes que ocupan 2 bytes) consumen dicho espacio.
+  * Por diseño seguro, el DTO en el backend valida `@Size(max = 4000)` a nivel de caracteres y comprueba el límite de bytes antes de persistir, evitando desbordes `ORA-01461`.
 * **Garantía de Inmutabilidad mediante Trigger (ADR-008):**
   * Trigger `TR_ATENCION_INMUTABILIDAD`:
     ```sql
@@ -434,7 +448,7 @@ Acto médico profesional inmutable (ADR-008).
       END IF;
     END;
     ```
-    *Efecto:* Permite actualizar mientras está en `ABIERTA`, permite la transición `ABIERTA -> CERRADA` (registrando `FECHA_CIERRE`), y a partir de ese instante bloquea cualquier modificación o borrado posterior.
+    *Efecto:* Permite modificaciones mientras está en `ABIERTA`, admite la transición `ABIERTA -> CERRADA` (registrando `FECHA_CIERRE`), y a partir de ese instante bloquea cualquier modificación o borrado posterior.
 * **Índices Secundarios:**
   * `IX_ATENCION_PACIENTE`: `ON (PACIENTE_ID, FECHA_CIERRE DESC)`
   * `IX_ATENCION_PROFESIONAL`: `ON (PROFESIONAL_ID, FECHA_CIERRE DESC)`
@@ -464,8 +478,8 @@ Parámetros fisiológicos medidos durante la atención médica.
   * `CK_SV_SATURACION`: `CHECK (SATURACION_OXIGENO IS NULL OR SATURACION_OXIGENO BETWEEN 0 AND 100)`
   * `CK_SV_PESO`: `CHECK (PESO_KG IS NULL OR PESO_KG BETWEEN 0.5 AND 500.0)`
   * `CK_SV_TALLA`: `CHECK (TALLA_CM IS NULL OR TALLA_CM BETWEEN 20.0 AND 260.0)`
-* **Inmutabilidad:**
-  * Trigger `TR_SIGNO_VITAL_INMUTABILIDAD`: Prohíbe sentencias `UPDATE` y `DELETE` si la atención vinculada (`ATENCION_ID`) ya tiene `ESTADO = 'CERRADA'`.
+* **Inmutabilidad Reforzada:**
+  * Trigger `TR_SIGNO_VITAL_INMUTABILIDAD`: Prohíbe **`INSERT`, `UPDATE` y `DELETE`** si la atención vinculada (`ATENCION_ID`) ya tiene `ESTADO = 'CERRADA'`.
 * **Índices:**
   * `IX_SIGNO_VITAL_ATENCION`: `ON (ATENCION_ID)`
 
@@ -542,8 +556,9 @@ Cabecera de prescripción médica.
   * `FK_RECETA_PACIENTE`: `FOREIGN KEY (PACIENTE_ID) REFERENCES PACIENTE(ID)`
   * `FK_RECETA_PROFESIONAL`: `FOREIGN KEY (PROFESIONAL_ID) REFERENCES PROFESIONAL(ID)`
   * `CK_RECETA_VIGENCIA`: `CHECK (VIGENCIA_DIAS > 0)`
-* **Inmutabilidad:**
-  * Trigger `TR_RECETA_INMUTABILIDAD`: Bloquea `UPDATE` y `DELETE` sobre recetas emitidas.
+* **Regla de Emisión e Inmutabilidad:**
+  * Una receta **puede ser emitida sobre una atención que ya se encuentra `CERRADA`** (o en el mismo flujo de cierre por el profesional responsable).
+  * La inmutabilidad de `RECETA` comienza **inmediatamente al insertarse**: el trigger `TR_RECETA_INMUTABILIDAD` bloquea incondicionalmente cualquier `UPDATE` o `DELETE`.
 * **Índices:**
   * `IX_RECETA_PACIENTE`: `ON (PACIENTE_ID, CREATED_AT DESC)`
   * `IX_RECETA_ATENCION`: `ON (ATENCION_ID)`
@@ -570,7 +585,7 @@ Cabecera de prescripción médica.
   * `CK_RD_CANTIDAD`: `CHECK (CANTIDAD > 0)`
   * `CK_RD_DURACION`: `CHECK (DURACION_DIAS > 0)`
 * **Inmutabilidad:**
-  * Trigger `TR_RECETA_DETALLE_INMUTABILIDAD`: Bloquea `UPDATE` y `DELETE`.
+  * Trigger `TR_RECETA_DETALLE_INMUTABILIDAD`: Bloquea `UPDATE` y `DELETE` desde el momento de inserción.
 * **Índices:**
   * `IX_RECETA_DETALLE_RECETA`: `ON (RECETA_ID)`
 
@@ -597,20 +612,15 @@ El modelo sigue los principios de la **Tercera Forma Normal (3FN)** con un conju
 
 ---
 
-## 4. Decisiones y Puntos Pendientes de Aprobación
+## 4. Estado de Decisiones y Criterios Aprobados
 
-* [x] **Eliminación de `ON DELETE RESTRICT`:** Resuelto. Se documenta la omisión de la cláusula (comportamiento nativo `NO ACTION` en Oracle) y el uso exclusivo de `ON DELETE CASCADE` en `USUARIO_ROL` y `REFRESH_TOKEN`.
-* [x] **Email en minúsculas y eliminación de índice redundante:** Resuelto. Implementado con `CHECK (EMAIL = LOWER(EMAIL))` y `UNIQUE (EMAIL)`.
-* [x] **Transición de Atención y campos clínicos:** Resuelto. `ESTADO` default `'ABIERTA'`, `FECHA_CIERRE NULL`, constraint `CK_ATENCION_CAMPOS_CIERRE` y trigger que habilita la transición `ABIERTA -> CERRADA` e inmutabilidad posterior.
-* [x] **Inmutabilidad integral en cascada clínica:** Resuelto. Triggers y restricciones sobre `SIGNO_VITAL`, `ATENCION_ENMIENDA`, `RECETA`, `RECETA_DETALLE`, `CONSENTIMIENTO` y `AUDITORIA`.
-* [x] **Relación Cita-Triaje:** Resuelto. Añadida clave foránea `FK_CITA_TRIAJE`, índice `IX_CITA_TRIAJE` y regla de validación de pertenencia al mismo paciente.
-* [x] **Solapes de slots y concurrencia:** Resuelto. Añadida `UQ_SLOT_PROFESIONAL_INICIO` y documentada la validación de intervalos en la capa de servicio.
-* [x] **Reescritura 3FN:** Resuelto. Sección 3 reescrita listando las 4 desnormalizaciones controladas y sus mecanismos de consistencia, sin afirmar BCNF.
-* [x] **Campos detallados:** Resuelto. Semántica `VARCHAR2(n CHAR)`, snapshot cuádruple en receta, rangos en `SIGNO_VITAL`, tensión sistólica/diastólica separada, rutas restringidas por `CHECK`, observaciones nullable, zona horaria por sesión y revocación en consentimiento.
-
-### Decisiones marcadas como PENDIENTE para aprobación de Juan:
-1. **PENDIENTE — Ubicación definitiva de `ES_ALARMA`:**
-   * *Propuesta:* Mantener `ES_ALARMA` **únicamente en `REGLA_TRIAJE`** y eliminarla de `SINTOMA`.
-   * *Justificación:* Un síntoma aislado rara vez es alarma por sí mismo; depende de la duración e intensidad (evaluadas en la regla). Centralizarlo en `REGLA_TRIAJE` desacopla el catálogo de síntomas de las reglas versionadas de triaje.
-2. **PENDIENTE — Tipo de dato de `ATENCION.EVOLUCION`:**
-   * *Propuesta actual:* `VARCHAR2(4000 CHAR)`. En Oracle estándar, 4000 caracteres son ampliamente suficientes para una nota ambulatoria de consulta médica (equivale a ~3 cuartillas de texto). Si se prevén evoluciones médicas extensas sin límite de longitud, la alternativa es cambiar a `CLOB`.
+Todas las decisiones y criterios técnicos de la Fase M0 han sido formalmente aprobados por Juan (2026-10-01):
+* [x] **`ES_ALARMA` exclusivamente en `SINTOMA`:** Alarma incondicional. Eliminada de `REGLA_TRIAJE`. Emergencia = síntoma con alarma O Nivel I. Nivel por defecto conservador ante falta de coincidencia: Nivel III.
+* [x] **`ATENCION.EVOLUCION`:** `VARCHAR2(4000 CHAR)`. Documentada la restricción de `MAX_STRING_SIZE = STANDARD` (4000 bytes) y validación `@Size(max = 4000)` en DTO.
+* [x] **Segregación de usuarios de BD:** `MEDITRIAJE_OWNER` (DDL / Flyway) y `MEDITRIAJE_APP` (DML restringido, sin DELETE clínico ni UPDATE/DELETE en auditoría/enmiendas).
+* [x] **Inmutabilidad de `SIGNO_VITAL`:** Trigger bloquea `INSERT`, `UPDATE` y `DELETE` si la atención está `CERRADA`.
+* [x] **Emisión de `RECETA`:** Puede emitirse sobre atenciones cerradas; inmutabilidad estricta a partir del `INSERT`.
+* [x] **Coherencia Cita-Triaje por BD:** Clave única `UQ_TRIAJE_PACIENTE` en `TRIAJE` y clave foránea compuesta `FK_CITA_TRIAJE_PACIENTE` en `CITA`.
+* [x] **Ajuste de zona horaria:** `connectionInitSql = "ALTER SESSION SET TIME_ZONE = 'America/Bogota'"` configurado en HikariCP.
+* [x] **Omisión de `ON DELETE RESTRICT`:** Uso de `NO ACTION` nativo y `CASCADE` exclusivo en `USUARIO_ROL` y `REFRESH_TOKEN`.
+* [x] **3FN sin afirmaciones de BCNF:** Catálogo de 4 desnormalizaciones controladas y mecanismos de consistencia.
