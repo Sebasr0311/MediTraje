@@ -54,7 +54,13 @@ Cada decisión resuelve uno o más de los 22 pendientes del Documento Maestro §
 **Nota:** verificar compatibilidad de la versión de Flyway con la versión de Oracle de ATP; si falla, usar Liquibase.
 
 ## ADR-005 Fechas y zona horaria
-**Decisión:** zona del proyecto `America/Bogota`. Instantes en `TIMESTAMP WITH TIME ZONE`; fechas de nacimiento en `DATE`. La API usa ISO-8601 con offset. El pool de conexiones (HikariCP) configura obligatoriamente `connectionInitSql = "ALTER SESSION SET TIME_ZONE = 'America/Bogota'"` al inicializar cada conexión física.
+**Decisión:** zona del proyecto `America/Bogota`. Instantes en `TIMESTAMP WITH TIME ZONE`; fechas de nacimiento en `DATE`. La API usa ISO-8601 con offset. El pool de conexiones (HikariCP) de `MEDITRIAJE_APP` configura obligatoriamente en `connectionInitSql` un bloque anónimo PL/SQL (`BEGIN ... END;`) que fija tanto la zona horaria como el esquema por defecto en cada conexión física:
+```sql
+BEGIN
+  EXECUTE IMMEDIATE 'ALTER SESSION SET TIME_ZONE = ''America/Bogota''';
+  EXECUTE IMMEDIATE 'ALTER SESSION SET CURRENT_SCHEMA = MEDITRIAJE_OWNER';
+END;
+```
 
 ## ADR-006 Citas, disponibilidad y concurrencia
 **Disponibilidad:** tabla `DISPONIBILIDAD_SLOT` generada por el admin (profesional, sede, especialidad, modalidad, inicio, fin, estado LIBRE/OCUPADO/BLOQUEADO). Duración por defecto 20 min, configurable por especialidad.
@@ -102,7 +108,8 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 ## ADR-012 Entornos, usuarios de BD, backups y despliegue
 - **Segregación de usuarios de base de datos:**
   - `MEDITRIAJE_OWNER`: propietario del esquema, utilizado exclusivamente por Flyway para migraciones y operaciones DDL (`CREATE`, `ALTER`, `DROP`, triggers, secuencias).
-  - `MEDITRIAJE_APP`: usuario de mínimos privilegios utilizado por la aplicación en runtime (Spring Boot / HikariCP). Permisos `SELECT`, `INSERT`, `UPDATE` estrictamente necesarios. Sin `DELETE` en tablas clínicas (`ATENCION`, `SIGNO_VITAL`, `ATENCION_ENMIENDA`, `RECETA`, `RECETA_DETALLE`, `CONSENTIMIENTO`, `AUDITORIA`), y sin `UPDATE`/`DELETE` en `AUDITORIA` y `ATENCION_ENMIENDA`.
+  - `MEDITRIAJE_APP`: usuario de mínimos privilegios utilizado por la aplicación en runtime (Spring Boot / HikariCP). En la inicialización de cada conexión física, su pool ejecuta en `connectionInitSql` un bloque anónimo PL/SQL (`BEGIN ... END;`) que fija `CURRENT_SCHEMA = MEDITRIAJE_OWNER` y `TIME_ZONE = 'America/Bogota'`, permitiendo acceder a los objetos sin prefijo de esquema y garantizando la zona horaria del proyecto.
+  - **GRANTs mínimos por migración:** cada script Flyway (`database/migrations/V###__*.sql`), ejecutado por `MEDITRIAJE_OWNER`, incluye al final las sentencias `GRANT` mínimas indispensables para `MEDITRIAJE_APP` (`SELECT`, `INSERT`, `UPDATE` estrictamente necesarios; sin privilegios de `DELETE` en tablas clínicas y sin `UPDATE`/`DELETE` en `AUDITORIA` y `ATENCION_ENMIENDA`).
 - Desarrollo local con Oracle Free en Docker (o ATP directo) y pruebas de integración con Testcontainers.
 - Perfiles `dev`, `test`, `prod`; secretos por variables de entorno (`DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`). Wallet fuera del repo y en `.gitignore`.
 - Backups: los automáticos de ATP; documentar en `DATABASE.md` cómo restaurar.

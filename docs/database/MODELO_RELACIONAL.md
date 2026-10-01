@@ -20,16 +20,17 @@
    - Índices secundarios: `IX_<TABLA>_<COLUMNA(S)>`
 4. **Tipos de Datos, Temporalidad y Pool (ADR-005):**
    - Fechas y horas con zona horaria: `TIMESTAMP WITH TIME ZONE`.
-   - **Ajuste de Sesión en Pool de Conexiones:** El pool HikariCP debe configurar obligatoriamente:
+   - **Ajuste de Sesión en Pool de Conexiones:** El pool HikariCP de `MEDITRIAJE_APP` debe configurar obligatoriamente:
      ```properties
-     connectionInitSql = "ALTER SESSION SET TIME_ZONE = 'America/Bogota'"
+     connectionInitSql = "BEGIN EXECUTE IMMEDIATE 'ALTER SESSION SET TIME_ZONE = ''America/Bogota'''; EXECUTE IMMEDIATE 'ALTER SESSION SET CURRENT_SCHEMA = MEDITRIAJE_OWNER'; END;"
      ```
-     asegurando que cada conexión física opere bajo la zona horaria del proyecto (`America/Bogota`).
+     asegurando que cada conexión física opere bajo la zona horaria del proyecto (`America/Bogota`) y resuelva objetos sobre `MEDITRIAJE_OWNER` sin calificar el esquema en el código.
    - Fechas sin componente horario: `DATE` (fechas de nacimiento).
    - Booleanos lógicos: `NUMBER(1)` con constraint `CHECK (col IN (0, 1))`.
 5. **Segregación de Usuarios de Base de Datos y Privilegios (ADR-012):**
    - **`MEDITRIAJE_OWNER`:** Usuario propietario del esquema utilizado exclusivamente por Flyway para migraciones y operaciones DDL (`CREATE`, `ALTER`, `DROP`, índices, triggers, secuencias). No tiene acceso desde la aplicación web en runtime.
    - **`MEDITRIAJE_APP`:** Usuario de mínimos privilegios utilizado por la aplicación Spring Boot en runtime (HikariCP).
+     - **GRANTs mínimos por migración:** Cada script Flyway (`database/migrations/V###__*.sql`), ejecutado por `MEDITRIAJE_OWNER`, concluye con los `GRANT` indispensables para `MEDITRIAJE_APP`.
      - Privilegios concedidos: `SELECT`, `INSERT`, `UPDATE` estrictamente sobre las tablas necesarias.
      - **Prohibición de `DELETE`:** Sin permisos `DELETE` sobre tablas clínicas y asistenciales (`ATENCION`, `SIGNO_VITAL`, `ATENCION_ENMIENDA`, `RECETA`, `RECETA_DETALLE`, `CONSENTIMIENTO`, `AUDITORIA`).
      - **Prohibición de `UPDATE` y `DELETE`:** Sin permisos `UPDATE` ni `DELETE` sobre `AUDITORIA` y `ATENCION_ENMIENDA` (tablas insert-only / append-only).
@@ -289,7 +290,7 @@ Reserva de turno con protección concurrente a nivel de Oracle y FK compuesta co
   * `UQ_CITA_PUBLIC_ID`: `UNIQUE (PUBLIC_ID)`
   * `FK_CITA_SLOT`: `FOREIGN KEY (SLOT_ID) REFERENCES DISPONIBILIDAD_SLOT(ID)`
   * `FK_CITA_PACIENTE`: `FOREIGN KEY (PACIENTE_ID) REFERENCES PACIENTE(ID)`
-  * `FK_CITA_TRIAJE_PACIENTE`: `FOREIGN KEY (TRIAJE_ID, PACIENTE_ID) REFERENCES TRIAJE(ID, PACIENTE_ID)` (Clave foránea compuesta que garantiza en BD que el triaje pertenece al mismo paciente de la cita)
+  * `FK_CITA_TRIAJE_PACIENTE`: `FOREIGN KEY (TRIAJE_ID, PACIENTE_ID) REFERENCES TRIAJE(ID, PACIENTE_ID)` (Clave foránea compuesta que reemplaza definitivamente a la FK simple sobre `TRIAJE_ID`; garantiza a nivel relacional en BD que el triaje pertenezca estrictamente al mismo paciente de la cita)
   * `FK_CITA_ORIGEN`: `FOREIGN KEY (CITA_ORIGEN_ID) REFERENCES CITA(ID)`
   * `CK_CITA_ESTADO`: `CHECK (ESTADO IN ('PROGRAMADA', 'CONFIRMADA', 'ATENDIDA', 'CANCELADA', 'NO_ASISTIO', 'REPROGRAMADA'))`
 * **Índice Funcional Único de Concurrencia (ADR-006):**
@@ -297,7 +298,7 @@ Reserva de turno con protección concurrente a nivel de Oracle y FK compuesta co
 * **Índices Secundarios:**
   * `IX_CITA_PACIENTE`: `ON (PACIENTE_ID, ESTADO, CREATED_AT DESC)`
   * `IX_CITA_SLOT`: `ON (SLOT_ID)`
-  * `IX_CITA_TRIAJE_PAC`: `ON (TRIAJE_ID, PACIENTE_ID)`
+  * `IX_CITA_TRIAJE_PACIENTE`: `ON (TRIAJE_ID, PACIENTE_ID)` (Índice compuesto que cubre ambas columnas para respaldar de forma óptima la FK compuesta; reemplaza a cualquier índice simple sobre `TRIAJE_ID`)
 
 ---
 
