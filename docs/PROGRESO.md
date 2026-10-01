@@ -7,7 +7,7 @@
 - **Fase actual:** M0
 - **Tarea actual:** M0.5 (Aprobada - Cierre final de cimientos)
 - **Última etiqueta:** v0.0
-- **Rama de trabajo:** feature/m0-cimientos
+- **Rama de trabajo:** develop
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
