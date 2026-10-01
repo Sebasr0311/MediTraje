@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M0
-- **Tarea actual:** M0.5
-- **Última etiqueta:** (ninguna)
-- **Rama de trabajo:** feature/m0-cimientos
+- **Fase actual:** M1
+- **Tarea actual:** M1.1
+- **Última etiqueta:** v0.0
+- **Rama de trabajo:** develop
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -17,7 +17,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M0.2 Casos de uso y reglas de negocio
 - [x] M0.3 Modelo de dominio y MER
 - [x] M0.4 Modelo relacional y normalización
-- [ ] M0.5 Aprobación (manual)
+- [x] M0.5 Aprobación (manual)
 
 ### M1 — Proyecto base y Oracle
 - [ ] Prerrequisito manual: ATP, wallet, usuario, variables de entorno
@@ -80,9 +80,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
+- 2026-10-01 · Aprobación formal de decisiones de arquitectura ADR-001 a ADR-013, Casos de Uso, Reglas de Negocio, MER y Modelo Relacional · Cierre exitoso de Fase M0 · Todos los ADRs
 
 ## Pendientes y dudas abiertas
 (Todo lo marcado como PENDIENTE DE DECISIÓN)
+- Catálogo definitivo y validación clínica formal de reglas de triaje (mantenidas como prototipo según ADR-009).
+- Datos de conexión a Oracle ATP (wallet, usuario y clave para el perfil dev de M1).
 
 ## Bitácora de sesiones
 (Fecha · tarea · qué se hizo · pruebas ejecutadas · commit)
@@ -90,3 +93,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-01 · M0.2 · Especificación formal de casos de uso (CU-01 a CU-11) y reglas de negocio (RB-01 a RB-25) alineadas con ADR-001..013 y Documento Maestro §44 · Verificación de consistencia y ausencia de contradicciones con ADRs · docs(requirements): casos de uso y reglas de negocio m0.2
 - 2026-10-01 · M0.3 · Diseño del modelo de dominio y diagrama entidad-relación (MER) en Mermaid cubriendo 25 entidades, cardinalidades y descripción conceptual · Verificación visual de relaciones y atributos clave · docs(database): modelo entidad-relacion mer m0.3
 - 2026-10-01 · M0.4 · Especificación completa del modelo relacional en Oracle ATP (25 tablas, tipos, constraints, índice funcional único uq_cita_slot_activa, triggers de inmutabilidad clínica, política ON DELETE y análisis 3FN) · Verificación de tipos Oracle y ausencia de borrado en tablas clínicas · docs(database): modelo relacional y normalizacion m0.4
+- 2026-10-01 · M0.5 · Aprobación formal de especificaciones y diseño de la Fase M0 por parte de Juan. Actualización de DECISIONES.md a APROBADO, cierre de fase M0, merge a develop y creación de etiqueta v0.0 · Puerta de salida M0 cumplida · chore: aprobacion de diseno y cierre de fase m0 (v0.0)

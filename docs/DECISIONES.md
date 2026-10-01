@@ -1,6 +1,6 @@
 # MediTriaje 2.0 — Decisiones técnicas (ADRs)
 
-Estado: **PROPUESTAS POR DEFECTO**. Quedan aprobadas cuando Juan las confirme; desde entonces el agente no las reabre sin avisar.
+Estado: **APROBADO** por Juan (2026-10-01). Decisiones arquitectónicas firmes; no reabrir sin previa justificación y aviso.
 Cada decisión resuelve uno o más de los 22 pendientes del Documento Maestro §54.
 
 ## Resumen
