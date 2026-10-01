@@ -15,7 +15,7 @@ spring:
       minimum-idle: 1
       initialization-fail-timeout: -1
   flyway:
-    enabled: false
+    enabled: ${FLYWAY_ENABLED:false}
     user: ${FLYWAY_USER:MEDITRIAJE_OWNER}
     password: ${FLYWAY_PASSWORD:}
 

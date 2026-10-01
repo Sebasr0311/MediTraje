@@ -3,10 +3,13 @@ spring:
     name: meditriaje-api
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
-  autoconfigure:
-    exclude:
-      - org.flywaydb.core.FlywayAutoConfiguration # Se habilitará en M1.3
-      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    locations: classpath:database/migrations
+    user: ${FLYWAY_USER:MEDITRIAJE_OWNER}
+    password: ${FLYWAY_PASSWORD:}
+    baseline-on-migrate: true
+    validate-on-migrate: true
 
   datasource:
     url: ${DB_URL:}

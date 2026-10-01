@@ -175,3 +175,50 @@ El proyecto adopta una arquitectura desacoplada para el despliegue en producció
 * El directorio `frontend/` se despliega como sitio estático sin fase de compilación.
 * Las peticiones hacia la API se direccionan al dominio del Web Service en Render (`https://tu-backend.onrender.com/api/v1`).
 
+---
+
+## 8. Gestión de Migraciones con Flyway (M1.3 / ADR-004)
+
+Las transformaciones del esquema en Oracle ATP son estrictamente versionadas e inmutables.
+
+### 1. Convención de Nomenclatura y Ubicación:
+* **Directorio raíz:** `database/migrations/`
+* **Formato de archivo:** `V###__descripcion_corta.sql` (tres dígitos numéricos, doble guion bajo, descripción en minúsculas).
+* **Ejemplos:**
+  * `V001__baseline.sql`: Línea base técnica y tabla de control del sistema.
+  * `V002__seguridad_y_usuarios.sql`: Tablas de identidad, roles y auditoría (Fase M2).
+* **Regla Inmutable:** Un archivo de migración ya aplicado en algún entorno **NUNCA se edita**. Cualquier corrección se efectúa mediante una nueva migración `V###` hacia adelante.
+
+### 2. Privilegios de Ejecución y Segregación (ADR-012):
+* Flyway corre **exclusivamente con la cuenta `MEDITRIAJE_OWNER`** (definida en `FLYWAY_USER` y `FLYWAY_PASSWORD`).
+* Cada script `V###__*.sql` debe incluir al final las sentencias `GRANT` explícitas para `MEDITRIAJE_APP` (`SELECT`, `INSERT`, `UPDATE` estrictamente necesarios; sin `DELETE` clínico).
+
+### 3. Comandos de Ejecución de Migraciones:
+
+* **Opción A: Ejecución mediante Maven Flyway Plugin:**
+  ```powershell
+  # Desde la carpeta backend/:
+  cd backend
+  mvn flyway:migrate
+  ```
+  Para consultar el historial y estado de migraciones:
+  ```powershell
+  mvn flyway:info
+  ```
+
+* **Opción B: Migración Automática al Iniciar Spring Boot:**
+  En entornos donde se desee aplicar migraciones durante el arranque (o en el despliegue de Render):
+  ```powershell
+  # Linux / macOS / Render:
+  export FLYWAY_ENABLED=true
+  mvn spring-boot:run
+
+  # Windows (PowerShell):
+  $env:FLYWAY_ENABLED = "true"
+  mvn spring-boot:run
+  ```
+
+### 4. Tabla de Control de Versiones:
+Flyway registra cada ejecución en la tabla técnica `flyway_schema_history` bajo el esquema `MEDITRIAJE_OWNER`, registrando checksums criptográficos, tiempos de ejecución y estado exitoso (`SUCCESS = 1`).
+
+
