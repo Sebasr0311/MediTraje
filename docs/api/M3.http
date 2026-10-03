@@ -1,0 +1,407 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase M3: Administración y Catálogos)
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With
+@csrfValue = XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Login como Administrador (ROLE_ADMINISTRADOR)
+### ----------------------------------------------------------------------------
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### ----------------------------------------------------------------------------
+### 3. CRUD de Especialidades (HU-10)
+### ----------------------------------------------------------------------------
+# @name crearEspecialidad
+POST {{baseUrl}}/admin/specialties
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "nombre": "Cardiologia",
+  "duracionSlotMin": 30
+}
+
+### Listar especialidades (paginado)
+# @name listarEspecialidades
+GET {{baseUrl}}/admin/specialties?page=0&size=10
+Accept: application/json
+
+### Consultar especialidad por publicId
+# @name consultarEspecialidad
+GET {{baseUrl}}/admin/specialties/esp-medicina-general-001
+Accept: application/json
+
+### Actualizar especialidad
+# @name actualizarEspecialidad
+PUT {{baseUrl}}/admin/specialties/esp-medicina-general-001
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "nombre": "Medicina General Integral",
+  "duracionSlotMin": 25
+}
+
+### Desactivar especialidad (Soft delete)
+# @name desactivarEspecialidad
+PATCH {{baseUrl}}/admin/specialties/esp-medicina-general-001/deactivate
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### Reactivar especialidad
+# @name reactivarEspecialidad
+PATCH {{baseUrl}}/admin/specialties/esp-medicina-general-001/activate
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### ----------------------------------------------------------------------------
+### 4. CRUD de Instituciones (HU-10)
+### ----------------------------------------------------------------------------
+# @name crearInstitucion
+POST {{baseUrl}}/admin/institutions
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "nit": "901999888-2",
+  "razonSocial": "Clinica del Cesar S.A."
+}
+
+### Listar instituciones (paginado)
+# @name listarInstituciones
+GET {{baseUrl}}/admin/institutions?page=0&size=10
+Accept: application/json
+
+### Consultar institución por publicId
+# @name consultarInstitucion
+GET {{baseUrl}}/admin/institutions/inst-medisalud-valledupar-001
+Accept: application/json
+
+### Actualizar institución
+# @name actualizarInstitucion
+PUT {{baseUrl}}/admin/institutions/inst-medisalud-valledupar-001
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "razonSocial": "IPS MediSalud Valledupar Integral S.A.S."
+}
+
+### Desactivar institución (Soft delete)
+# @name desactivarInstitucion
+PATCH {{baseUrl}}/admin/institutions/inst-medisalud-valledupar-001/deactivate
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### Reactivar institución
+# @name reactivarInstitucion
+PATCH {{baseUrl}}/admin/institutions/inst-medisalud-valledupar-001/activate
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### ----------------------------------------------------------------------------
+### 5. CRUD de Sedes (HU-10)
+### ----------------------------------------------------------------------------
+# @name crearSede
+POST {{baseUrl}}/admin/sites
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "institucionPublicId": "inst-medisalud-valledupar-001",
+  "nombre": "Sede Sur La Nevada",
+  "direccion": "Diagonal 10 # 40-12",
+  "ciudad": "Valledupar"
+}
+
+### Listar sedes (paginado con filtro por institución)
+# @name listarSedes
+GET {{baseUrl}}/admin/sites?page=0&size=10&institucionPublicId=inst-medisalud-valledupar-001
+Accept: application/json
+
+### Consultar sede por publicId
+# @name consultarSede
+GET {{baseUrl}}/admin/sites/sede-centro-valledupar-001
+Accept: application/json
+
+### Actualizar sede
+# @name actualizarSede
+PUT {{baseUrl}}/admin/sites/sede-centro-valledupar-001
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "nombre": "Sede Centro Historico",
+  "direccion": "Calle 16 # 12-50",
+  "ciudad": "Valledupar"
+}
+
+### Desactivar sede (Soft delete)
+# @name desactivarSede
+PATCH {{baseUrl}}/admin/sites/sede-centro-valledupar-001/deactivate
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### Reactivar sede
+# @name reactivarSede
+PATCH {{baseUrl}}/admin/sites/sede-centro-valledupar-001/activate
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### ----------------------------------------------------------------------------
+### 6. Alta y Gestión de Profesionales Asistenciales (M3.3, HU-10)
+### ----------------------------------------------------------------------------
+# @name altaProfesional
+# Retorna la contraseña temporal de un solo uso generada para el profesional
+POST {{baseUrl}}/admin/professionals
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "registroMedico": "RM-998877",
+  "nombres": "Gabriel",
+  "apellidos": "Garcia Marquez",
+  "email": "gabriel.garcia@hospitalcesar.com",
+  "especialidadPublicId": "esp-medicina-general-001"
+}
+
+### Listar profesionales (paginado)
+# @name listarProfesionales
+GET {{baseUrl}}/admin/professionals?page=0&size=10
+Accept: application/json
+
+### Consultar profesional por publicId
+# @name consultarProfesional
+GET {{baseUrl}}/admin/professionals/prof-carlos-mendoza-001
+Accept: application/json
+
+### Actualizar profesional
+# @name actualizarProfesional
+PUT {{baseUrl}}/admin/professionals/prof-carlos-mendoza-001
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "nombres": "Carlos Alberto",
+  "apellidos": "Mendoza Vega",
+  "especialidadPublicId": "esp-medicina-general-001"
+}
+
+### Desactivar profesional (desactiva cuenta de usuario)
+# @name desactivarProfesional
+PATCH {{baseUrl}}/admin/professionals/prof-carlos-mendoza-001/deactivate
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### Reactivar profesional
+# @name reactivarProfesional
+PATCH {{baseUrl}}/admin/professionals/prof-carlos-mendoza-001/activate
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### ----------------------------------------------------------------------------
+### 7. Primer Login de Profesional y Cambio Obligatorio de Contraseña (M3.3)
+### ----------------------------------------------------------------------------
+# @name loginProfesionalPrimerIngreso
+# Notar que retorna "debeCambiarPassword": true
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "Temporal12345*"
+}
+
+### Cambio obligatorio de contraseña
+# @name cambiarPasswordProfesional
+POST {{baseUrl}}/auth/change-password
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "passwordActual": "Temporal12345*",
+  "passwordNuevo": "MiClaveDefinitiva2026*"
+}
+
+### Login con la nueva contraseña definitiva
+# @name loginProfesionalClaveNueva
+# Notar que ahora "debeCambiarPassword": false
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+### ----------------------------------------------------------------------------
+### 8. Generación y Gestión de Slots de Disponibilidad (M3.4, HU-10)
+### ----------------------------------------------------------------------------
+# Re-autenticar como admin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### Generar slots en lote para los próximos días hábiles
+# @name generarSlots
+POST {{baseUrl}}/admin/slots/generate
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "profesionalPublicId": "prof-carlos-mendoza-001",
+  "sedePublicId": "sede-centro-valledupar-001",
+  "fechaInicio": "2026-10-15",
+  "fechaFin": "2026-10-16",
+  "horaInicio": "08:00",
+  "horaFin": "10:00",
+  "duracionMinutos": 20,
+  "modalidad": "PRESENCIAL",
+  "diasSemana": ["THURSDAY", "FRIDAY"]
+}
+
+### Intento de generar slots duplicados/solapados (Debe fallar con HTTP 400 DATOS_INVALIDOS)
+POST {{baseUrl}}/admin/slots/generate
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "profesionalPublicId": "prof-carlos-mendoza-001",
+  "sedePublicId": "sede-centro-valledupar-001",
+  "fechaInicio": "2026-10-15",
+  "fechaFin": "2026-10-15",
+  "horaInicio": "08:10",
+  "horaFin": "09:00",
+  "duracionMinutos": 20,
+  "modalidad": "PRESENCIAL"
+}
+
+### Listar slots generados (paginado con filtros)
+# @name listarSlots
+GET {{baseUrl}}/admin/slots?profesionalPublicId=prof-carlos-mendoza-001&page=0&size=20
+Accept: application/json
+
+### Bloquear un slot libre (ejemplo usando ID generado)
+# Reemplazar con el publicId real devuelto en la lista anterior
+# @name bloquearSlot
+PATCH {{baseUrl}}/admin/slots/slot-ejemplo-public-id/block
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### Desbloquear slot
+# @name desbloquearSlot
+PATCH {{baseUrl}}/admin/slots/slot-ejemplo-public-id/unblock
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### Eliminar slot libre
+# @name eliminarSlot
+DELETE {{baseUrl}}/admin/slots/slot-ejemplo-public-id
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### ----------------------------------------------------------------------------
+### 9. Pruebas de Autorización y Aislamiento de Roles (Puerta de Salida M3)
+### ----------------------------------------------------------------------------
+
+### Login como Paciente
+# @name loginPaciente
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### Paciente intenta acceder a gestión de especialidades -> DEBE RETORNAR 403 FORBIDDEN
+GET {{baseUrl}}/admin/specialties
+Accept: application/json
+
+### Paciente intenta generar slots -> DEBE RETORNAR 403 FORBIDDEN
+POST {{baseUrl}}/admin/slots/generate
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "profesionalPublicId": "prof-carlos-mendoza-001",
+  "sedePublicId": "sede-centro-valledupar-001",
+  "fechaInicio": "2026-10-20",
+  "fechaFin": "2026-10-20",
+  "horaInicio": "08:00",
+  "horaFin": "10:00"
+}
+
+### Profesional intenta crear sedes -> DEBE RETORNAR 403 FORBIDDEN
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+POST {{baseUrl}}/admin/sites
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "institucionPublicId": "inst-medisalud-valledupar-001",
+  "nombre": "Sede No Autorizada",
+  "direccion": "Calle 1 # 2-3",
+  "ciudad": "Valledupar"
+}
+
+### Petición sin autenticación -> DEBE RETORNAR 401 UNAUTHORIZED
+# Hacemos logout para limpiar cookies
+POST {{baseUrl}}/auth/logout
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+GET {{baseUrl}}/admin/specialties
+Accept: application/json

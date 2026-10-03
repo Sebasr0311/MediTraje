@@ -64,6 +64,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
     - `POST /generate` (201 Created), `GET` paginado (200 OK), `GET /{publicId}` (200 OK), `PATCH /{publicId}/block` (200 OK), `PATCH /{publicId}/unblock` (200 OK), `DELETE /{publicId}` (204 No Content).
   - Pruebas unitarias y de integración exhaustivas:
     - `DisponibilidadSlotRepositoryTest` (8 pruebas), `SlotGeneratorServiceTest` (21 pruebas), `AdminSlotControllerTest` (14 pruebas) con verificación de permisos, CSRF (`X-Requested-With`), casos de borde y 190 pruebas en total pasando exitosamente.
+- **Seeds Ficticios y Colección HTTP de Pruebas (M3.5, HU-10, ADR-004, ADR-012)**:
+  - Script SQL de datos ficticios para desarrollo en `database/seeds/dev_seeds_m3.sql`:
+    - 1 usuario administrador (`admin@meditriaje.com` / `Admin12345*`).
+    - 1 institución prestadora de salud (`IPS MediSalud Valledupar S.A.S.`).
+    - 2 sedes asistenciales (`Sede Centro Valledupar`, `Sede Norte Valledupar`).
+    - 4 especialidades médicas (`Medicina General`, `Pediatria`, `Medicina Interna`, `Odontologia`).
+    - 4 profesionales asistenciales con sus usuarios, contraseñas temporales iniciales (`Temporal12345*`) y rol `ROLE_PROFESIONAL`.
+    - Slots de disponibilidad distribuidos en días hábiles de los próximos 14 días en zona `America/Bogota`.
+  - Documentación de advertencia y guía de ejecución en `database/seeds/README.md` (prohibido en producción).
+  - Script PowerShell de conveniencia `database/seeds/cargar_seeds_dev.ps1`.
+  - Colección completa de pruebas de integración HTTP en formato REST Client en `docs/api/M3.http`: 11 escenarios cubriendo login de admin, CRUD de especialidades, instituciones, sedes, alta de profesional, primer login con clave temporal, cambio obligatorio de contraseña, generación masiva de slots, gestión de slots y aislamiento de roles (403 Forbidden para paciente/profesional, 401 Unauthorized sin token y 400 Bad Request en solapes).
+  - Puerta de salida M3 completada con éxito.
 
 ## [0.2.0] - 2026-10-03
 
