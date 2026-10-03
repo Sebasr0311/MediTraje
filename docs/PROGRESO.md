@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** M3 — Administración y catálogos
-- **Tarea actual:** M3.3 — Alta de profesionales
+- **Tarea actual:** M3.4 — Generador de slots
 - **Última etiqueta:** v0.2 (M2 completa)
 - **Rama de trabajo:** feature/m3-administracion
 
@@ -38,8 +38,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ### M3 — Administración y catálogos
 - [x] M3.1 Migraciones de oferta
 - [x] M3.2 CRUD especialidades, instituciones, sedes
-- [~] M3.3 Alta de profesionales
-- [ ] M3.4 Generador de slots
+- [x] M3.3 Alta de profesionales
+- [~] M3.4 Generador de slots
 - [ ] M3.5 Seeds ficticios
 
 ### M4 — Disponibilidad y citas
@@ -110,3 +110,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · M2.6 · Auditoría exhaustiva de seguridad de la fase M2 (cero secretos en repositorio, ausencia de datos clínicos o sensibles en logs, SQL 100% parametrizado, tokens exclusivamente en cookies HttpOnly SameSite=Strict, CSRF mitigado, triggers de inmutabilidad en BD). Elaboración del informe docs/security/REVISION_M2.md y creación de la colección docs/api/M2.http. 48 pruebas unitarias y de seguridad pasando al 100% · mvn clean verify exitoso · docs(security): revision de seguridad m2 y coleccion de pruebas http m2.6
 - 2026-10-03 · M3.1 · Migración Flyway V004__oferta_administracion.sql con tablas INSTITUCION, SEDE, ESPECIALIDAD, PROFESIONAL y DISPONIBILIDAD_SLOT; constraints de unicidad, claves foráneas, validación horaria (inicio < fin), checks de modalidad/estados e índices optimizados; privilegios mínimos a MEDITRIAJE_APP (ADR-012) y pruebas de integración ampliadas en OracleIntegrationTest. mvn clean test exitoso (48 tests verdes) · feat(database): migracion flyway v004 oferta asistencial y administracion m3.1
 - 2026-10-03 · M3.2 · Implementación integral del CRUD administrativo para ESPECIALIDAD, INSTITUCION y SEDE: modelos inmutables, DTOs Jakarta, paginación ANSI SQL (OFFSET/FETCH NEXT) con PaginatedResponse<T>, repositorios JdbcTemplate con SQL parametrizado, validaciones de negocio en AdminCatalogService (unicidad de nombre/NIT, validación de institución activa para sedes, sin borrado físico: desactivación a INACTIVO / activación a ACTIVO) y auditoría inmutable obligatoria CAMBIO_ADMINISTRATIVO vía AuditoriaService. Controladores REST protegidos con @PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')") (/api/v1/admin/specialties, /api/v1/admin/institutions, /api/v1/admin/sites). Suite de 52 pruebas nuevas (unitarias y MockMvc de seguridad: 403 para otros roles, 401 sin auth, 400 datos inválidos, 404 no encontrado). mvn clean test exitoso (103 tests verdes) · feat(admin): implementar CRUD de especialidades, instituciones y sedes (M3.2)
+- 2026-10-03 · M3.3 · Alta y gestión de profesionales asistenciales: migración Flyway V005__usuario_cambio_password.sql agregando DEBE_CAMBIAR_PASSWORD a USUARIO con check; modelos de dominio Profesional y Usuario actualizados; DTOs de creación y actualización con validaciones Jakarta; repositorio ProfesionalRepository con consultas parametrizadas JdbcTemplate; servicio transaccional AdminProfessionalService con validación de especialidad activa, unicidad de correo y registro médico, generación de contraseña temporal segura (14 caracteres alfanuméricos y símbolos), hash Argon2id, asignación de ROLE_PROFESIONAL y auditoría CAMBIO_ADMINISTRATIVO; actualización de AuthService y AuthController con endpoint autenticado POST /api/v1/auth/change-password y flag debeCambiarPassword en login/refresh; controlador AdminProfessionalController en /api/v1/admin/professionals protegido con ROLE_ADMINISTRADOR. 44 pruebas nuevas (unitarias, repositorios y MockMvc de seguridad: 403 para otros roles, 401 sin auth, validaciones). mvn clean test exitoso (147 tests verdes) · feat(admin): alta y gestion de profesionales asistenciales (M3.3)
