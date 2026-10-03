@@ -52,6 +52,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - `PacienteController` y `PacienteService`: Endpoint `GET /api/v1/patients/me` protegido para rol `ROLE_PACIENTE`.
   - `PacienteRepository`: Consulta de perfil demográfico y contacto por UUID expuesto `publicId` (ADR-003, sin exponer IDs internos).
   - 48 pruebas unitarias y de controladores pasando al 100%.
+- **Revisión de Seguridad de la Fase M2 y Colección HTTP (M2.6)**:
+  - Auditoría exhaustiva de seguridad documentada en `docs/security/REVISION_M2.md`: verificación de cero secretos en repositorio, ausencia de datos clínicos en logs, SQL parametrizado, políticas de contraseñas (Argon2id), mitigación de robo de sesión y defensa en profundidad CSRF.
+  - Colección de pruebas de integración HTTP en formato estándar REST Client en `docs/api/M2.http` cubriendo ping, registro, login (éxito/fallo), perfil `/patients/me`, refresh rotativo y logout con validación de CSRF y cookies.
+  - Puerta de salida M2 lista para revisión y aprobación por Juan.
 
 ## [0.1.0] - 2026-10-01
 
