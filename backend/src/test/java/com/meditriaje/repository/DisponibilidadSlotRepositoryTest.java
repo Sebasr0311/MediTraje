@@ -192,4 +192,23 @@ class DisponibilidadSlotRepositoryTest {
         assertThat(lista).isEmpty();
         assertThat(count).isZero();
     }
+
+    @Test
+    void consultarDisponiblesYContarDisponibles_aplicaFiltrosAsistenciales() {
+        Instant desde = Instant.now();
+        Instant hasta = desde.plusSeconds(3600);
+
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(Object[].class)))
+                .thenReturn(0);
+
+        List<com.meditriaje.dto.availability.DisponibilidadSlotResponse> lista = repository.consultarDisponibles(
+                "esp-1", "sede-1", "PRESENCIAL", desde, hasta, 0, 10
+        );
+        int count = repository.contarDisponibles("esp-1", "sede-1", "PRESENCIAL", desde, hasta);
+
+        assertThat(lista).isEmpty();
+        assertThat(count).isZero();
+    }
 }

@@ -8,6 +8,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Consulta de Disponibilidad de Citas (M4.2, HU-03, ADR-002, ADR-003, ADR-005, ADR-006)**:
+  - DTO `DisponibilidadSlotResponse` en `com.meditriaje.dto.availability` con claves públicas UUID, nombres de profesional/especialidad/sede, dirección, ciudad, inicio, fin, modalidad y cálculo de duración en minutos.
+  - Repositorio `DisponibilidadSlotRepository`: métodos `consultarDisponibles` y `contarDisponibles` con filtros dinámicos asistenciales, ordenación `ORDER BY s.FECHA_HORA_INICIO ASC, s.ID ASC`, paginación ANSI SQL/Oracle (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y filtros estrictos de estado activo en profesionales (`USUARIO.ESTADO = 'ACTIVO'`), sedes y especialidades.
+  - Servicio de negocio `AvailabilityService`: manejo temporal en `America/Bogota`, cálculo estricto de rangos futuros (`FECHA_HORA_INICIO > Instant.now()`), retorno inmediato de lista vacía ante días pasados, y validaciones de modalidad (`PRESENCIAL`/`TELEMEDICINA`), página (>= 0) y tamaño (1-100).
+  - Controlador REST `AvailabilityController` en `GET /api/v1/availability` protegido con `@PreAuthorize("isAuthenticated()")` para cualquier usuario autenticado (pacientes, profesionales y administradores), con soporte y resolución inteligente de parámetros redundantes (`especialidad`/`especialidadPublicId`, `sede`/`sedePublicId`).
+  - Pruebas unitarias y de integración MockMvc: `AvailabilityServiceTest` (9 pruebas), `AvailabilityControllerTest` (10 pruebas) y actualización de `DisponibilidadSlotRepositoryTest` (9 pruebas), alcanzando 210 pruebas totales pasando al 100%.
 - **Migración V006 (`database/migrations/V006__citas.sql`) e Índice Funcional de Concurrencia (M4.1, HU-03, HU-04, ADR-003, ADR-006, ADR-012)**:
   - Tabla `CITA`: clave pública UUID expuesta en API (`PUBLIC_ID`), relaciones FK con `DISPONIBILIDAD_SLOT`, `PACIENTE` y recursiva opcional `CITA_ORIGEN_ID` para trazabilidad de reprogramaciones.
   - Columna `TRIAJE_ID` desacoplada temporalmente (se vinculará mediante constraint `FK_CITA_TRIAJE_PACIENTE` en M5.1 al crearse la tabla `TRIAJE`).
