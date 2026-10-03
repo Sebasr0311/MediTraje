@@ -8,6 +8,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Servicio Centralizado de Acceso Clínico y Relación Asistencial (M6.2, HU-07, HU-09, ADR-007)**:
+  - Implementación con TDD de `AccesoClinicoService` en `com.meditriaje.service`, blindando el acceso a todo el contenido clínico del sistema:
+    - Paciente dueño: acceso permitido únicamente a sus propios datos clínicos; intento de consultar a otro paciente rechazado con 403 (`AccesoNoAutorizadoException`).
+    - Administrador: acceso a contenido clínico bloqueado incondicionalmente con 403 (ADR-007).
+    - Profesional asistencial: acceso condicionado a relación asistencial activa:
+      - Cita activa futura (`PROGRAMADA` o `CONFIRMADA` con inicio posterior al instante actual), O
+      - Atención previa propia realizada dentro de la ventana configurable (`meditriaje.clinical.access-window-months`, por defecto 12 meses).
+      - Sin relación asistencial: rechazado categóricamente con 403 (`AccesoNoAutorizadoException`).
+  - Repositorio `AtencionRepository` en `com.meditriaje.repository`: método `existeAtencionPreviaEnVentana` con SQL 100% parametrizado.
+  - Ampliación de `CitaRepository`: método `existeCitaActivaFutura` con JOIN a `DISPONIBILIDAD_SLOT` y filtro de estados activos y tiempo futuro.
+  - Ampliación de `PacienteRepository`: método `buscarPorPublicId`.
+  - Suite de pruebas exhaustiva: `AccesoClinicoServiceTest` (10 pruebas unitarias deterministas con `Clock.fixed`), `AtencionRepositoryTest` (2 pruebas) y ampliación de `PacienteRepositoryTest` (4 pruebas), elevando la suite a 392 pruebas verdes al 100%.
 - **Migraciones Clínicas e Inmutabilidad de Historia Clínica (M6.1, HU-07, HU-09, ADR-008, ADR-012)**:
   - Migración Flyway `V008__atencion_historia_clinica.sql` incorporando las entidades nucleares de la historia clínica según el modelo relacional:
     - `DIAGNOSTICO_CIE10`: catálogo maestro con 21 patologías ambulatorias estándar sembradas (J00, J20, I10, E11, K29, M54, R10, R51, N39, etc.).
