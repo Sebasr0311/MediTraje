@@ -52,8 +52,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 ### M5 — Triaje
 - [x] M5.1 Migraciones y semillas
-- [ ] M5.2 Motor de reglas
-- [ ] M5.3 Corte de emergencia
+- [x] M5.2 Motor de reglas
+- [x] M5.3 Corte de emergencia
 - [ ] M5.4 Endpoints de triaje
 
 ### M6 — Atención e historia clínica
@@ -125,3 +125,5 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 
 - 2026-10-03 · M5.1 · Migración Flyway V007__triaje.sql: tablas SINTOMA, REGLA_TRIAJE, TRIAJE y TRIAJE_SINTOMA según MODELO_RELACIONAL.md, FK compuesta FK_CITA_TRIAJE_PACIENTE + IX_CITA_TRIAJE_PACIENTE sobre CITA, GRANTs mínimos a MEDITRIAJE_APP (catálogos solo SELECT; TRIAJE/TRIAJE_SINTOMA SELECT+INSERT). Semillas de PROTOTIPO (ADR-009, no validadas clínicamente): 20 síntomas con UUID fijos (6 alarma) y reglas 'v1-prototipo' por intensidad (7-10 II, 4-6 III, 0-3 IV; duración sin discriminar) para los 14 no alarma. OracleIntegrationTest ampliado (>=V7, SELECT triaje, semillas, FK compuesta rechaza triaje de otro paciente, sin UPDATE/DELETE en TRIAJE); requieren Docker, no ejecutadas localmente (Docker no disponible). · feat(database): migracion flyway v007 triaje con semillas de prototipo (M5.1)
+- 2026-10-03 · M5.2 · Motor de triaje puro basado en reglas (HU-02, ADR-009): records de dominio inmutables en com.meditriaje.triage (EntradaTriaje, SintomaReportado, SintomaTriaje, ReglaTriaje, ResultadoTriaje) y enums NivelPrioridad (I-V) y RutaSugerida; interfaz MotorTriaje e implementación pura MotorTriajeBasadoEnReglas sin dependencias externas (rango de duración semiabierto [min, max), intensidad [min, max], regla multisíntoma con asignación del nivel más urgente, nivel III conservador por defecto ante síntomas sin regla tipificada, y aviso de prototipo obligatorio); TriajeReglasRepository para carga parametrizada de catálogo y reglas; TriajeMotorFactory con caché por versión; 33 pruebas unitarias parametrizadas cubriendo bordes, solapes, determinismo e invariancia de permutación. · feat(triage): motor de triaje puro basado en reglas (M5.2)
+- 2026-10-03 · M5.3 · Corte de emergencia infalible por síntomas de alarma (HU-02, ADR-009, ADR-011): lógica en MotorTriajeBasadoEnReglas que ante cualquier síntoma con esAlarma=1 o evaluación de Nivel I activa condición de emergencia (fuerza Nivel I, ruta URGENCIAS, omite citas y emite mensaje 'Llama al 123 o acude a urgencias de inmediato.'); AccionAuditable.TRIAJE_EMERGENCIA reservado; suite CorteEmergenciaTest (12 pruebas) con validación cruzada dinámica sobre V007__triaje.sql asegurando que cada una de las 6 alarmas produce corte infalible. 345 pruebas unitarias pasando al 100%. · feat(triage): corte de emergencia infalible por sintomas de alarma (M5.3)

@@ -17,5 +17,9 @@ public enum AccionAuditable {
     RESERVA_CITA,
     CANCELACION_CITA,
     CAMBIO_ADMINISTRATIVO,
-    CAMBIO_PASSWORD
+    CAMBIO_PASSWORD,
+    /** Triaje evaluado (M5.4 lo conecta). Auditar solo usuario, acción, recurso e id; nunca síntomas. */
+    TRIAJE_REALIZADO,
+    /** Corte de emergencia activado (M5.4 lo conecta). Auditar solo usuario, acción, recurso e id; nunca síntomas. */
+    TRIAJE_EMERGENCIA
 }

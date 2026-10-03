@@ -8,6 +8,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Corte de Emergencia Infalible por Síntomas de Alarma (M5.3, HU-02, ADR-009, ADR-011)**:
+  - Definición de corte de emergencia: si algún síntoma reportado tiene `esAlarma = true` o si la evaluación de prioridad resulta en Nivel I, se activa inmediatamente la condición de emergencia.
+  - Comportamiento de emergencia: fuerza `nivel = NivelPrioridad.I`, `ruta = RutaSugerida.URGENCIAS`, omite cualquier asignación de cita y emite el mensaje mandatario: "Llama al 123 o acude a urgencias de inmediato.".
+  - Identificación explícita de `sintomasAlarma` en `ResultadoTriaje` para retroalimentación clínica transparente.
+  - Registro de auditoría reservado: adición de `AccionAuditable.TRIAJE_EMERGENCIA` en el modelo inmutable de auditoría (sin datos clínicos ni síntomas).
+  - Suite de pruebas exhaustiva `CorteEmergenciaTest` (12 pruebas): extracción directa desde `V007__triaje.sql` comprobando que cada uno de los 6 síntomas de alarma del catálogo (`DOLOR_TORACICO_OPRESIVO`, `DIFICULTAD_RESP_SEVERA`, `PERDIDA_CONCIENCIA`, `CONVULSIONES`, `SANGRADO_INCONTROLABLE`, `PARALISIS_FACIAL_SUBITA`), solo o mezclado con síntomas leves, con intensidad 0 y duración 0, activa indefectiblemente el corte de emergencia.
+- **Motor de Reglas Puro y Determinista de Triaje (M5.2, HU-02, ADR-009)**:
+  - Dominio puro e inmutable en `com.meditriaje.triage`: `EntradaTriaje`, `SintomaReportado`, `SintomaTriaje`, `ReglaTriaje`, `ResultadoTriaje`, y enums `NivelPrioridad` (I–V con orden natural de urgencia) y `RutaSugerida` (`URGENCIAS`, `ATENCION_PRIORITARIA`, `CITA_PRESENCIAL`, `CITA_TELEMEDICINA`, `CONSULTA_PROGRAMADA`).
+  - Interfaz `MotorTriaje` e implementación pura `MotorTriajeBasadoEnReglas` sin dependencias de base de datos ni HTTP:
+    - Evaluación de rango de duración `[min, max)` (mínimo inclusivo, máximo exclusivo) y rango de intensidad cerrado `[min, max]`.
+    - Regla de combinación multisíntoma: el nivel final corresponde al más urgente entre todos los síntomas reportados.
+    - Nivel por defecto conservador: ante síntomas sin regla tipificada, asigna estrictamente Nivel III (nunca Nivel V).
+    - Aviso legal obligatorio: "Esta orientación es un prototipo, no sustituye la valoración de un profesional de la salud.".
+  - Repositorio `TriajeReglasRepository` en `com.meditriaje.repository`: carga con `JdbcTemplate` parametrizado del catálogo de síntomas y reglas activas por versión.
+  - Proveedor `TriajeMotorFactory`: construcción e instanciación de motores de triaje con caché en memoria por versión y configuración de versión activa (`meditriaje.triage.rules-version`).
+  - Suite de pruebas unitarias `MotorTriajeBasadoEnReglasTest` (33 pruebas) con tablas parametrizadas cubriendo límites, solapes, determinismo de permutación y descarte de síntomas inexistentes.
 - **Migración V007 de triaje (M5.1, ADR-009, ADR-012)**: tablas `SINTOMA`, `REGLA_TRIAJE`, `TRIAJE`, `TRIAJE_SINTOMA`; FK compuesta `FK_CITA_TRIAJE_PACIENTE` en `CITA`; GRANTs mínimos (catálogos solo lectura, triaje inmutable); semillas de PROTOTIPO no validadas clínicamente (20 síntomas, 6 de alarma, reglas `v1-prototipo`). Pruebas de integración ampliadas en `OracleIntegrationTest`.
 
 ## [0.4.0] - 2026-10-03

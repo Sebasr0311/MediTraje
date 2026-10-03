@@ -99,6 +99,14 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 - Ruta sugerida: Urgencias / Atención prioritaria / Cita presencial / Cita remota / Consulta programada.
 - El triaje nunca produce un diagnóstico ni recomienda medicamentos.
 
+**Adenda M5.2 (prototipo)** — precisiones de implementación del motor, no validadas clínicamente:
+- Duración: rango de regla `[DURACION_MIN_HORAS, DURACION_MAX_HORAS)` (mínimo inclusivo, máximo exclusivo; `NULL` = sin tope). Duración de entrada ≥ 0, puede ser fraccionaria. Intensidad: rango cerrado `[INTENSIDAD_MIN, INTENSIDAD_MAX]`, entero 0–10.
+- Varios síntomas: se evalúa cada uno y el nivel final es el **más urgente** (I más urgente … V menos). Un síntoma sin regla aplicable aporta Nivel III (nunca V). Si varias reglas del mismo síntoma solapan, gana la más urgente.
+- Nivel → ruta (mapeo de prototipo): I→URGENCIAS; II→ATENCION_PRIORITARIA; III→CITA_PRESENCIAL; IV→CITA_TELEMEDICINA; V→CONSULTA_PROGRAMADA.
+- Emergencia = (algún síntoma con `ES_ALARMA`) O (nivel final = I). Entonces nivel = I, ruta = URGENCIAS, sin ruta de cita y mensaje «Llama al 123 o acude a urgencias de inmediato.».
+- No se inventan tiempos de espera. Todo resultado incluye el aviso: «Esta orientación es un prototipo, no sustituye la valoración de un profesional de la salud.»
+- El evento de emergencia se audita con `TRIAJE_EMERGENCIA` (solo usuario, acción, recurso e id; sin síntomas). Su conexión a endpoints corresponde a M5.4.
+
 ## ADR-010 QR temporal (fase 2)
 **Defaults:** token aleatorio de 256 bits, expira a los 15 min, máximo 3 accesos, revocable. Alcance mínimo: alergias, medicamentos activos y antecedentes relevantes. Lectura sin login, con límite de intentos y PIN opcional. Cada acceso se audita. El QR contiene solo una URL con el token, nunca datos.
 
