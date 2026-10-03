@@ -2,6 +2,8 @@ package com.meditriaje.service;
 
 import com.meditriaje.dto.clinical.AtencionResponse;
 import com.meditriaje.dto.clinical.CerrarAtencionRequest;
+import com.meditriaje.dto.clinical.CrearEnmiendaRequest;
+import com.meditriaje.dto.clinical.EnmiendaResponse;
 import com.meditriaje.dto.clinical.IniciarAtencionRequest;
 import com.meditriaje.dto.clinical.SignosVitalesDto;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
@@ -292,5 +294,65 @@ public class ClinicalAttentionService {
 
         return atencionRepository.buscarDetallePorPublicId(atencionPublicId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Atencion clinica no encontrada."));
+    }
+
+    /**
+     * Registra una enmienda o aclaración médica inmutable sobre una atención cerrada (ADR-008, HU-07).
+     * Garantiza que la atención esté CERRADA y que el profesional cuente con relación asistencial o sea el autor.
+     */
+    @Transactional
+    public EnmiendaResponse crearEnmienda(
+            String atencionPublicId,
+            CrearEnmiendaRequest request,
+            String usuarioAutenticadoPublicId,
+            String ipOrigen
+    ) {
+        Objects.requireNonNull(request, "request no puede ser nulo");
+
+        Usuario usuario = usuarioRepository.buscarPorPublicId(usuarioAutenticadoPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario autenticado no encontrado."));
+        Profesional profesional = profesionalRepository.buscarPorUsuarioId(usuario.id())
+                .orElseThrow(() -> new AccesoNoAutorizadoException("Usuario no registrado como profesional asistencial."));
+
+        Atencion atencion = atencionRepository.buscarEntidadPorPublicId(atencionPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Atencion clinica no encontrada."));
+
+        // Inmutabilidad estricta (ADR-008): solo se admiten enmiendas sobre atenciones CERRADAS
+        if (!atencion.estaCerrada()) {
+            throw new DatosInvalidosException("Solo es posible registrar enmiendas sobre atenciones clinicas CERRADAS.");
+        }
+
+        // Autorización asistencial (ADR-007): el profesional debe ser el autor o tener relación asistencial activa
+        if (!atencion.profesionalId().equals(profesional.id())) {
+            accesoClinicoService.validarRelacionAsistencial(profesional.id(), atencion.pacienteId());
+        }
+
+        Instant ahora = clock.instant();
+        atencionRepository.crearEnmienda(
+                atencion.id(),
+                profesional.id(),
+                request.motivo(),
+                request.contenido(),
+                ahora
+        );
+
+        // Auditoría inmutable sin contenido clínico en bitácora (ADR-011)
+        auditoriaService.auditar(new EventoAuditoria(
+                usuario.id(),
+                AccionAuditable.ENMIENDA_ATENCION,
+                "ATENCION",
+                atencionPublicId,
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        ));
+
+        String nombreCompleto = (profesional.nombres() + " " + profesional.apellidos()).trim();
+        return new EnmiendaResponse(
+                profesional.publicId(),
+                nombreCompleto,
+                request.motivo(),
+                request.contenido(),
+                ahora
+        );
     }
 }

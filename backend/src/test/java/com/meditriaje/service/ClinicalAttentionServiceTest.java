@@ -2,6 +2,8 @@ package com.meditriaje.service;
 
 import com.meditriaje.dto.clinical.AtencionResponse;
 import com.meditriaje.dto.clinical.CerrarAtencionRequest;
+import com.meditriaje.dto.clinical.CrearEnmiendaRequest;
+import com.meditriaje.dto.clinical.EnmiendaResponse;
 import com.meditriaje.dto.clinical.IniciarAtencionRequest;
 import com.meditriaje.dto.clinical.SignosVitalesDto;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
@@ -41,6 +43,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -378,5 +381,109 @@ class ClinicalAttentionServiceTest {
         assertThat(eventoCaptor.getValue().accion()).isEqualTo(AccionAuditable.CONSULTA_HISTORIA);
         assertThat(eventoCaptor.getValue().tipoRecurso()).isEqualTo("ATENCION");
         assertThat(eventoCaptor.getValue().recursoPublicId()).isEqualTo(atencionPublicId);
+    }
+
+    @Test
+    @DisplayName("crearEnmienda - éxito con el mismo profesional autor: registra enmienda inmutable y audita")
+    void crearEnmienda_exito_mismoProfesionalAutor() {
+        String atencionPublicId = "atencion-uuid-1";
+        CrearEnmiendaRequest request = new CrearEnmiendaRequest("Aclaracion de dosis", "Se precisa que la dosis es cada 12 horas.");
+        Atencion atencionCerrada = new Atencion(1L, atencionPublicId, 100L, 300L, 50L, "CERRADA");
+
+        when(usuarioRepository.buscarPorPublicId("usr-med-1")).thenReturn(Optional.of(usuarioMedico));
+        when(profesionalRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.of(profesionalMedico));
+        when(atencionRepository.buscarEntidadPorPublicId(atencionPublicId)).thenReturn(Optional.of(atencionCerrada));
+        when(atencionRepository.crearEnmienda(eq(1L), eq(50L), eq("Aclaracion de dosis"), anyString(), eq(AHORA))).thenReturn(10L);
+
+        EnmiendaResponse response = clinicalAttentionService.crearEnmienda(atencionPublicId, request, "usr-med-1", "127.0.0.1");
+
+        assertThat(response).isNotNull();
+        assertThat(response.profesionalPublicId()).isEqualTo("prof-1");
+        assertThat(response.motivo()).isEqualTo("Aclaracion de dosis");
+        assertThat(response.contenido()).isEqualTo("Se precisa que la dosis es cada 12 horas.");
+        assertThat(response.fechaEnmienda()).isEqualTo(AHORA);
+
+        // Verifica guardado
+        verify(atencionRepository).crearEnmienda(1L, 50L, "Aclaracion de dosis", "Se precisa que la dosis es cada 12 horas.", AHORA);
+
+        // Verifica auditoría inmutable
+        ArgumentCaptor<EventoAuditoria> eventoCaptor = ArgumentCaptor.forClass(EventoAuditoria.class);
+        verify(auditoriaService).auditar(eventoCaptor.capture());
+        assertThat(eventoCaptor.getValue().accion()).isEqualTo(AccionAuditable.ENMIENDA_ATENCION);
+        assertThat(eventoCaptor.getValue().tipoRecurso()).isEqualTo("ATENCION");
+        assertThat(eventoCaptor.getValue().recursoPublicId()).isEqualTo(atencionPublicId);
+    }
+
+    @Test
+    @DisplayName("crearEnmienda - éxito con otro profesional que tiene relación asistencial activa")
+    void crearEnmienda_exito_otroProfesionalConRelacionAsistencial() {
+        String atencionPublicId = "atencion-uuid-1";
+        CrearEnmiendaRequest request = new CrearEnmiendaRequest("Seguimiento", "Paciente evaluado en control posterior.");
+        Atencion atencionCerrada = new Atencion(1L, atencionPublicId, 100L, 300L, 999L, "CERRADA"); // Otro médico fue el autor
+
+        when(usuarioRepository.buscarPorPublicId("usr-med-1")).thenReturn(Optional.of(usuarioMedico));
+        when(profesionalRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.of(profesionalMedico));
+        when(atencionRepository.buscarEntidadPorPublicId(atencionPublicId)).thenReturn(Optional.of(atencionCerrada));
+        when(atencionRepository.crearEnmienda(eq(1L), eq(50L), anyString(), anyString(), eq(AHORA))).thenReturn(11L);
+
+        EnmiendaResponse response = clinicalAttentionService.crearEnmienda(atencionPublicId, request, "usr-med-1", "127.0.0.1");
+
+        assertThat(response).isNotNull();
+        // Verifica que se validó la relación asistencial del nuevo médico con el paciente
+        verify(accesoClinicoService).validarRelacionAsistencial(50L, 300L);
+        verify(atencionRepository).crearEnmienda(1L, 50L, "Seguimiento", "Paciente evaluado en control posterior.", AHORA);
+    }
+
+    @Test
+    @DisplayName("crearEnmienda - rechaza si la atención está ABIERTA (inmutabilidad ADR-008)")
+    void crearEnmienda_rechazaSiAtencionEstaAbierta() {
+        String atencionPublicId = "atencion-uuid-1";
+        CrearEnmiendaRequest request = new CrearEnmiendaRequest("Aclaracion", "Contenido");
+        Atencion atencionAbierta = new Atencion(1L, atencionPublicId, 100L, 300L, 50L, "ABIERTA");
+
+        when(usuarioRepository.buscarPorPublicId("usr-med-1")).thenReturn(Optional.of(usuarioMedico));
+        when(profesionalRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.of(profesionalMedico));
+        when(atencionRepository.buscarEntidadPorPublicId(atencionPublicId)).thenReturn(Optional.of(atencionAbierta));
+
+        assertThatThrownBy(() -> clinicalAttentionService.crearEnmienda(atencionPublicId, request, "usr-med-1", "127.0.0.1"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("Solo es posible registrar enmiendas sobre atenciones clinicas CERRADAS.");
+
+        verify(atencionRepository, never()).crearEnmienda(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("crearEnmienda - rechaza si el usuario autenticado no es profesional asistencial (403)")
+    void crearEnmienda_rechazaSiUsuarioNoEsProfesional() {
+        String atencionPublicId = "atencion-uuid-1";
+        CrearEnmiendaRequest request = new CrearEnmiendaRequest("Aclaracion", "Contenido");
+
+        when(usuarioRepository.buscarPorPublicId("usr-pac-1")).thenReturn(Optional.of(usuarioMedico));
+        when(profesionalRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> clinicalAttentionService.crearEnmienda(atencionPublicId, request, "usr-pac-1", "127.0.0.1"))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("Usuario no registrado como profesional asistencial.");
+    }
+
+    @Test
+    @DisplayName("crearEnmienda - rechaza si el profesional ajeno no tiene relación asistencial activa (403)")
+    void crearEnmienda_rechazaSiOtroProfesionalNoTieneRelacionAsistencial() {
+        String atencionPublicId = "atencion-uuid-1";
+        CrearEnmiendaRequest request = new CrearEnmiendaRequest("Aclaracion", "Contenido");
+        Atencion atencionCerrada = new Atencion(1L, atencionPublicId, 100L, 300L, 999L, "CERRADA");
+
+        when(usuarioRepository.buscarPorPublicId("usr-med-1")).thenReturn(Optional.of(usuarioMedico));
+        when(profesionalRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.of(profesionalMedico));
+        when(atencionRepository.buscarEntidadPorPublicId(atencionPublicId)).thenReturn(Optional.of(atencionCerrada));
+
+        org.mockito.Mockito.doThrow(new AccesoNoAutorizadoException("El profesional no cuenta con una relacion asistencial activa con el paciente."))
+                .when(accesoClinicoService).validarRelacionAsistencial(50L, 300L);
+
+        assertThatThrownBy(() -> clinicalAttentionService.crearEnmienda(atencionPublicId, request, "usr-med-1", "127.0.0.1"))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("El profesional no cuenta con una relacion asistencial activa");
+
+        verify(atencionRepository, never()).crearEnmienda(any(), any(), any(), any(), any());
     }
 }

@@ -215,6 +215,15 @@ public class AccesoClinicoService {
         return tieneRelacionAsistencial(profesional.id(), paciente.id());
     }
 
+    /**
+     * Valida que exista relación asistencial activa o lanza AccesoNoAutorizadoException (ADR-007).
+     */
+    public void validarRelacionAsistencial(Long profesionalId, Long pacienteId) {
+        if (!tieneRelacionAsistencial(profesionalId, pacienteId)) {
+            throw new AccesoNoAutorizadoException("El profesional no cuenta con una relacion asistencial activa con el paciente.");
+        }
+    }
+
     public int getVentanaMeses() {
         return ventanaMeses;
     }

@@ -1,6 +1,7 @@
 package com.meditriaje.repository;
 
 import com.meditriaje.dto.clinical.AtencionResponse;
+import com.meditriaje.dto.clinical.EnmiendaResponse;
 import com.meditriaje.dto.clinical.SignosVitalesDto;
 import com.meditriaje.model.Atencion;
 import com.meditriaje.model.SignoVital;
@@ -274,6 +275,7 @@ public class AtencionRepository {
         List<AtencionResponse> lista = jdbcTemplate.query(sql, (rs, rowNum) -> {
             Long atencionId = rs.getLong("ATENCION_ID");
             SignosVitalesDto signos = buscarSignosVitalesPorAtencionId(atencionId).orElse(null);
+            List<EnmiendaResponse> enmiendas = buscarEnmiendasPorAtencionId(atencionId);
 
             Timestamp tsCreated = rs.getTimestamp("CREATED_AT");
             Timestamp tsCierre = rs.getTimestamp("FECHA_CIERRE");
@@ -294,11 +296,79 @@ public class AtencionRepository {
                     rs.getString("MOTIVO_CONSULTA"),
                     rs.getString("EVOLUCION"),
                     rs.getString("INDICACIONES"),
-                    signos
+                    signos,
+                    enmiendas
             );
         }, publicId);
 
         return lista.stream().findFirst();
+    }
+
+    /**
+     * Registra una enmienda o aclaración médica inmutable en ATENCION_ENMIENDA (ADR-008).
+     */
+    public Long crearEnmienda(Long atencionId, Long profesionalId, String motivo, String contenido, Instant fechaEnmienda) {
+        Objects.requireNonNull(atencionId, "atencionId no puede ser nulo");
+        Objects.requireNonNull(profesionalId, "profesionalId no puede ser nulo");
+        Objects.requireNonNull(motivo, "motivo no puede ser nulo");
+        Objects.requireNonNull(contenido, "contenido no puede ser nulo");
+        Objects.requireNonNull(fechaEnmienda, "fechaEnmienda no puede ser nula");
+
+        String sql = """
+            INSERT INTO ATENCION_ENMIENDA (
+                ATENCION_ID, PROFESIONAL_ID, MOTIVO, CONTENIDO, FECHA_ENMIENDA
+            ) VALUES (?, ?, ?, ?, ?)
+            """;
+
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, new String[]{"ID"});
+            ps.setLong(1, atencionId);
+            ps.setLong(2, profesionalId);
+            ps.setString(3, motivo);
+            ps.setString(4, contenido);
+            ps.setTimestamp(5, Timestamp.from(fechaEnmienda));
+            return ps;
+        }, keyHolder);
+
+        Number key = keyHolder.getKey();
+        if (key == null) {
+            throw new IllegalStateException("Error al registrar la enmienda en la base de datos.");
+        }
+        return key.longValue();
+    }
+
+    /**
+     * Consulta las enmiendas médicas asociadas a una atención en orden cronológico ascendente (ADR-008).
+     */
+    public List<EnmiendaResponse> buscarEnmiendasPorAtencionId(Long atencionId) {
+        if (atencionId == null) {
+            return List.of();
+        }
+
+        String sql = """
+            SELECT pr.PUBLIC_ID AS PROFESIONAL_PUBLIC_ID,
+                   TRIM(pr.NOMBRES || ' ' || pr.APELLIDOS) AS PROFESIONAL_NOMBRE,
+                   ae.MOTIVO,
+                   ae.CONTENIDO,
+                   ae.FECHA_ENMIENDA
+            FROM ATENCION_ENMIENDA ae
+            JOIN PROFESIONAL pr ON ae.PROFESIONAL_ID = pr.ID
+            WHERE ae.ATENCION_ID = ?
+            ORDER BY ae.FECHA_ENMIENDA ASC, ae.ID ASC
+            """;
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Timestamp ts = rs.getTimestamp("FECHA_ENMIENDA");
+            return new EnmiendaResponse(
+                    rs.getString("PROFESIONAL_PUBLIC_ID"),
+                    rs.getString("PROFESIONAL_NOMBRE"),
+                    rs.getString("MOTIVO"),
+                    rs.getString("CONTENIDO"),
+                    ts != null ? ts.toInstant() : null
+            );
+        }, atencionId);
     }
 
     /**

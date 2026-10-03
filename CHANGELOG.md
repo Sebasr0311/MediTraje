@@ -8,6 +8,21 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Enmiendas Médicas a Atenciones Cerradas (M6.4, HU-07, ADR-007, ADR-008, ADR-011)**:
+  - Modelo de dominio inmutable en `com.meditriaje.model`: `AtencionEnmienda` (id, atencionId, profesionalId, motivo, contenido, fechaEnmienda).
+  - DTOs en `com.meditriaje.dto.clinical`: `CrearEnmiendaRequest` con validaciones `@NotBlank` y `@Size`, y `EnmiendaResponse` (profesionalPublicId, profesionalNombre, motivo, contenido, fechaEnmienda) protegiendo IDs numéricos internos.
+  - Actualización de `AtencionResponse` para incluir `List<EnmiendaResponse> enmiendas` con sobrecarga de compatibilidad hacia atrás.
+  - Ampliación de `AtencionRepository`: métodos `crearEnmienda` (KeyHolder) y `buscarEnmiendasPorAtencionId`, integrando las enmiendas cronológicamente en `buscarDetallePorPublicId`.
+  - Ampliación de `AccesoClinicoService`: método `validarRelacionAsistencial(Long profesionalId, Long pacienteId)`.
+  - Servicio `ClinicalAttentionService.crearEnmienda`:
+    - Valida inmutabilidad exigiendo que la atención esté estrictamente `CERRADA` (ADR-008).
+    - Valida autorización exigiendo que el médico sea el autor de la atención o cuente con una relación asistencial activa (ADR-007).
+    - Registra auditoría inmutable obligatoria `ENMIENDA_ATENCION` sin incluir datos clínicos ni motivos en logs ni bitácora (ADR-011).
+  - Controlador REST `ClinicalAttentionController`: endpoint `POST /api/v1/attentions/{publicId}/amendments` restringido a `ROLE_PROFESIONAL` retornando 201 Created con cabecera `Location`.
+  - Pruebas automatizadas (11 pruebas nuevas, suite consolidada en 429 pruebas al 100%):
+    - `AtencionRepositoryTest`: prueba de búsqueda de enmiendas.
+    - `ClinicalAttentionServiceTest` (5 pruebas): creación por autor, por médico con relación activa, rechazo si atención está abierta (400), rechazo si usuario no es médico (403), y rechazo si médico ajeno no tiene relación (403).
+    - `ClinicalAttentionControllerTest` (5 pruebas MockMvc): control de acceso por rol (médico 201, paciente 403, admin 403, anónimo 401) y validaciones de request.
 - **Crear y Cerrar Atención Médica Inmutable y Catálogo CIE-10 (M6.3, HU-07, HU-09, ADR-007, ADR-008, ADR-011, ADR-013)**:
   - Modelos de dominio inmutables en `com.meditriaje.model`: `Atencion`, `SignoVital` y `DiagnosticoCie10`.
   - DTOs en `com.meditriaje.dto.clinical`: `IniciarAtencionRequest`, `CerrarAtencionRequest`, `SignosVitalesDto`, `AtencionResponse` y `DiagnosticoCie10Response`.

@@ -5,6 +5,8 @@ import com.meditriaje.config.CorsConfig;
 import com.meditriaje.config.SecurityConfig;
 import com.meditriaje.dto.clinical.AtencionResponse;
 import com.meditriaje.dto.clinical.CerrarAtencionRequest;
+import com.meditriaje.dto.clinical.CrearEnmiendaRequest;
+import com.meditriaje.dto.clinical.EnmiendaResponse;
 import com.meditriaje.dto.clinical.IniciarAtencionRequest;
 import com.meditriaje.dto.clinical.SignosVitalesDto;
 import com.meditriaje.exception.GlobalExceptionHandler;
@@ -245,5 +247,80 @@ class ClinicalAttentionControllerTest {
         mockMvc.perform(get("/api/v1/attentions/atencion-uuid-1")
                         .header("X-Requested-With", "XMLHttpRequest"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/attentions/{publicId}/amendments - Profesional: 201 Created con Location")
+    void crearEnmienda_profesional_retorna201Created() throws Exception {
+        CrearEnmiendaRequest request = new CrearEnmiendaRequest("Corrección de posología", "La frecuencia indicada es cada 8 horas.");
+        EnmiendaResponse mockResponse = new EnmiendaResponse(
+                PROFESIONAL_UUID, "Carlos Gomez", "Corrección de posología", "La frecuencia indicada es cada 8 horas.", Instant.now()
+        );
+
+        when(clinicalAttentionService.crearEnmienda(eq("atencion-uuid-1"), any(CrearEnmiendaRequest.class), eq(PROFESIONAL_UUID), anyString()))
+                .thenReturn(mockResponse);
+
+        mockMvc.perform(post("/api/v1/attentions/atencion-uuid-1/amendments")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .cookie(new Cookie("access_token", TOKEN_PROFESIONAL))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/v1/attentions/atencion-uuid-1"))
+                .andExpect(jsonPath("$.profesionalPublicId").value(PROFESIONAL_UUID))
+                .andExpect(jsonPath("$.motivo").value("Corrección de posología"))
+                .andExpect(jsonPath("$.contenido").value("La frecuencia indicada es cada 8 horas."));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/attentions/{publicId}/amendments - Paciente: 403 Forbidden")
+    void crearEnmienda_paciente_retorna403() throws Exception {
+        CrearEnmiendaRequest request = new CrearEnmiendaRequest("Motivo", "Contenido");
+
+        mockMvc.perform(post("/api/v1/attentions/atencion-uuid-1/amendments")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .cookie(new Cookie("access_token", TOKEN_PACIENTE))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/attentions/{publicId}/amendments - Administrador: 403 Forbidden")
+    void crearEnmienda_admin_retorna403() throws Exception {
+        CrearEnmiendaRequest request = new CrearEnmiendaRequest("Motivo", "Contenido");
+
+        mockMvc.perform(post("/api/v1/attentions/atencion-uuid-1/amendments")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .cookie(new Cookie("access_token", TOKEN_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/attentions/{publicId}/amendments - Sin autenticación: 401 Unauthorized")
+    void crearEnmienda_sinAuth_retorna401() throws Exception {
+        CrearEnmiendaRequest request = new CrearEnmiendaRequest("Motivo", "Contenido");
+
+        mockMvc.perform(post("/api/v1/attentions/atencion-uuid-1/amendments")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/attentions/{publicId}/amendments - Body inválido: 400 Bad Request")
+    void crearEnmienda_bodyInvalido_retorna400() throws Exception {
+        CrearEnmiendaRequest requestInvalido = new CrearEnmiendaRequest("  ", "");
+
+        mockMvc.perform(post("/api/v1/attentions/atencion-uuid-1/amendments")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .cookie(new Cookie("access_token", TOKEN_PROFESIONAL))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestInvalido)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.mensaje").exists());
     }
 }

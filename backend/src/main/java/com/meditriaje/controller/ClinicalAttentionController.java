@@ -2,6 +2,8 @@ package com.meditriaje.controller;
 
 import com.meditriaje.dto.clinical.AtencionResponse;
 import com.meditriaje.dto.clinical.CerrarAtencionRequest;
+import com.meditriaje.dto.clinical.CrearEnmiendaRequest;
+import com.meditriaje.dto.clinical.EnmiendaResponse;
 import com.meditriaje.dto.clinical.IniciarAtencionRequest;
 import com.meditriaje.service.ClinicalAttentionService;
 import com.meditriaje.util.IpUtil;
@@ -91,5 +93,26 @@ public class ClinicalAttentionController {
 
         AtencionResponse response = clinicalAttentionService.obtenerPorPublicId(publicId, usuarioPublicId, authorities, ipOrigen);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Registra una enmienda o aclaración médica inmutable sobre una atención cerrada (ADR-008, HU-07).
+     * Restringido exclusivamente al rol profesional con relación asistencial o autor.
+     */
+    @PostMapping("/{publicId}/amendments")
+    @PreAuthorize("hasAuthority('ROLE_PROFESIONAL')")
+    public ResponseEntity<EnmiendaResponse> crearEnmienda(
+            @PathVariable String publicId,
+            @Valid @RequestBody CrearEnmiendaRequest request,
+            Authentication authentication,
+            HttpServletRequest httpRequest
+    ) {
+        String usuarioPublicId = authentication.getName();
+        String ipOrigen = IpUtil.extraerIp(httpRequest);
+
+        EnmiendaResponse response = clinicalAttentionService.crearEnmienda(publicId, request, usuarioPublicId, ipOrigen);
+        URI location = URI.create("/api/v1/attentions/" + publicId);
+
+        return ResponseEntity.created(location).body(response);
     }
 }

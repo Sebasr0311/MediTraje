@@ -57,4 +57,10 @@ class AtencionRepositoryTest {
 
         assertThat(resultado).isFalse();
     }
+
+    @Test
+    void buscarEnmiendasPorAtencionId_atencionIdNulo_retornaVacio() {
+        var lista = atencionRepository.buscarEnmiendasPorAtencionId(null);
+        assertThat(lista).isEmpty();
+    }
 }
