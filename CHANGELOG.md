@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-03
+
 ### Added
 - **Consulta de Recetas Médicas del Paciente y Colección M7.http (M7.3, HU-08, HU-09, ADR-007, ADR-008, ADR-011)**:
   - Repositorio `RecetaRepository`: métodos `listarPorPacienteId` (con JOINs relacionales a ATENCION, PACIENTE, PROFESIONAL, CITA, DISPONIBILIDAD_SLOT y ESPECIALIDAD, recuperación de detalles con snapshots históricos inmutables, orden cronológico descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y `contarPorPacienteId`.
