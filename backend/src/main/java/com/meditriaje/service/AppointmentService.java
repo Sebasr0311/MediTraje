@@ -1,5 +1,6 @@
 package com.meditriaje.service;
 
+import com.meditriaje.dto.appointment.CancelarCitaRequest;
 import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.dto.appointment.ReservarCitaRequest;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
@@ -8,7 +9,9 @@ import com.meditriaje.exception.DatosInvalidosException;
 import com.meditriaje.exception.RecursoNoEncontradoException;
 import com.meditriaje.model.AccionAuditable;
 import com.meditriaje.model.Cita;
+import com.meditriaje.model.CitaStateMachine;
 import com.meditriaje.model.DisponibilidadSlot;
+import com.meditriaje.model.EstadoCita;
 import com.meditriaje.model.EventoAuditoria;
 import com.meditriaje.model.Paciente;
 import com.meditriaje.model.Profesional;
@@ -20,13 +23,18 @@ import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Servicio de negocio para el agendamiento y gestión del ciclo de vida de citas médicas (ADR-002, ADR-003, ADR-006, HU-04).
@@ -157,5 +165,104 @@ public class AppointmentService {
         // 9. Retornar vista consolidada de la cita
         return citaRepository.buscarPorPublicId(citaPublicId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada tras creacion."));
+    }
+
+    /**
+     * Cancela una cita médica agendada aplicando las reglas de máquina de estados,
+     * anticipación y autorización según el rol (ADR-002, ADR-003, ADR-006, HU-05).
+     *
+     * @param citaPublicId                 UUID público de la cita a cancelar.
+     * @param request                      DTO opcional con el motivo de cancelación.
+     * @param usuarioAutenticadoPublicId   UUID público del usuario en sesión.
+     * @param authorities                  Colección de roles/autoridades del usuario autenticado.
+     * @param ipOrigen                     Dirección IP cliente para la bitácora de auditoría.
+     * @return {@link CitaResponse} con los datos consolidados de la cita cancelada.
+     */
+    @Transactional
+    public CitaResponse cancelarCita(
+            String citaPublicId,
+            CancelarCitaRequest request,
+            String usuarioAutenticadoPublicId,
+            Collection<? extends GrantedAuthority> authorities,
+            String ipOrigen
+    ) {
+        Objects.requireNonNull(citaPublicId, "El identificador de la cita no puede ser nulo");
+        Objects.requireNonNull(usuarioAutenticadoPublicId, "El usuario público no puede ser nulo");
+
+        // 1. Obtener usuario autenticado
+        Usuario usuario = usuarioRepository.buscarPorPublicId(usuarioAutenticadoPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado."));
+
+        // 2. Obtener cita por citaPublicId
+        Cita cita = citaRepository.buscarEntidadPorPublicId(citaPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada."));
+
+        // 3. Validar transición de estado según CitaStateMachine
+        EstadoCita estadoActual;
+        try {
+            estadoActual = EstadoCita.valueOf(cita.estado());
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            throw new DatosInvalidosException("Estado de cita no reconocido: " + cita.estado());
+        }
+        CitaStateMachine.validarTransicion(estadoActual, EstadoCita.CANCELADA);
+
+        // 4. Obtener slot
+        DisponibilidadSlot slot = disponibilidadSlotRepository.buscarPorId(cita.slotId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Slot de disponibilidad no encontrado."));
+
+        // 5. Reglas de Autorización y Anticipación (ADR-006, HU-05, HU-09)
+        Set<String> roles = authorities != null
+                ? authorities.stream().map(GrantedAuthority::getAuthority).collect(Collectors.toSet())
+                : Set.of();
+
+        if (roles.contains("ROLE_ADMINISTRADOR")) {
+            // Administrador puede cancelar cualquier cita activa sin restricción de 2 horas.
+        } else if (roles.contains("ROLE_PROFESIONAL")) {
+            // Validar que el slot pertenezca al profesional autenticado
+            Profesional profesional = profesionalRepository.buscarPorUsuarioId(usuario.id())
+                    .orElseThrow(() -> new AccesoNoAutorizadoException("El profesional no tiene autorizacion para cancelar citas de otro colega."));
+
+            if (!Objects.equals(slot.profesionalId(), profesional.id())) {
+                throw new AccesoNoAutorizadoException("El profesional no tiene autorizacion para cancelar citas de otro colega.");
+            }
+            // No aplica la regla de las 2 horas para profesionales
+        } else if (roles.contains("ROLE_PACIENTE")) {
+            // Validar que la cita le pertenezca
+            Paciente paciente = pacienteRepository.buscarPorUsuarioId(usuario.id())
+                    .orElseThrow(() -> new AccesoNoAutorizadoException("Solo pacientes registrados pueden cancelar citas."));
+
+            if (!Objects.equals(cita.pacienteId(), paciente.id())) {
+                throw new AccesoNoAutorizadoException("No tiene autorizacion para cancelar una cita ajena.");
+            }
+
+            // Regla de las 2 horas (ADR-006, HU-05): la cancelación por paciente debe realizarse con al menos 2 horas de anticipación
+            Instant limiteCancelacion = slot.fechaHoraInicio().minus(2, ChronoUnit.HOURS);
+            if (Instant.now(clock).isAfter(limiteCancelacion)) {
+                throw new DatosInvalidosException("La cancelacion por parte del paciente solo esta permitida hasta 2 horas antes de la cita.");
+            }
+        } else {
+            throw new AccesoNoAutorizadoException("No tiene autorizacion para cancelar citas.");
+        }
+
+        // 6. Actualizar la cita a CANCELADA y registrar motivo
+        String motivoCancelacion = request != null ? request.motivo() : null;
+        citaRepository.actualizarEstado(cita.id(), EstadoCita.CANCELADA.name(), motivoCancelacion);
+
+        // 7. Liberar el slot de disponibilidad: pasar el slot a 'LIBRE'
+        disponibilidadSlotRepository.liberarSlot(cita.slotId());
+
+        // 8. Auditar evento exitoso inmutable
+        auditoriaService.auditar(new EventoAuditoria(
+                usuario.id(),
+                AccionAuditable.CANCELACION_CITA,
+                "CITA",
+                cita.publicId(),
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        ));
+
+        // 9. Retornar CitaResponse actualizado
+        return citaRepository.buscarPorPublicId(cita.publicId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada tras cancelacion."));
     }
 }

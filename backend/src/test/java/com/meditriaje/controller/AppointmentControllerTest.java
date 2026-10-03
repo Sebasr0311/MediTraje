@@ -3,9 +3,12 @@ package com.meditriaje.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meditriaje.config.CorsConfig;
 import com.meditriaje.config.SecurityConfig;
+import com.meditriaje.dto.appointment.CancelarCitaRequest;
 import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.dto.appointment.ReservarCitaRequest;
+import com.meditriaje.exception.AccesoNoAutorizadoException;
 import com.meditriaje.exception.CitaNoDisponibleException;
+import com.meditriaje.exception.DatosInvalidosException;
 import com.meditriaje.exception.GlobalExceptionHandler;
 import com.meditriaje.security.JwtService;
 import com.meditriaje.service.AppointmentService;
@@ -27,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -165,5 +169,162 @@ class AppointmentControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACION_FALLIDA"))
                 .andExpect(jsonPath("$.mensaje").value(org.hamcrest.Matchers.containsString("El identificador del slot es obligatorio.")));
+    }
+
+    // =========================================================================
+    // CANCELACIÓN DE CITAS (PATCH /api/v1/appointments/{publicId}/cancel)
+    // =========================================================================
+
+    @Test
+    void cancelAppointment_sinAutenticacion_retorna401Unauthorized() throws Exception {
+        mockMvc.perform(patch("/api/v1/appointments/cita-uuid-1/cancel")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
+    }
+
+    @Test
+    void cancelAppointment_conRolPacienteYAnticipacion_retorna200Ok() throws Exception {
+        CancelarCitaRequest req = new CancelarCitaRequest("Cancelacion anticipada");
+        Instant ahora = Instant.now();
+        CitaResponse mockResponse = new CitaResponse(
+                "cita-uuid-1", "slot-uuid-1", "pac-uuid-1", "Carlos Sanchez",
+                "prof-uuid-1", "Dra. Gomez", "esp-uuid-1", "Pediatria",
+                "sede-uuid-1", "Sede Central", "Carrera 7 # 40-62",
+                ahora.plusSeconds(10800), ahora.plusSeconds(12000),
+                "PRESENCIAL", "CANCELADA", null, null, ahora
+        );
+
+        when(appointmentService.cancelarCita(eq("cita-uuid-1"), any(CancelarCitaRequest.class), eq(PACIENTE_UUID), any(), anyString()))
+                .thenReturn(mockResponse);
+
+        mockMvc.perform(patch("/api/v1/appointments/cita-uuid-1/cancel")
+                        .cookie(new Cookie("access_token", TOKEN_PACIENTE))
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicId").value("cita-uuid-1"))
+                .andExpect(jsonPath("$.estado").value("CANCELADA"));
+    }
+
+    @Test
+    void cancelAppointment_sinCuerpo_retorna200Ok() throws Exception {
+        Instant ahora = Instant.now();
+        CitaResponse mockResponse = new CitaResponse(
+                "cita-uuid-1", "slot-uuid-1", "pac-uuid-1", "Carlos Sanchez",
+                "prof-uuid-1", "Dra. Gomez", "esp-uuid-1", "Pediatria",
+                "sede-uuid-1", "Sede Central", "Carrera 7 # 40-62",
+                ahora.plusSeconds(10800), ahora.plusSeconds(12000),
+                "PRESENCIAL", "CANCELADA", null, null, ahora
+        );
+
+        when(appointmentService.cancelarCita(eq("cita-uuid-1"), any(), eq(PACIENTE_UUID), any(), anyString()))
+                .thenReturn(mockResponse);
+
+        mockMvc.perform(patch("/api/v1/appointments/cita-uuid-1/cancel")
+                        .cookie(new Cookie("access_token", TOKEN_PACIENTE))
+                        .header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicId").value("cita-uuid-1"))
+                .andExpect(jsonPath("$.estado").value("CANCELADA"));
+    }
+
+    @Test
+    void cancelAppointment_conRolProfesional_retorna200Ok() throws Exception {
+        Instant ahora = Instant.now();
+        CitaResponse mockResponse = new CitaResponse(
+                "cita-uuid-1", "slot-uuid-1", "pac-uuid-1", "Carlos Sanchez",
+                "prof-uuid-1", "Dra. Gomez", "esp-uuid-1", "Pediatria",
+                "sede-uuid-1", "Sede Central", "Carrera 7 # 40-62",
+                ahora.plusSeconds(1800), ahora.plusSeconds(3000),
+                "PRESENCIAL", "CANCELADA", null, null, ahora
+        );
+
+        when(appointmentService.cancelarCita(eq("cita-uuid-1"), any(), eq(PROFESIONAL_UUID), any(), anyString()))
+                .thenReturn(mockResponse);
+
+        mockMvc.perform(patch("/api/v1/appointments/cita-uuid-1/cancel")
+                        .cookie(new Cookie("access_token", TOKEN_PROFESIONAL))
+                        .header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicId").value("cita-uuid-1"))
+                .andExpect(jsonPath("$.estado").value("CANCELADA"));
+    }
+
+    @Test
+    void cancelAppointment_conRolAdministrador_retorna200Ok() throws Exception {
+        Instant ahora = Instant.now();
+        CitaResponse mockResponse = new CitaResponse(
+                "cita-uuid-1", "slot-uuid-1", "pac-uuid-1", "Carlos Sanchez",
+                "prof-uuid-1", "Dra. Gomez", "esp-uuid-1", "Pediatria",
+                "sede-uuid-1", "Sede Central", "Carrera 7 # 40-62",
+                ahora.plusSeconds(600), ahora.plusSeconds(1800),
+                "PRESENCIAL", "CANCELADA", null, null, ahora
+        );
+
+        when(appointmentService.cancelarCita(eq("cita-uuid-1"), any(), eq(ADMIN_UUID), any(), anyString()))
+                .thenReturn(mockResponse);
+
+        mockMvc.perform(patch("/api/v1/appointments/cita-uuid-1/cancel")
+                        .cookie(new Cookie("access_token", TOKEN_ADMIN))
+                        .header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicId").value("cita-uuid-1"))
+                .andExpect(jsonPath("$.estado").value("CANCELADA"));
+    }
+
+    @Test
+    void cancelAppointment_pacienteCancelaCitaAjena_retorna403Forbidden() throws Exception {
+        when(appointmentService.cancelarCita(eq("cita-uuid-1"), any(), eq(PACIENTE_UUID), any(), anyString()))
+                .thenThrow(new AccesoNoAutorizadoException("No tiene autorizacion para cancelar una cita ajena."));
+
+        mockMvc.perform(patch("/api/v1/appointments/cita-uuid-1/cancel")
+                        .cookie(new Cookie("access_token", TOKEN_PACIENTE))
+                        .header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("ACCESO_NO_AUTORIZADO"))
+                .andExpect(jsonPath("$.mensaje").value("No tiene autorizacion para cancelar una cita ajena."));
+    }
+
+    @Test
+    void cancelAppointment_cancelacionTardia_retorna400BadRequest() throws Exception {
+        when(appointmentService.cancelarCita(eq("cita-uuid-1"), any(), eq(PACIENTE_UUID), any(), anyString()))
+                .thenThrow(new DatosInvalidosException("La cancelacion por parte del paciente solo esta permitida hasta 2 horas antes de la cita."));
+
+        mockMvc.perform(patch("/api/v1/appointments/cita-uuid-1/cancel")
+                        .cookie(new Cookie("access_token", TOKEN_PACIENTE))
+                        .header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("DATOS_INVALIDOS"))
+                .andExpect(jsonPath("$.mensaje").value("La cancelacion por parte del paciente solo esta permitida hasta 2 horas antes de la cita."));
+    }
+
+    @Test
+    void cancelAppointment_transicionInvalida_retorna400BadRequest() throws Exception {
+        when(appointmentService.cancelarCita(eq("cita-uuid-1"), any(), eq(PACIENTE_UUID), any(), anyString()))
+                .thenThrow(new DatosInvalidosException("Transicion de estado no permitida de ATENDIDA a CANCELADA."));
+
+        mockMvc.perform(patch("/api/v1/appointments/cita-uuid-1/cancel")
+                        .cookie(new Cookie("access_token", TOKEN_PACIENTE))
+                        .header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("DATOS_INVALIDOS"))
+                .andExpect(jsonPath("$.mensaje").value("Transicion de estado no permitida de ATENDIDA a CANCELADA."));
+    }
+
+    @Test
+    void cancelAppointment_motivoExcede255Caracteres_retorna400BadRequest() throws Exception {
+        CancelarCitaRequest req = new CancelarCitaRequest("A".repeat(256));
+
+        mockMvc.perform(patch("/api/v1/appointments/cita-uuid-1/cancel")
+                        .cookie(new Cookie("access_token", TOKEN_PACIENTE))
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("VALIDACION_FALLIDA"))
+                .andExpect(jsonPath("$.mensaje").value(org.hamcrest.Matchers.containsString("El motivo de cancelacion no puede exceder 255 caracteres.")));
     }
 }

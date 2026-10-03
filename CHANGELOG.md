@@ -8,6 +8,27 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Máquina de Estados y Cancelación de Citas Médicas (M4.5, HU-05, ADR-002, ADR-003, ADR-006, ADR-011)**:
+  - Enum de dominio `EstadoCita` en `com.meditriaje.model`: modelado de los 6 estados del ciclo de vida (`PROGRAMADA`, `CONFIRMADA`, `ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`).
+  - Máquina de estados `CitaStateMachine` en `com.meditriaje.model`:
+    - Transiciones controladas desde `PROGRAMADA` (`CONFIRMADA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`) y desde `CONFIRMADA` (`ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`).
+    - Inmutabilidad terminal en estados finales (`ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`) sin transiciones salientes permitidas.
+    - Métodos deterministas: `esTransicionValida(origen, destino)`, `validarTransicion(origen, destino)` (lanza `DatosInvalidosException`), y `esEstadoFinal(estado)`.
+  - DTO `CancelarCitaRequest` en `com.meditriaje.dto.appointment` con validación `@Size(max = 255)` para motivo y soporte de cuerpo vacío o nulo.
+  - Lógica de negocio transaccional `AppointmentService.cancelarCita(...)`:
+    - Verificación rigurosa de transición válida según `CitaStateMachine`.
+    - Reglas de autorización y anticipación según rol (ADR-002, ADR-006):
+      - Paciente: valida pertenencia de la cita y anticipación de al menos 2 horas (`Instant.now(clock).isAfter(slot.fechaHoraInicio().minus(2, ChronoUnit.HOURS))`).
+      - Profesional: valida asignación del slot al profesional autenticado sin restricción horaria.
+      - Administrador: autorización irrestricta sobre cualquier cita activa sin restricción horaria.
+    - Actualización de estado a `CANCELADA` y motivo en `CitaRepository.actualizarEstado`.
+    - Liberación atómica del slot asociado cambiándolo a estado `LIBRE` mediante `DisponibilidadSlotRepository.liberarSlot`.
+    - Registro inmutable en bitácora de auditoría (`CANCELACION_CITA`) sin datos clínicos (ADR-011).
+  - Controlador `AppointmentController`: endpoint `PATCH /api/v1/appointments/{publicId}/cancel` protegido con `@PreAuthorize("isAuthenticated()")`, afinando `@PreAuthorize("hasAnyAuthority('ROLE_PACIENTE', 'ROLE_ADMINISTRADOR')")` en el método `POST /api/v1/appointments`.
+  - Pruebas automatizadas (40 pruebas nuevas, 281 totales en suite):
+    - `CitaStateMachineTest` (18 pruebas): validación exhaustiva de estados terminales, transiciones permitidas e inválidas, y validación de mensajes de error.
+    - `AppointmentServiceTest` (13 pruebas nuevas): cancelación exitosa por paciente (> 2h), rechazo por cancelación tardía (< 2h o pasada), rechazo por cita ajena (403), rechazo por transición inválida desde estados terminales (400), cancelación por profesional (slot propio vs ajeno 403), cancelación por admin, ausencia de recursos (404) y cuerpo nulo.
+    - `AppointmentControllerTest` (9 pruebas nuevas): 200 OK para paciente, profesional y admin; 403 Forbidden para cita ajena; 400 Bad Request ante cancelación tardía, transición inválida y motivo > 255 caracteres; 401 Unauthorized sin autenticación.
 - **Prueba Determinista de Concurrencia Multihilo en Reserva de Citas (M4.4, HU-04, ADR-006)**:
   - Creación de suite determinista `AppointmentConcurrencyTest` en `com.meditriaje.service`:
     - Simulación multihilo con 12 hilos concurrentes compitiendo en el mismo instante (`CountDownLatch` + `ExecutorService`) sobre el mismo slot de disponibilidad.

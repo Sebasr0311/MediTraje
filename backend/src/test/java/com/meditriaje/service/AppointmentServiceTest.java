@@ -1,5 +1,6 @@
 package com.meditriaje.service;
 
+import com.meditriaje.dto.appointment.CancelarCitaRequest;
 import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.dto.appointment.ReservarCitaRequest;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
@@ -9,6 +10,7 @@ import com.meditriaje.exception.RecursoNoEncontradoException;
 import com.meditriaje.model.AccionAuditable;
 import com.meditriaje.model.Cita;
 import com.meditriaje.model.DisponibilidadSlot;
+import com.meditriaje.model.EstadoCita;
 import com.meditriaje.model.EventoAuditoria;
 import com.meditriaje.model.Paciente;
 import com.meditriaje.model.Profesional;
@@ -26,6 +28,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import java.util.List;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -290,5 +295,425 @@ class AppointmentServiceTest {
                 .hasMessageContaining("El slot de atencion ya cuenta con una cita activa");
 
         verify(auditoriaService, never()).auditar(any());
+    }
+
+    // =========================================================================
+    // CANCELACIÓN DE CITAS Y MÁQUINA DE ESTADOS (ADR-006, HU-05)
+    // =========================================================================
+
+    @Test
+    void cancelarCita_pacienteConMasDeDosHoras_exitoso_actualizaEstadoLiberaSlotYAudita() {
+        // Slot a 3 horas de distancia (más de 2 horas)
+        DisponibilidadSlot slotFuturo = new DisponibilidadSlot(
+                50L, SLOT_PUBLIC_ID, 100L, 200L, 300L,
+                NOW.plusSeconds(10800), NOW.plusSeconds(12000), "PRESENCIAL", "OCUPADO"
+        );
+
+        Cita citaProgramada = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "PROGRAMADA", null, NOW, NOW
+        );
+
+        CitaResponse mockResponse = new CitaResponse(
+                "cita-uuid-1", SLOT_PUBLIC_ID, "pac-uuid-1", "Pepito Perez",
+                "prof-uuid-1", "Gregory House", "esp-uuid-1", "Medicina Interna",
+                "sede-uuid-1", "Sede Central", "Carrera 7 # 40-62",
+                slotFuturo.fechaHoraInicio(), slotFuturo.fechaHoraFin(),
+                "PRESENCIAL", "CANCELADA", null, null, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaProgramada));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotFuturo));
+        when(pacienteRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.of(pacienteMock));
+        when(citaRepository.buscarPorPublicId("cita-uuid-1")).thenReturn(Optional.of(mockResponse));
+
+        CancelarCitaRequest req = new CancelarCitaRequest("Imprevisto laboral");
+        CitaResponse resultado = appointmentService.cancelarCita(
+                "cita-uuid-1",
+                req,
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_PACIENTE")),
+                IP_CLIENTE
+        );
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.estado()).isEqualTo("CANCELADA");
+
+        // 1. Verifica actualización en BD
+        verify(citaRepository).actualizarEstado(500L, "CANCELADA", "Imprevisto laboral");
+
+        // 2. Verifica liberación de slot a LIBRE
+        verify(disponibilidadSlotRepository).liberarSlot(50L);
+
+        // 3. Verifica auditoría inmutable
+        ArgumentCaptor<EventoAuditoria> eventoCaptor = ArgumentCaptor.forClass(EventoAuditoria.class);
+        verify(auditoriaService).auditar(eventoCaptor.capture());
+        EventoAuditoria evento = eventoCaptor.getValue();
+        assertThat(evento.usuarioId()).isEqualTo(1L);
+        assertThat(evento.accion()).isEqualTo(AccionAuditable.CANCELACION_CITA);
+        assertThat(evento.tipoRecurso()).isEqualTo("CITA");
+        assertThat(evento.recursoPublicId()).isEqualTo("cita-uuid-1");
+        assertThat(evento.resultado()).isEqualTo(ResultadoAuditoria.EXITO);
+        assertThat(evento.ipOrigen()).isEqualTo(IP_CLIENTE);
+    }
+
+    @Test
+    void cancelarCita_pacienteConMenosDeDosHoras_lanzaDatosInvalidosException() {
+        // Slot inicia en 1 hora (menos de 2 horas)
+        DisponibilidadSlot slotCercano = new DisponibilidadSlot(
+                50L, SLOT_PUBLIC_ID, 100L, 200L, 300L,
+                NOW.plusSeconds(3600), NOW.plusSeconds(4800), "PRESENCIAL", "OCUPADO"
+        );
+
+        Cita citaProgramada = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "PROGRAMADA", null, NOW, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaProgramada));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotCercano));
+        when(pacienteRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.of(pacienteMock));
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-uuid-1",
+                new CancelarCitaRequest("Motivo"),
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_PACIENTE")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("La cancelacion por parte del paciente solo esta permitida hasta 2 horas antes de la cita.");
+
+        verify(citaRepository, never()).actualizarEstado(anyLong(), anyString(), any());
+        verify(disponibilidadSlotRepository, never()).liberarSlot(anyLong());
+        verify(auditoriaService, never()).auditar(any());
+    }
+
+    @Test
+    void cancelarCita_pacienteCitaEnElPasado_lanzaDatosInvalidosException() {
+        DisponibilidadSlot slotPasado = new DisponibilidadSlot(
+                50L, SLOT_PUBLIC_ID, 100L, 200L, 300L,
+                NOW.minusSeconds(1800), NOW.minusSeconds(600), "PRESENCIAL", "OCUPADO"
+        );
+
+        Cita citaProgramada = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "PROGRAMADA", null, NOW, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaProgramada));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotPasado));
+        when(pacienteRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.of(pacienteMock));
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-uuid-1",
+                new CancelarCitaRequest("Motivo"),
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_PACIENTE")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("La cancelacion por parte del paciente solo esta permitida hasta 2 horas antes de la cita.");
+
+        verify(citaRepository, never()).actualizarEstado(anyLong(), anyString(), any());
+        verify(disponibilidadSlotRepository, never()).liberarSlot(anyLong());
+        verify(auditoriaService, never()).auditar(any());
+    }
+
+    @Test
+    void cancelarCita_pacienteIntentaCancelarCitaAjena_lanzaAccesoNoAutorizadoException() {
+        DisponibilidadSlot slotFuturo = new DisponibilidadSlot(
+                50L, SLOT_PUBLIC_ID, 100L, 200L, 300L,
+                NOW.plusSeconds(10800), NOW.plusSeconds(12000), "PRESENCIAL", "OCUPADO"
+        );
+
+        // Cita con pacienteId = 999L (ajena al paciente autenticado con id = 10L)
+        Cita citaAjena = new Cita(
+                500L, "cita-uuid-1", 50L, 999L, null, null, "PROGRAMADA", null, NOW, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaAjena));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotFuturo));
+        when(pacienteRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.of(pacienteMock));
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-uuid-1",
+                new CancelarCitaRequest("Motivo"),
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_PACIENTE")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessage("No tiene autorizacion para cancelar una cita ajena.");
+
+        verify(citaRepository, never()).actualizarEstado(anyLong(), anyString(), any());
+        verify(disponibilidadSlotRepository, never()).liberarSlot(anyLong());
+        verify(auditoriaService, never()).auditar(any());
+    }
+
+    @Test
+    void cancelarCita_transicionInvalidaDesdeAtendida_lanzaDatosInvalidosException() {
+        Cita citaAtendida = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "ATENDIDA", null, NOW, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaAtendida));
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-uuid-1",
+                null,
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_PACIENTE")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("Transicion de estado no permitida de ATENDIDA a CANCELADA.");
+
+        verify(disponibilidadSlotRepository, never()).buscarPorId(anyLong());
+        verify(citaRepository, never()).actualizarEstado(anyLong(), anyString(), any());
+        verify(auditoriaService, never()).auditar(any());
+    }
+
+    @Test
+    void cancelarCita_transicionInvalidaDesdeCancelada_lanzaDatosInvalidosException() {
+        Cita citaCancelada = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "CANCELADA", "Cancelada previamente", NOW, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaCancelada));
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-uuid-1",
+                null,
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_ADMINISTRADOR")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("Transicion de estado no permitida de CANCELADA a CANCELADA.");
+
+        verify(disponibilidadSlotRepository, never()).buscarPorId(anyLong());
+        verify(citaRepository, never()).actualizarEstado(anyLong(), anyString(), any());
+    }
+
+    @Test
+    void cancelarCita_profesionalDeSuPropioSlotSinRestriccionDosHoras_exitoso() {
+        // Slot inicia en solo 30 minutos (menos de 2 horas)
+        DisponibilidadSlot slotInmediato = new DisponibilidadSlot(
+                50L, SLOT_PUBLIC_ID, 100L, 200L, 300L,
+                NOW.plusSeconds(1800), NOW.plusSeconds(3000), "PRESENCIAL", "OCUPADO"
+        );
+
+        Cita citaConfirmada = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "CONFIRMADA", null, NOW, NOW
+        );
+
+        Usuario usuarioProfesional = new Usuario(
+                2L, "prof-usr-uuid", "drhouse@test.com", "hash", "ACTIVO", 0, null, NOW, false
+        );
+
+        CitaResponse mockResponse = new CitaResponse(
+                "cita-uuid-1", SLOT_PUBLIC_ID, "pac-uuid-1", "Pepito Perez",
+                "prof-uuid-1", "Gregory House", "esp-uuid-1", "Medicina Interna",
+                "sede-uuid-1", "Sede Central", "Carrera 7 # 40-62",
+                slotInmediato.fechaHoraInicio(), slotInmediato.fechaHoraFin(),
+                "PRESENCIAL", "CANCELADA", null, null, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-uuid")).thenReturn(Optional.of(usuarioProfesional));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaConfirmada));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotInmediato));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(profesionalMock));
+        when(citaRepository.buscarPorPublicId("cita-uuid-1")).thenReturn(Optional.of(mockResponse));
+
+        CitaResponse res = appointmentService.cancelarCita(
+                "cita-uuid-1",
+                new CancelarCitaRequest("Emergencia medica del profesional"),
+                "prof-usr-uuid",
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL")),
+                IP_CLIENTE
+        );
+
+        assertThat(res).isNotNull();
+        assertThat(res.estado()).isEqualTo("CANCELADA");
+
+        verify(citaRepository).actualizarEstado(500L, "CANCELADA", "Emergencia medica del profesional");
+        verify(disponibilidadSlotRepository).liberarSlot(50L);
+        verify(auditoriaService).auditar(any(EventoAuditoria.class));
+    }
+
+    @Test
+    void cancelarCita_profesionalDeSlotAjeno_lanzaAccesoNoAutorizadoException() {
+        // Slot asignado al profesional 999L
+        DisponibilidadSlot slotDeOtroProfesional = new DisponibilidadSlot(
+                50L, SLOT_PUBLIC_ID, 999L, 200L, 300L,
+                NOW.plusSeconds(3600), NOW.plusSeconds(4800), "PRESENCIAL", "OCUPADO"
+        );
+
+        Cita citaProgramada = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "PROGRAMADA", null, NOW, NOW
+        );
+
+        Usuario usuarioProfesional = new Usuario(
+                2L, "prof-usr-uuid", "drhouse@test.com", "hash", "ACTIVO", 0, null, NOW, false
+        );
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-uuid")).thenReturn(Optional.of(usuarioProfesional));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaProgramada));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotDeOtroProfesional));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(profesionalMock));
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-uuid-1",
+                new CancelarCitaRequest("Motivo"),
+                "prof-usr-uuid",
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessage("El profesional no tiene autorizacion para cancelar citas de otro colega.");
+
+        verify(citaRepository, never()).actualizarEstado(anyLong(), anyString(), any());
+        verify(disponibilidadSlotRepository, never()).liberarSlot(anyLong());
+    }
+
+    @Test
+    void cancelarCita_administradorSinRestriccionDosHoras_exitoso() {
+        // Slot inicia en 10 minutos
+        DisponibilidadSlot slotInmediato = new DisponibilidadSlot(
+                50L, SLOT_PUBLIC_ID, 100L, 200L, 300L,
+                NOW.plusSeconds(600), NOW.plusSeconds(1800), "PRESENCIAL", "OCUPADO"
+        );
+
+        Cita citaProgramada = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "PROGRAMADA", null, NOW, NOW
+        );
+
+        Usuario usuarioAdmin = new Usuario(
+                3L, "admin-usr-uuid", "admin@test.com", "hash", "ACTIVO", 0, null, NOW, false
+        );
+
+        CitaResponse mockResponse = new CitaResponse(
+                "cita-uuid-1", SLOT_PUBLIC_ID, "pac-uuid-1", "Pepito Perez",
+                "prof-uuid-1", "Gregory House", "esp-uuid-1", "Medicina Interna",
+                "sede-uuid-1", "Sede Central", "Carrera 7 # 40-62",
+                slotInmediato.fechaHoraInicio(), slotInmediato.fechaHoraFin(),
+                "PRESENCIAL", "CANCELADA", null, null, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId("admin-usr-uuid")).thenReturn(Optional.of(usuarioAdmin));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaProgramada));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotInmediato));
+        when(citaRepository.buscarPorPublicId("cita-uuid-1")).thenReturn(Optional.of(mockResponse));
+
+        CitaResponse res = appointmentService.cancelarCita(
+                "cita-uuid-1",
+                new CancelarCitaRequest("Cancelacion administrativa por cierre de sede"),
+                "admin-usr-uuid",
+                List.of(new SimpleGrantedAuthority("ROLE_ADMINISTRADOR")),
+                IP_CLIENTE
+        );
+
+        assertThat(res).isNotNull();
+        assertThat(res.estado()).isEqualTo("CANCELADA");
+
+        verify(citaRepository).actualizarEstado(500L, "CANCELADA", "Cancelacion administrativa por cierre de sede");
+        verify(disponibilidadSlotRepository).liberarSlot(50L);
+        verify(auditoriaService).auditar(any(EventoAuditoria.class));
+    }
+
+    @Test
+    void cancelarCita_citaNoExiste_lanzaRecursoNoEncontradoException() {
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(citaRepository.buscarEntidadPorPublicId("cita-inexistente")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-inexistente",
+                null,
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_PACIENTE")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining("Cita no encontrada");
+
+        verify(disponibilidadSlotRepository, never()).buscarPorId(anyLong());
+        verify(citaRepository, never()).actualizarEstado(anyLong(), anyString(), any());
+    }
+
+    @Test
+    void cancelarCita_usuarioNoExiste_lanzaRecursoNoEncontradoException() {
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-uuid-1",
+                null,
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_PACIENTE")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining("Usuario no encontrado");
+
+        verify(citaRepository, never()).buscarEntidadPorPublicId(anyString());
+    }
+
+    @Test
+    void cancelarCita_pacienteSinRegistroPaciente_lanzaAccesoNoAutorizadoException() {
+        DisponibilidadSlot slotFuturo = new DisponibilidadSlot(
+                50L, SLOT_PUBLIC_ID, 100L, 200L, 300L,
+                NOW.plusSeconds(10800), NOW.plusSeconds(12000), "PRESENCIAL", "OCUPADO"
+        );
+
+        Cita citaProgramada = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "PROGRAMADA", null, NOW, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaProgramada));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotFuturo));
+        when(pacienteRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-uuid-1",
+                null,
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_PACIENTE")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessage("Solo pacientes registrados pueden cancelar citas.");
+    }
+
+    @Test
+    void cancelarCita_profesionalSinRegistroProfesional_lanzaAccesoNoAutorizadoException() {
+        DisponibilidadSlot slotFuturo = new DisponibilidadSlot(
+                50L, SLOT_PUBLIC_ID, 100L, 200L, 300L,
+                NOW.plusSeconds(10800), NOW.plusSeconds(12000), "PRESENCIAL", "OCUPADO"
+        );
+
+        Cita citaProgramada = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "PROGRAMADA", null, NOW, NOW
+        );
+
+        Usuario usrProf = new Usuario(2L, "prof-usr-uuid", "prof@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-uuid")).thenReturn(Optional.of(usrProf));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaProgramada));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotFuturo));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-uuid-1",
+                null,
+                "prof-usr-uuid",
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessage("El profesional no tiene autorizacion para cancelar citas de otro colega.");
     }
 }
