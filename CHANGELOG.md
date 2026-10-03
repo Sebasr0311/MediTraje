@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-03
+
 ### Added
 - **Consulta de Historia Clínica del Paciente y Colección M6.http (M6.5, HU-09, ADR-007, ADR-008, ADR-011)**:
   - Repositorio `AtencionRepository`: métodos `listarHistoriaPaciente` (con JOINs relacionales a CITA, PACIENTE, PROFESIONAL, DISPONIBILIDAD_SLOT, ESPECIALIDAD, DIAGNOSTICO_CIE10, signos vitales y enmiendas, ordenación cronológica descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y `contarHistoriaPaciente`.
