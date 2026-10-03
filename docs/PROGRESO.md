@@ -45,7 +45,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ### M4 — Disponibilidad y citas
 - [x] M4.1 Migración de citas
 - [x] M4.2 Consulta de disponibilidad
-- [ ] M4.3 Reservar cita
+- [x] M4.3 Reservar cita
 - [ ] M4.4 Prueba de concurrencia
 - [ ] M4.5 Cancelación y estados
 - [ ] M4.6 Agenda del profesional
