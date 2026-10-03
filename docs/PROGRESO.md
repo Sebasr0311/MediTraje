@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** M6 — Atención e historia clínica
-- **Tarea actual:** M6.3 — Crear y cerrar atención
+- **Tarea actual:** M6.4 — Enmiendas
 - **Última etiqueta:** v0.5 (M5 completa)
 - **Rama de trabajo:** feature/m6-atencion-historia
 
@@ -59,7 +59,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ### M6 — Atención e historia clínica
 - [x] M6.1 Migraciones clínicas
 - [x] M6.2 AccesoClinicoService
-- [ ] M6.3 Crear y cerrar atención
+- [x] M6.3 Crear y cerrar atención
 - [ ] M6.4 Enmiendas
 - [ ] M6.5 Historia del paciente
 
@@ -131,3 +131,5 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · Cierre M5 · Aprobación y cumplimiento pleno de la Puerta de Salida M5: HU-02 cumplida, motor de reglas puro y determinista, corte de emergencia infalible por síntomas de alarma, vinculación con citas y aislamiento de datos clínicos, colección docs/api/M5.http completada, 379 pruebas unitarias e integradas verdes al 100%. Preparación de merge a develop y etiqueta v0.5 · merge: fase m5 triaje completada (v0.5)
 - 2026-10-03 · M6.1 · Migración Flyway V008__atencion_historia_clinica.sql con tablas DIAGNOSTICO_CIE10, ATENCION (relación 1:1 estricta con CITA y campos obligatorios al cierre), SIGNO_VITAL (validaciones de rangos fisiológicos), ATENCION_ENMIENDA (aclaraciones append-only) y ALERGIA; triggers de inmutabilidad en BD TR_ATENCION_INMUTABILIDAD (bloquea UPDATE tras cierre con ORA-20002 y DELETE total con ORA-20001), TR_SIGNO_VITAL_INMUTABILIDAD (prohíbe INSERT/UPDATE/DELETE en atenciones cerradas con ORA-20003) y TR_ENMIENDA_INMUTABILIDAD (prohíbe UPDATE/DELETE con ORA-20004 y exige atención cerrada con ORA-20005); concesión de privilegios mínimos a MEDITRIAJE_APP (sin permisos DELETE en tablas clínicas ni UPDATE en enmiendas); siembra de catálogo reducido CIE-10 (21 patologías ambulatorias estándar); pruebas en OracleIntegrationTest ampliadas (>= V8, permisos, catálogo y demostración de triggers). 379 pruebas unitarias pasando al 100% · feat(database): migracion flyway v008 atencion historia clinica y triggers de inmutabilidad (M6.1)
 - 2026-10-03 · M6.2 · Servicio centralizado AccesoClinicoService implementado con TDD (ADR-007, HU-07, HU-09): verificación estricta de relación asistencial donde paciente dueño sí accede a su propio historial pero se bloquea ante historiales ajenos (403), administrador tiene acceso clínico vedado incondicionalmente (403), y profesional asistencial requiere cita activa futura (PROGRAMADA/CONFIRMADA) o atención médica previa propia en la ventana temporal configurable (por defecto 12 meses, calculada en ZoneId America/Bogota con Clock inyectado) o se rechaza con 403; creación de AtencionRepository.existeAtencionPreviaEnVentana y adición de CitaRepository.existeCitaActivaFutura y PacienteRepository.buscarPorPublicId con SQL 100% parametrizado; suite AccesoClinicoServiceTest (10 pruebas unitarias), AtencionRepositoryTest (2 pruebas) y PacienteRepositoryTest (4 pruebas) elevando la suite a 392 pruebas verdes al 100% · feat(clinical): servicio de acceso clinico y relacion asistencial (M6.2, ADR-007)
+- 2026-10-03 · M6.3 · Crear y cerrar atención médica inmutable y catálogo CIE-10 (HU-07, HU-09, ADR-007, ADR-008, ADR-011, ADR-013): modelos inmutables Atencion, SignoVital y DiagnosticoCie10; DTOs IniciarAtencionRequest, CerrarAtencionRequest, SignosVitalesDto, AtencionResponse y DiagnosticoCie10Response; repositorio DiagnosticoCie10Repository con filtros y AtencionRepository ampliado (crear, cerrarAtencion, guardarSignosVitales y consultas consolidadas); ClinicalAttentionService con inicio de atención (ABIERTA, transición atómica de cita a CONFIRMADA, validación de profesional asignado), cierre inmutable (validación de CIE-10 activo, consistencia de TA sistólica > diastólica, persistencia de signos previa al cierre, cita a ATENDIDA y auditorías CREACION_ATENCION y CIERRE_ATENCION sin datos clínicos en logs/auditoría) y consulta con AccesoClinicoService y auditoría CONSULTA_HISTORIA; controladores ClinicalAttentionController (POST /api/v1/attentions, POST /api/v1/attentions/{id}/close y GET /api/v1/attentions/{id}) y Cie10CatalogController (GET /api/v1/catalogs/icd10); suite de 26 pruebas automatizadas nuevas (DiagnosticoCie10RepositoryTest, ClinicalAttentionServiceTest, ClinicalAttentionControllerTest y Cie10CatalogControllerTest) elevando la suite a 418 pruebas verdes al 100% · feat(clinical): crear y cerrar atencion clinica inmutable (M6.3, HU-07)
+

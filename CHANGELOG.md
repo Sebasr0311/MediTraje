@@ -8,6 +8,23 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Crear y Cerrar Atención Médica Inmutable y Catálogo CIE-10 (M6.3, HU-07, HU-09, ADR-007, ADR-008, ADR-011, ADR-013)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`: `Atencion`, `SignoVital` y `DiagnosticoCie10`.
+  - DTOs en `com.meditriaje.dto.clinical`: `IniciarAtencionRequest`, `CerrarAtencionRequest`, `SignosVitalesDto`, `AtencionResponse` y `DiagnosticoCie10Response`.
+  - Repositorio `DiagnosticoCie10Repository`: búsqueda por código, por ID y listado de diagnósticos activos con filtro textual parametrizado.
+  - Ampliación de `AtencionRepository`: métodos `crear` (KeyHolder), `cerrarAtencion`, `guardarSignosVitales`, `buscarEntidadPorPublicId`, `buscarEntidadPorCitaId`, `existePorCitaId` y `buscarDetallePorPublicId` consolidando signos vitales y datos asistenciales.
+  - Servicio `ClinicalAttentionService`:
+    - `iniciarAtencion`: valida asignación médica del profesional a la cita, valida estado de cita (PROGRAMADA/CONFIRMADA), transición atómica a CONFIRMADA, creación de atención ABIERTA y auditoría inmutable `CREACION_ATENCION`.
+    - `cerrarAtencion`: valida que la atención esté ABIERTA (inmutabilidad ADR-008), valida asignación del profesional, valida código CIE-10 activo, valida rangos y consistencia de signos vitales (presión sistólica > diastólica), persiste signos antes del cierre, cierra atención en BD, transiciona cita a ATENDIDA mediante `CitaStateMachine` y audita `CIERRE_ATENCION` sin incluir datos clínicos ni diagnósticos en logs ni bitácora (ADR-011).
+    - `obtenerPorPublicId`: valida relación asistencial o paciente dueño mediante `AccesoClinicoService` y audita `CONSULTA_HISTORIA`.
+  - Controladores REST:
+    - `ClinicalAttentionController`: `POST /api/v1/attentions` (201 Created + Location), `POST /api/v1/attentions/{id}/close` (200 OK) restringidos a `ROLE_PROFESIONAL`, y `GET /api/v1/attentions/{id}` para usuarios autenticados con verificación asistencial.
+    - `Cie10CatalogController`: `GET /api/v1/catalogs/icd10` para usuarios autenticados con búsqueda opcional `?q=`.
+  - Pruebas automatizadas (26 pruebas nuevas, suite consolidada en 418 pruebas al 100%):
+    - `DiagnosticoCie10RepositoryTest` (3 pruebas): búsqueda por código, ID y listado con filtro.
+    - `ClinicalAttentionServiceTest` (11 pruebas): inicio, cierres con y sin signos vitales, validaciones clínicas, inmutabilidad y auditoría.
+    - `ClinicalAttentionControllerTest` (10 pruebas MockMvc): control de acceso por rol (médico 201/200, paciente 403, admin 403, anónimo 401) y validaciones.
+    - `Cie10CatalogControllerTest` (2 pruebas MockMvc): consulta y seguridad del catálogo.
 - **Servicio Centralizado de Acceso Clínico y Relación Asistencial (M6.2, HU-07, HU-09, ADR-007)**:
   - Implementación con TDD de `AccesoClinicoService` en `com.meditriaje.service`, blindando el acceso a todo el contenido clínico del sistema:
     - Paciente dueño: acceso permitido únicamente a sus propios datos clínicos; intento de consultar a otro paciente rechazado con 403 (`AccesoNoAutorizadoException`).
