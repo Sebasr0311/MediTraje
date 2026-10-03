@@ -16,11 +16,13 @@ import com.meditriaje.model.EventoAuditoria;
 import com.meditriaje.model.Paciente;
 import com.meditriaje.model.Profesional;
 import com.meditriaje.model.ResultadoAuditoria;
+import com.meditriaje.model.Triaje;
 import com.meditriaje.model.Usuario;
 import com.meditriaje.repository.CitaRepository;
 import com.meditriaje.repository.DisponibilidadSlotRepository;
 import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
+import com.meditriaje.repository.TriajeRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,6 +70,9 @@ class AppointmentServiceTest {
     private CitaRepository citaRepository;
 
     @Mock
+    private TriajeRepository triajeRepository;
+
+    @Mock
     private AuditoriaService auditoriaService;
 
     private final Instant NOW = Instant.parse("2026-10-10T10:00:00Z");
@@ -92,6 +97,7 @@ class AppointmentServiceTest {
                 disponibilidadSlotRepository,
                 profesionalRepository,
                 citaRepository,
+                triajeRepository,
                 auditoriaService,
                 fixedClock
         );
@@ -296,6 +302,110 @@ class AppointmentServiceTest {
                 .hasMessageContaining("El slot de atencion ya cuenta con una cita activa");
 
         verify(auditoriaService, never()).auditar(any());
+    }
+
+    @Test
+    void reservarCita_conTriajePropio_exitoso_vinculaTriajeIdYGuardaCita() {
+        String triajePublicId = "triaje-uuid-propio";
+        ReservarCitaRequest request = new ReservarCitaRequest(SLOT_PUBLIC_ID, triajePublicId);
+
+        Triaje triajeMock = new Triaje(
+                888L, triajePublicId, 10L, "v1-prototipo", "III", "CITA_PRESENCIAL", false, "Dolor leve", NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(pacienteRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.of(pacienteMock));
+        when(disponibilidadSlotRepository.buscarEntidadPorPublicId(SLOT_PUBLIC_ID)).thenReturn(Optional.of(slotMock));
+        when(profesionalRepository.buscarPorId(100L)).thenReturn(Optional.of(profesionalMock));
+        when(triajeRepository.buscarEntidadPorPublicId(triajePublicId)).thenReturn(Optional.of(triajeMock));
+        when(disponibilidadSlotRepository.reservarSlot(50L)).thenReturn(1);
+        when(citaRepository.crear(any(Cita.class))).thenReturn(500L);
+
+        CitaResponse mockResponse = new CitaResponse(
+                "cita-uuid-generada", SLOT_PUBLIC_ID, "pac-uuid-1", "Pepito Perez",
+                "prof-uuid-1", "Gregory House", "esp-uuid-1", "Medicina Interna",
+                "sede-uuid-1", "Sede Central", "Carrera 7 # 40-62",
+                slotMock.fechaHoraInicio(), slotMock.fechaHoraFin(),
+                "PRESENCIAL", "PROGRAMADA", triajePublicId, null, NOW
+        );
+        when(citaRepository.buscarPorPublicId(anyString())).thenReturn(Optional.of(mockResponse));
+
+        CitaResponse resultado = appointmentService.reservarCita(request, USUARIO_PUBLIC_ID, IP_CLIENTE);
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.triajePublicId()).isEqualTo(triajePublicId);
+
+        ArgumentCaptor<Cita> citaCaptor = ArgumentCaptor.forClass(Cita.class);
+        verify(citaRepository).crear(citaCaptor.capture());
+        Cita citaGuardada = citaCaptor.getValue();
+        assertThat(citaGuardada.triajeId()).isEqualTo(888L);
+        assertThat(citaGuardada.pacienteId()).isEqualTo(10L);
+    }
+
+    @Test
+    void reservarCita_conTriajeInexistente_lanzaRecursoNoEncontradoException() {
+        String triajePublicId = "triaje-no-existe";
+        ReservarCitaRequest request = new ReservarCitaRequest(SLOT_PUBLIC_ID, triajePublicId);
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(pacienteRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.of(pacienteMock));
+        when(disponibilidadSlotRepository.buscarEntidadPorPublicId(SLOT_PUBLIC_ID)).thenReturn(Optional.of(slotMock));
+        when(profesionalRepository.buscarPorId(100L)).thenReturn(Optional.of(profesionalMock));
+        when(triajeRepository.buscarEntidadPorPublicId(triajePublicId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.reservarCita(request, USUARIO_PUBLIC_ID, IP_CLIENTE))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining("Triaje no encontrado");
+
+        verify(disponibilidadSlotRepository, never()).reservarSlot(anyLong());
+        verify(citaRepository, never()).crear(any());
+    }
+
+    @Test
+    void reservarCita_conTriajeDeOtroPaciente_lanzaDatosInvalidosException() {
+        String triajePublicId = "triaje-ajeno";
+        ReservarCitaRequest request = new ReservarCitaRequest(SLOT_PUBLIC_ID, triajePublicId);
+
+        // triaje con pacienteId 999L != 10L (pacienteMock)
+        Triaje triajeAjeno = new Triaje(
+                888L, triajePublicId, 999L, "v1-prototipo", "III", "CITA_PRESENCIAL", false, null, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(pacienteRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.of(pacienteMock));
+        when(disponibilidadSlotRepository.buscarEntidadPorPublicId(SLOT_PUBLIC_ID)).thenReturn(Optional.of(slotMock));
+        when(profesionalRepository.buscarPorId(100L)).thenReturn(Optional.of(profesionalMock));
+        when(triajeRepository.buscarEntidadPorPublicId(triajePublicId)).thenReturn(Optional.of(triajeAjeno));
+
+        assertThatThrownBy(() -> appointmentService.reservarCita(request, USUARIO_PUBLIC_ID, IP_CLIENTE))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("El triaje no corresponde al paciente de la cita");
+
+        verify(disponibilidadSlotRepository, never()).reservarSlot(anyLong());
+        verify(citaRepository, never()).crear(any());
+    }
+
+    @Test
+    void reservarCita_conTriajeDeEmergencia_lanzaDatosInvalidosException() {
+        String triajePublicId = "triaje-emergencia";
+        ReservarCitaRequest request = new ReservarCitaRequest(SLOT_PUBLIC_ID, triajePublicId);
+
+        Triaje triajeEmergencia = new Triaje(
+                888L, triajePublicId, 10L, "v1-prototipo", "I", "URGENCIAS", true, null, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(pacienteRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.of(pacienteMock));
+        when(disponibilidadSlotRepository.buscarEntidadPorPublicId(SLOT_PUBLIC_ID)).thenReturn(Optional.of(slotMock));
+        when(profesionalRepository.buscarPorId(100L)).thenReturn(Optional.of(profesionalMock));
+        when(triajeRepository.buscarEntidadPorPublicId(triajePublicId)).thenReturn(Optional.of(triajeEmergencia));
+
+        assertThatThrownBy(() -> appointmentService.reservarCita(request, USUARIO_PUBLIC_ID, IP_CLIENTE))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("No se permite agendar cita para un triaje clasificado como emergencia");
+
+        verify(disponibilidadSlotRepository, never()).reservarSlot(anyLong());
+        verify(citaRepository, never()).crear(any());
     }
 
     // =========================================================================

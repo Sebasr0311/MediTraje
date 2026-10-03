@@ -68,7 +68,7 @@ public class CitaRepository {
                 tsFin != null ? tsFin.toInstant() : null,
                 rs.getString("MODALIDAD"),
                 rs.getString("ESTADO"),
-                null, // triajePublicId (se incorporará en M5)
+                rs.getString("TRIAJE_PUBLIC_ID"),
                 rs.getString("CITA_ORIGEN_PUBLIC_ID"),
                 tsCreated != null ? tsCreated.toInstant() : null
         );
@@ -136,6 +136,7 @@ public class CitaRepository {
                    s.FECHA_HORA_FIN,
                    s.MODALIDAD,
                    c.ESTADO,
+                   t.PUBLIC_ID AS TRIAJE_PUBLIC_ID,
                    co.PUBLIC_ID AS CITA_ORIGEN_PUBLIC_ID,
                    c.CREATED_AT
             FROM CITA c
@@ -144,6 +145,7 @@ public class CitaRepository {
             JOIN PROFESIONAL pr ON s.PROFESIONAL_ID = pr.ID
             JOIN ESPECIALIDAD e ON s.ESPECIALIDAD_ID = e.ID
             JOIN SEDE sd ON s.SEDE_ID = sd.ID
+            LEFT JOIN TRIAJE t ON c.TRIAJE_ID = t.ID
             LEFT JOIN CITA co ON c.CITA_ORIGEN_ID = co.ID
             WHERE c.PUBLIC_ID = ?
             """;
@@ -242,6 +244,7 @@ public class CitaRepository {
                    s.FECHA_HORA_FIN,
                    s.MODALIDAD,
                    c.ESTADO,
+                   t.PUBLIC_ID AS TRIAJE_PUBLIC_ID,
                    co.PUBLIC_ID AS CITA_ORIGEN_PUBLIC_ID,
                    c.CREATED_AT
             FROM CITA c
@@ -250,6 +253,7 @@ public class CitaRepository {
             JOIN PROFESIONAL pr ON s.PROFESIONAL_ID = pr.ID
             JOIN ESPECIALIDAD e ON s.ESPECIALIDAD_ID = e.ID
             JOIN SEDE sd ON s.SEDE_ID = sd.ID
+            LEFT JOIN TRIAJE t ON c.TRIAJE_ID = t.ID
             LEFT JOIN CITA co ON c.CITA_ORIGEN_ID = co.ID
             WHERE s.PROFESIONAL_ID = ?
             """);

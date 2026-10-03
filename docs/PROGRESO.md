@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M4 — Disponibilidad y citas (Completada, lista para cierre / M5)
-- **Tarea actual:** M4.6 — Agenda del profesional (Completada)
-- **Última etiqueta:** v0.3 (M3 completa)
-- **Rama de trabajo:** feature/m4-citas
+- **Fase actual:** M6 — Atención e historia clínica
+- **Tarea actual:** M6.1 — Migraciones clínicas
+- **Última etiqueta:** v0.5 (M5 completa)
+- **Rama de trabajo:** develop
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -51,10 +51,10 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M4.6 Agenda del profesional
 
 ### M5 — Triaje
-- [ ] M5.1 Migraciones y semillas
-- [ ] M5.2 Motor de reglas
-- [ ] M5.3 Corte de emergencia
-- [ ] M5.4 Endpoints de triaje
+- [x] M5.1 Migraciones y semillas
+- [x] M5.2 Motor de reglas
+- [x] M5.3 Corte de emergencia
+- [x] M5.4 Endpoints de triaje
 
 ### M6 — Atención e historia clínica
 - [ ] M6.1 Migraciones clínicas
@@ -123,3 +123,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · Cierre M4 · Aprobación y cumplimiento pleno de la Puerta de Salida M4: HU-03 a HU-06 cumplidas, concurrencia verde varias veces sin flakiness, colección docs/api/M4.http completada, 297 pruebas unitarias e integradas verdes al 100%. Preparación de merge a develop y etiqueta v0.4 · merge: fase m4 disponibilidad y citas completada (v0.4)
 
 
+
+- 2026-10-03 · M5.1 · Migración Flyway V007__triaje.sql: tablas SINTOMA, REGLA_TRIAJE, TRIAJE y TRIAJE_SINTOMA según MODELO_RELACIONAL.md, FK compuesta FK_CITA_TRIAJE_PACIENTE + IX_CITA_TRIAJE_PACIENTE sobre CITA, GRANTs mínimos a MEDITRIAJE_APP (catálogos solo SELECT; TRIAJE/TRIAJE_SINTOMA SELECT+INSERT). Semillas de PROTOTIPO (ADR-009, no validadas clínicamente): 20 síntomas con UUID fijos (6 alarma) y reglas 'v1-prototipo' por intensidad (7-10 II, 4-6 III, 0-3 IV; duración sin discriminar) para los 14 no alarma. OracleIntegrationTest ampliado (>=V7, SELECT triaje, semillas, FK compuesta rechaza triaje de otro paciente, sin UPDATE/DELETE en TRIAJE); requieren Docker, no ejecutadas localmente (Docker no disponible). · feat(database): migracion flyway v007 triaje con semillas de prototipo (M5.1)
+- 2026-10-03 · M5.2 · Motor de triaje puro basado en reglas (HU-02, ADR-009): records de dominio inmutables en com.meditriaje.triage (EntradaTriaje, SintomaReportado, SintomaTriaje, ReglaTriaje, ResultadoTriaje) y enums NivelPrioridad (I-V) y RutaSugerida; interfaz MotorTriaje e implementación pura MotorTriajeBasadoEnReglas sin dependencias externas (rango de duración semiabierto [min, max), intensidad [min, max], regla multisíntoma con asignación del nivel más urgente, nivel III conservador por defecto ante síntomas sin regla tipificada, y aviso de prototipo obligatorio); TriajeReglasRepository para carga parametrizada de catálogo y reglas; TriajeMotorFactory con caché por versión; 33 pruebas unitarias parametrizadas cubriendo bordes, solapes, determinismo e invariancia de permutación. · feat(triage): motor de triaje puro basado en reglas (M5.2)
+- 2026-10-03 · M5.3 · Corte de emergencia infalible por síntomas de alarma (HU-02, ADR-009, ADR-011): lógica en MotorTriajeBasadoEnReglas que ante cualquier síntoma con esAlarma=1 o evaluación de Nivel I activa condición de emergencia (fuerza Nivel I, ruta URGENCIAS, omite citas y emite mensaje 'Llama al 123 o acude a urgencias de inmediato.'); AccionAuditable.TRIAJE_EMERGENCIA reservado; suite CorteEmergenciaTest (12 pruebas) con validación cruzada dinámica sobre V007__triaje.sql asegurando que cada una de las 6 alarmas produce corte infalible. 345 pruebas unitarias pasando al 100%. · feat(triage): corte de emergencia infalible por sintomas de alarma (M5.3)
+- 2026-10-03 · M5.4 · Endpoints de triaje y vinculación con citas (HU-02, HU-04, HU-11, ADR-002, ADR-003, ADR-007, ADR-009, ADR-011): Modelos de dominio inmutables Triaje, TriajeSintoma, Sintoma en com.meditriaje.model; DTOs en com.meditriaje.dto.triage (SintomaItemRequest, CrearTriajeRequest, SintomaItemResponse, TriajeResponse, CatalogoSintomaResponse); TriajeRepository con JdbcTemplate 100% parametrizado (guardarTriaje con GeneratedKeyHolder, guardarSintomas por batch, buscarPorPublicId con JOINs optimizados a PACIENTE y SINTOMA, buscarEntidadPorPublicId, buscarEntidadPorId, listarCatalogoSintomasActivos y mapeo de IDs); TriajeService con evaluación transaccional, corte de emergencia, aislamiento estricto de paciente y exclusión clínica para administradores, y auditoría inmutable doble (TRIAJE_EMERGENCIA y TRIAJE_REALIZADO sin datos clínicos); vinculación triaje-cita en AppointmentService.reservarCita (validación de pertenencia al mismo paciente y rechazo categórico de triajes de emergencia); TriajeController con POST /api/v1/triage (ROLE_PACIENTE), GET /api/v1/triage/{publicId} y GET /api/v1/triage/symptoms; colección exhaustiva docs/api/M5.http con 6 secciones y 15 escenarios cubriendo el ciclo completo; suite de 34 pruebas automatizadas nuevas (TriajeRepositoryTest, TriajeServiceTest, TriajeControllerTest MockMvc y AppointmentServiceTest con vinculación) para un total de 379 pruebas al 100% de éxito. · feat(triage): endpoints de triaje vinculacion con citas y coleccion m5.http (M5.4, HU-02)
+- 2026-10-03 · Cierre M5 · Aprobación y cumplimiento pleno de la Puerta de Salida M5: HU-02 cumplida, motor de reglas puro y determinista, corte de emergencia infalible por síntomas de alarma, vinculación con citas y aislamiento de datos clínicos, colección docs/api/M5.http completada, 379 pruebas unitarias e integradas verdes al 100%. Preparación de merge a develop y etiqueta v0.5 · merge: fase m5 triaje completada (v0.5)

@@ -7,6 +7,54 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-03
+
+### Added
+- **Endpoints de Triaje Clínico, Vinculación con Citas y Colección M5.http (M5.4, HU-02, HU-04, HU-11, ADR-002, ADR-003, ADR-007, ADR-009, ADR-011)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`: `Triaje`, `TriajeSintoma` y `Sintoma`.
+  - DTOs en `com.meditriaje.dto.triage`: `SintomaItemRequest` (validaciones `@NotBlank`, `@DecimalMin`, `@Min`, `@Max`), `CrearTriajeRequest` (`@NotEmpty`, `@Size(max=20)`), `SintomaItemResponse`, `TriajeResponse` y `CatalogoSintomaResponse`.
+  - Repositorio `TriajeRepository` en `com.meditriaje.repository`:
+    - Persistencia de triajes con `KeyHolder` y obtención de ID autogenerado.
+    - Inserción en lote de síntomas reportados mediante `batchUpdate`.
+    - Consulta consolidada de triaje y síntomas en una sola consulta relacional (`buscarPorPublicId`).
+    - Búsqueda de entidades por ID y publicId, catálogo de síntomas activos y mapa de códigos a IDs.
+  - Servicio `TriajeService` en `com.meditriaje.service`:
+    - Evaluación transaccional mediante `TriajeMotorFactory`.
+    - Detección y rechazo de síntomas duplicados o desconocidos (`DatosInvalidosException`).
+    - Auditoría inmutable obligatoria (`TRIAJE_REALIZADO` y `TRIAJE_EMERGENCIA` cuando aplique) sin incluir datos clínicos ni síntomas (ADR-011).
+    - Aislamiento estricto de pacientes: un paciente solo puede consultar su propio triaje; el personal administrativo tiene acceso bloqueado a contenido clínico (ADR-007).
+  - Vinculación Triaje-Cita en `AppointmentService.reservarCita`:
+    - Validación de correspondencia del triaje al mismo paciente de la cita (`DatosInvalidosException`).
+    - Prohibición estricta de agendamiento para triajes clasificados como emergencia (`DatosInvalidosException`).
+    - Persistencia de `triaje_id` en `CITA` y mapeo en `CitaResponse` y `CitaRepository`.
+  - Controlador REST `TriajeController` en `com.meditriaje.controller`:
+    - `POST /api/v1/triage`: creación de triaje restringida exclusivamente a pacientes (`ROLE_PACIENTE`), retornando 201 Created con cabecera `Location`.
+    - `GET /api/v1/triage/{publicId}`: consulta de triaje para usuarios autenticados con verificación de aislamiento.
+    - `GET /api/v1/triage/symptoms`: catálogo para usuarios autenticados.
+  - Colección de pruebas HTTP `docs/api/M5.http`: 6 secciones con 15 escenarios que validan healthcheck, login de roles, catálogo, triaje no urgente, corte de emergencia, aislamiento entre pacientes, exclusión de admin, y vinculación/rechazos en agendamiento de citas.
+  - Pruebas automatizadas (34 pruebas nuevas, suite consolidada en 379 pruebas al 100%):
+    - `TriajeRepositoryTest` (9 pruebas): inserción individual y por lote, consultas consolidadas, mapeo y catálogo.
+    - `TriajeServiceTest` (11 pruebas): evaluación, auditoría simple y de emergencia, aislamiento entre pacientes y roles, validación de duplicados y catálogo.
+    - `TriajeControllerTest` (8 pruebas): autorización declarativa, 201 Created con Location, 403 Forbidden para profesionales/admins en creación, 403 Forbidden en triaje ajeno, 401 Unauthorized sin sesión, 400 Bad Request en validación.
+    - `AppointmentServiceTest` (4 pruebas nuevas): reserva con triaje propio, rechazo ante triaje ajeno, rechazo ante triaje de emergencia, y rechazo ante triaje inexistente.
+- **Corte de Emergencia Infalible por Síntomas de Alarma (M5.3, HU-02, ADR-009, ADR-011)**:
+  - Definición de corte de emergencia: si algún síntoma reportado tiene `esAlarma = true` o si la evaluación de prioridad resulta en Nivel I, se activa inmediatamente la condición de emergencia.
+  - Comportamiento de emergencia: fuerza `nivel = NivelPrioridad.I`, `ruta = RutaSugerida.URGENCIAS`, omite cualquier asignación de cita y emite el mensaje mandatario: "Llama al 123 o acude a urgencias de inmediato.".
+  - Identificación explícita de `sintomasAlarma` en `ResultadoTriaje` para retroalimentación clínica transparente.
+  - Registro de auditoría reservado: adición de `AccionAuditable.TRIAJE_EMERGENCIA` en el modelo inmutable de auditoría (sin datos clínicos ni síntomas).
+  - Suite de pruebas exhaustiva `CorteEmergenciaTest` (12 pruebas): extracción directa desde `V007__triaje.sql` comprobando que cada uno de los 6 síntomas de alarma del catálogo (`DOLOR_TORACICO_OPRESIVO`, `DIFICULTAD_RESP_SEVERA`, `PERDIDA_CONCIENCIA`, `CONVULSIONES`, `SANGRADO_INCONTROLABLE`, `PARALISIS_FACIAL_SUBITA`), solo o mezclado con síntomas leves, con intensidad 0 y duración 0, activa indefectiblemente el corte de emergencia.
+- **Motor de Reglas Puro y Determinista de Triaje (M5.2, HU-02, ADR-009)**:
+  - Dominio puro e inmutable en `com.meditriaje.triage`: `EntradaTriaje`, `SintomaReportado`, `SintomaTriaje`, `ReglaTriaje`, `ResultadoTriaje`, y enums `NivelPrioridad` (I–V con orden natural de urgencia) y `RutaSugerida` (`URGENCIAS`, `ATENCION_PRIORITARIA`, `CITA_PRESENCIAL`, `CITA_TELEMEDICINA`, `CONSULTA_PROGRAMADA`).
+  - Interfaz `MotorTriaje` e implementación pura `MotorTriajeBasadoEnReglas` sin dependencias de base de datos ni HTTP:
+    - Evaluación de rango de duración `[min, max)` (mínimo inclusivo, máximo exclusivo) y rango de intensidad cerrado `[min, max]`.
+    - Regla de combinación multisíntoma: el nivel final corresponde al más urgente entre todos los síntomas reportados.
+    - Nivel por defecto conservador: ante síntomas sin regla tipificada, asigna estrictamente Nivel III (nunca Nivel V).
+    - Aviso legal obligatorio: "Esta orientación es un prototipo, no sustituye la valoración de un profesional de la salud.".
+  - Repositorio `TriajeReglasRepository` en `com.meditriaje.repository`: carga con `JdbcTemplate` parametrizado del catálogo de síntomas y reglas activas por versión.
+  - Proveedor `TriajeMotorFactory`: construcción e instanciación de motores de triaje con caché en memoria por versión y configuración de versión activa (`meditriaje.triage.rules-version`).
+  - Suite de pruebas unitarias `MotorTriajeBasadoEnReglasTest` (33 pruebas) con tablas parametrizadas cubriendo límites, solapes, determinismo de permutación y descarte de síntomas inexistentes.
+- **Migración V007 de triaje (M5.1, ADR-009, ADR-012)**: tablas `SINTOMA`, `REGLA_TRIAJE`, `TRIAJE`, `TRIAJE_SINTOMA`; FK compuesta `FK_CITA_TRIAJE_PACIENTE` en `CITA`; GRANTs mínimos (catálogos solo lectura, triaje inmutable); semillas de PROTOTIPO no validadas clínicamente (20 síntomas, 6 de alarma, reglas `v1-prototipo`). Pruebas de integración ampliadas en `OracleIntegrationTest`.
+
 ## [0.4.0] - 2026-10-03
 
 ### Added
