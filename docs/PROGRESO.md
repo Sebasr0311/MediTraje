@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M2 — Seguridad base (Completa, pendiente aprobación de Juan)
-- **Tarea actual:** Puerta de salida M2 (Revisión de informe, merge a develop y etiqueta v0.2)
-- **Última etiqueta:** v0.1 (M1 completa)
-- **Rama de trabajo:** feature/m2-seguridad
+- **Fase actual:** M3 — Administración y catálogos
+- **Tarea actual:** M3.1 — Migraciones de oferta
+- **Última etiqueta:** v0.2 (M2 completa)
+- **Rama de trabajo:** feature/m3-administracion
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -36,7 +36,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M2.6 Revisión de seguridad
 
 ### M3 — Administración y catálogos
-- [ ] M3.1 Migraciones de oferta
+- [~] M3.1 Migraciones de oferta
 - [ ] M3.2 CRUD especialidades, instituciones, sedes
 - [ ] M3.3 Alta de profesionales
 - [ ] M3.4 Generador de slots
