@@ -109,13 +109,117 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV6() {
+    void flyway_schema_history_tieneAlMenosV7() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(6);
+        assertThat(count).isGreaterThanOrEqualTo(7);
+    }
+
+    @Test
+    void app_puedeConsultarTablasTriaje() {
+        // MEDITRIAJE_APP puede consultar las tablas de triaje (V007)
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        for (String tabla : new String[] {"SINTOMA", "REGLA_TRIAJE", "TRIAJE", "TRIAJE_SINTOMA"}) {
+            assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + "." + tabla, Integer.class))
+                    .as("SELECT en " + tabla).isNotNull();
+        }
+    }
+
+    @Test
+    void semillas_triaje_tienenSintomasYAlarmas() {
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        Integer total = appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + ".SINTOMA", Integer.class);
+        Integer alarmas = appTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".SINTOMA WHERE ES_ALARMA = 1", Integer.class);
+        assertThat(total).isGreaterThanOrEqualTo(15);
+        assertThat(alarmas).isGreaterThanOrEqualTo(1);
+        // Cada síntoma no alarma tiene reglas que cubren las 11 intensidades (0-10)
+        Integer sinCobertura = appTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".SINTOMA s WHERE s.ES_ALARMA = 0 AND "
+                        + "(SELECT COUNT(*) FROM " + OWNER_USER + ".REGLA_TRIAJE r WHERE r.SINTOMA_ID = s.ID "
+                        + "AND r.VERSION = 'v1-prototipo') <> 3",
+                Integer.class);
+        assertThat(sinCobertura).isZero();
+    }
+
+    @Test
+    void app_noPuedeUpdateNiDeleteEnTriaje() {
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> appTemplate.update("UPDATE " + OWNER_USER + ".TRIAJE SET NIVEL_PRIORIDAD = 'V'"),
+                "TRIAJE es inmutable: sin UPDATE para MEDITRIAJE_APP");
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> appTemplate.update("DELETE FROM " + OWNER_USER + ".TRIAJE"),
+                "TRIAJE es inmutable: sin DELETE para MEDITRIAJE_APP");
+    }
+
+    @Test
+    void db_fkCompuestaRechazaCitaConTriajeDeOtroPaciente() {
+        JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
+        String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
+
+        // Dos pacientes A y B
+        Long[] pacientes = new Long[2];
+        for (int i = 0; i < 2; i++) {
+            String p = uid + "-t" + i;
+            ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH) VALUES (?, ?, ?)",
+                    "u-tri-" + p, "tri-" + p + "@test.com", "hash");
+            Long uId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "u-tri-" + p);
+            ownerTemplate.update(
+                    "INSERT INTO " + OWNER_USER + ".PACIENTE (PUBLIC_ID, USUARIO_ID, NUMERO_IDENTIFICACION, NOMBRES, APELLIDOS, FECHA_NACIMIENTO, GENERO, TELEFONO) "
+                            + "VALUES (?, ?, ?, ?, ?, DATE '1990-01-01', 'M', '3001234567')",
+                    "pac-tri-" + p, uId, "CC-TRI-" + p, "Paciente" + i, "Test");
+            pacientes[i] = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PACIENTE WHERE PUBLIC_ID = ?", Long.class, "pac-tri-" + p);
+        }
+
+        // Triaje del paciente A
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".TRIAJE (PUBLIC_ID, PACIENTE_ID, VERSION_REGLAS, NIVEL_PRIORIDAD, RUTA_SUGERIDA) "
+                        + "VALUES (?, ?, 'v1-prototipo', 'III', 'CITA_PRESENCIAL')",
+                "tri-" + uid, pacientes[0]);
+        Long triajeId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".TRIAJE WHERE PUBLIC_ID = ?", Long.class, "tri-" + uid);
+
+        // Slot mínimo
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH) VALUES (?, ?, ?)",
+                "u-doc-t-" + uid, "doc-t-" + uid + "@test.com", "hash");
+        Long docUsuarioId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "u-doc-t-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".ESPECIALIDAD (PUBLIC_ID, NOMBRE, DURACION_SLOT_MIN) VALUES (?, ?, ?)",
+                "esp-t-" + uid, "Esp-T-" + uid, 20);
+        Long espId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".ESPECIALIDAD WHERE PUBLIC_ID = ?", Long.class, "esp-t-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PROFESIONAL (USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS) VALUES (?, ?, ?, ?, ?, ?)",
+                docUsuarioId, "prof-t-" + uid, espId, "RM-T-" + uid, "Doc", "Test");
+        Long profId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PROFESIONAL WHERE PUBLIC_ID = ?", Long.class, "prof-t-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".INSTITUCION (PUBLIC_ID, NIT, RAZON_SOCIAL) VALUES (?, ?, ?)",
+                "inst-t-" + uid, "NIT-T-" + uid, "Inst-T-" + uid);
+        Long instId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".INSTITUCION WHERE PUBLIC_ID = ?", Long.class, "inst-t-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".SEDE (INSTITUCION_ID, PUBLIC_ID, NOMBRE, DIRECCION, CIUDAD) VALUES (?, ?, ?, ?, ?)",
+                instId, "sede-t-" + uid, "Sede-T-" + uid, "Calle 1", "Bogota");
+        Long sedeId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".SEDE WHERE PUBLIC_ID = ?", Long.class, "sede-t-" + uid);
+        java.time.Instant ahora = java.time.Instant.now();
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".DISPONIBILIDAD_SLOT (PUBLIC_ID, PROFESIONAL_ID, SEDE_ID, ESPECIALIDAD_ID, FECHA_HORA_INICIO, FECHA_HORA_FIN, MODALIDAD, ESTADO) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, 'PRESENCIAL', 'LIBRE')",
+                "slot-t-" + uid, profId, sedeId, espId, java.sql.Timestamp.from(ahora), java.sql.Timestamp.from(ahora.plusSeconds(1200)));
+        Long slotId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".DISPONIBILIDAD_SLOT WHERE PUBLIC_ID = ?", Long.class, "slot-t-" + uid);
+
+        // Paciente B con triaje de A -> rechazado por FK_CITA_TRIAJE_PACIENTE
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataIntegrityViolationException.class,
+                () -> ownerTemplate.update(
+                        "INSERT INTO " + OWNER_USER + ".CITA (PUBLIC_ID, SLOT_ID, PACIENTE_ID, TRIAJE_ID) VALUES (?, ?, ?, ?)",
+                        "cita-x-" + uid, slotId, pacientes[1], triajeId),
+                "La FK compuesta debe rechazar una cita con triaje de otro paciente");
+
+        // Paciente A con su propio triaje -> permitido
+        int filas = ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".CITA (PUBLIC_ID, SLOT_ID, PACIENTE_ID, TRIAJE_ID) VALUES (?, ?, ?, ?)",
+                "cita-ok-" + uid, slotId, pacientes[0], triajeId);
+        assertThat(filas).isEqualTo(1);
     }
 
     @Test

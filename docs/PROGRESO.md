@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M4 — Disponibilidad y citas (Completada, lista para cierre / M5)
-- **Tarea actual:** M4.6 — Agenda del profesional (Completada)
+- **Fase actual:** M5 — Triaje (en curso)
+- **Tarea actual:** M5.1 — Migraciones y semillas (Completada)
 - **Última etiqueta:** v0.3 (M3 completa)
-- **Rama de trabajo:** feature/m4-citas
+- **Rama de trabajo:** feature/m5-triaje
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -51,7 +51,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M4.6 Agenda del profesional
 
 ### M5 — Triaje
-- [ ] M5.1 Migraciones y semillas
+- [x] M5.1 Migraciones y semillas
 - [ ] M5.2 Motor de reglas
 - [ ] M5.3 Corte de emergencia
 - [ ] M5.4 Endpoints de triaje
@@ -123,3 +123,5 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · Cierre M4 · Aprobación y cumplimiento pleno de la Puerta de Salida M4: HU-03 a HU-06 cumplidas, concurrencia verde varias veces sin flakiness, colección docs/api/M4.http completada, 297 pruebas unitarias e integradas verdes al 100%. Preparación de merge a develop y etiqueta v0.4 · merge: fase m4 disponibilidad y citas completada (v0.4)
 
 
+
+- 2026-10-03 · M5.1 · Migración Flyway V007__triaje.sql: tablas SINTOMA, REGLA_TRIAJE, TRIAJE y TRIAJE_SINTOMA según MODELO_RELACIONAL.md, FK compuesta FK_CITA_TRIAJE_PACIENTE + IX_CITA_TRIAJE_PACIENTE sobre CITA, GRANTs mínimos a MEDITRIAJE_APP (catálogos solo SELECT; TRIAJE/TRIAJE_SINTOMA SELECT+INSERT). Semillas de PROTOTIPO (ADR-009, no validadas clínicamente): 20 síntomas con UUID fijos (6 alarma) y reglas 'v1-prototipo' por intensidad (7-10 II, 4-6 III, 0-3 IV; duración sin discriminar) para los 14 no alarma. OracleIntegrationTest ampliado (>=V7, SELECT triaje, semillas, FK compuesta rechaza triaje de otro paciente, sin UPDATE/DELETE en TRIAJE); requieren Docker, no ejecutadas localmente (Docker no disponible). · feat(database): migracion flyway v007 triaje con semillas de prototipo (M5.1)

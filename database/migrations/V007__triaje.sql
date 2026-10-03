@@ -1,0 +1,167 @@
+-- =============================================================================
+-- REGLAS DE PROTOTIPO - NO VALIDADAS CLINICAMENTE; REQUIEREN REVISION DE
+-- PERSONAL DE SALUD (ADR-009).
+-- =============================================================================
+-- MediTriaje 2.0 — Migración V007: Módulo de Triaje Clínico de Prototipo (M5.1)
+-- =============================================================================
+-- Tablas: SINTOMA, REGLA_TRIAJE, TRIAJE, TRIAJE_SINTOMA
+-- Características críticas:
+--   1. Catálogos SINTOMA y REGLA_TRIAJE: solo lectura para MEDITRIAJE_APP (ADR-012).
+--   2. ES_ALARMA reside exclusivamente en SINTOMA (ADR-009): alarma incondicional.
+--   3. TRIAJE y TRIAJE_SINTOMA son inmutables: solo SELECT/INSERT para la app.
+--   4. FK compuesta CITA(TRIAJE_ID, PACIENTE_ID) -> TRIAJE(ID, PACIENTE_ID):
+--      un triaje solo puede asociarse a una cita del mismo paciente.
+--   5. Las semillas son DATOS DE PROTOTIPO: síntomas genéricos y reglas simples.
+--      No son criterios clínicos ni tiempos de espera oficiales. Si un síntoma
+--      declarado no coincide con ninguna regla, el motor asigna Nivel III por
+--      defecto (nunca Nivel V para síntomas sin tipificar).
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- SINTOMA
+-- -----------------------------------------------------------------------------
+CREATE TABLE SINTOMA (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY,
+    PUBLIC_ID VARCHAR2(36 CHAR) NOT NULL,
+    CODIGO VARCHAR2(30 CHAR) NOT NULL,
+    NOMBRE VARCHAR2(100 CHAR) NOT NULL,
+    CATEGORIA VARCHAR2(50 CHAR) NOT NULL,
+    ES_ALARMA NUMBER(1) DEFAULT 0 NOT NULL,
+    ESTADO VARCHAR2(20 CHAR) DEFAULT 'ACTIVO' NOT NULL,
+    CONSTRAINT PK_SINTOMA PRIMARY KEY (ID),
+    CONSTRAINT UQ_SINTOMA_PUBLIC_ID UNIQUE (PUBLIC_ID),
+    CONSTRAINT UQ_SINTOMA_CODIGO UNIQUE (CODIGO),
+    CONSTRAINT CK_SINTOMA_ALARMA CHECK (ES_ALARMA IN (0, 1)),
+    CONSTRAINT CK_SINTOMA_ESTADO CHECK (ESTADO IN ('ACTIVO', 'INACTIVO'))
+);
+
+-- -----------------------------------------------------------------------------
+-- REGLA_TRIAJE
+-- -----------------------------------------------------------------------------
+CREATE TABLE REGLA_TRIAJE (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY,
+    VERSION VARCHAR2(20 CHAR) NOT NULL,
+    SINTOMA_ID NUMBER NOT NULL,
+    DURACION_MIN_HORAS NUMBER DEFAULT 0 NOT NULL,
+    DURACION_MAX_HORAS NUMBER,
+    INTENSIDAD_MIN NUMBER(2) DEFAULT 0 NOT NULL,
+    INTENSIDAD_MAX NUMBER(2) DEFAULT 10 NOT NULL,
+    NIVEL_PRIORIDAD VARCHAR2(5 CHAR) NOT NULL,
+    ESTADO VARCHAR2(20 CHAR) DEFAULT 'ACTIVO' NOT NULL,
+    CONSTRAINT PK_REGLA_TRIAJE PRIMARY KEY (ID),
+    CONSTRAINT FK_REGLA_TRIAJE_SINTOMA FOREIGN KEY (SINTOMA_ID) REFERENCES SINTOMA(ID),
+    CONSTRAINT CK_REGLA_INTENSIDAD CHECK (INTENSIDAD_MIN >= 0 AND INTENSIDAD_MAX <= 10 AND INTENSIDAD_MIN <= INTENSIDAD_MAX),
+    CONSTRAINT CK_REGLA_DURACION CHECK (DURACION_MIN_HORAS >= 0 AND (DURACION_MAX_HORAS IS NULL OR DURACION_MAX_HORAS >= DURACION_MIN_HORAS)),
+    CONSTRAINT CK_REGLA_NIVEL CHECK (NIVEL_PRIORIDAD IN ('I', 'II', 'III', 'IV', 'V')),
+    CONSTRAINT CK_REGLA_ESTADO CHECK (ESTADO IN ('ACTIVO', 'INACTIVO'))
+);
+
+CREATE INDEX IX_REGLA_TRIAJE_VERSION ON REGLA_TRIAJE (VERSION, ESTADO, SINTOMA_ID);
+
+-- -----------------------------------------------------------------------------
+-- TRIAJE
+-- -----------------------------------------------------------------------------
+CREATE TABLE TRIAJE (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY,
+    PUBLIC_ID VARCHAR2(36 CHAR) NOT NULL,
+    PACIENTE_ID NUMBER NOT NULL,
+    VERSION_REGLAS VARCHAR2(20 CHAR) NOT NULL,
+    NIVEL_PRIORIDAD VARCHAR2(5 CHAR) NOT NULL,
+    RUTA_SUGERIDA VARCHAR2(50 CHAR) NOT NULL,
+    ES_EMERGENCIA NUMBER(1) DEFAULT 0 NOT NULL,
+    OBSERVACIONES VARCHAR2(500 CHAR),
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT PK_TRIAJE PRIMARY KEY (ID),
+    CONSTRAINT UQ_TRIAJE_PUBLIC_ID UNIQUE (PUBLIC_ID),
+    CONSTRAINT UQ_TRIAJE_PACIENTE UNIQUE (ID, PACIENTE_ID),
+    CONSTRAINT FK_TRIAJE_PACIENTE FOREIGN KEY (PACIENTE_ID) REFERENCES PACIENTE(ID),
+    CONSTRAINT CK_TRIAJE_NIVEL CHECK (NIVEL_PRIORIDAD IN ('I', 'II', 'III', 'IV', 'V')),
+    CONSTRAINT CK_TRIAJE_RUTA CHECK (RUTA_SUGERIDA IN ('URGENCIAS', 'ATENCION_PRIORITARIA', 'CITA_PRESENCIAL', 'CITA_TELEMEDICINA', 'CONSULTA_PROGRAMADA')),
+    CONSTRAINT CK_TRIAJE_EMERGENCIA CHECK (ES_EMERGENCIA IN (0, 1))
+);
+
+CREATE INDEX IX_TRIAJE_PACIENTE ON TRIAJE (PACIENTE_ID, CREATED_AT DESC);
+
+-- -----------------------------------------------------------------------------
+-- TRIAJE_SINTOMA
+-- -----------------------------------------------------------------------------
+CREATE TABLE TRIAJE_SINTOMA (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY,
+    TRIAJE_ID NUMBER NOT NULL,
+    SINTOMA_ID NUMBER NOT NULL,
+    DURACION_HORAS NUMBER NOT NULL,
+    INTENSIDAD NUMBER NOT NULL,
+    CONSTRAINT PK_TRIAJE_SINTOMA PRIMARY KEY (ID),
+    CONSTRAINT UQ_TRIAJE_SINTOMA_UNICO UNIQUE (TRIAJE_ID, SINTOMA_ID),
+    CONSTRAINT FK_TS_TRIAJE FOREIGN KEY (TRIAJE_ID) REFERENCES TRIAJE(ID),
+    CONSTRAINT FK_TS_SINTOMA FOREIGN KEY (SINTOMA_ID) REFERENCES SINTOMA(ID),
+    CONSTRAINT CK_TS_INTENSIDAD CHECK (INTENSIDAD BETWEEN 0 AND 10),
+    CONSTRAINT CK_TS_DURACION CHECK (DURACION_HORAS >= 0)
+);
+
+-- -----------------------------------------------------------------------------
+-- FK compuesta CITA -> TRIAJE (cierra el desacoplamiento temporal de V006)
+-- -----------------------------------------------------------------------------
+-- Oracle (MATCH SIMPLE por defecto): si alguna columna de la FK compuesta es NULL,
+-- la restricción no se evalúa. Con TRIAJE_ID NULL (cita sin triaje) y PACIENTE_ID
+-- NOT NULL, la fila es válida. Si TRIAJE_ID tiene valor, el par debe existir en
+-- TRIAJE(ID, PACIENTE_ID), es decir, el triaje debe ser del mismo paciente.
+ALTER TABLE CITA ADD CONSTRAINT FK_CITA_TRIAJE_PACIENTE
+    FOREIGN KEY (TRIAJE_ID, PACIENTE_ID) REFERENCES TRIAJE(ID, PACIENTE_ID);
+
+CREATE INDEX IX_CITA_TRIAJE_PACIENTE ON CITA (TRIAJE_ID, PACIENTE_ID);
+
+-- -----------------------------------------------------------------------------
+-- Concesión de privilegios mínimos a MEDITRIAJE_APP (ADR-012)
+-- -----------------------------------------------------------------------------
+-- Catálogos: solo lectura (el admin no los edita en el MVP).
+GRANT SELECT ON SINTOMA TO MEDITRIAJE_APP;
+GRANT SELECT ON REGLA_TRIAJE TO MEDITRIAJE_APP;
+-- Registros de triaje: inmutables (sin UPDATE ni DELETE).
+GRANT SELECT, INSERT ON TRIAJE TO MEDITRIAJE_APP;
+GRANT SELECT, INSERT ON TRIAJE_SINTOMA TO MEDITRIAJE_APP;
+
+-- -----------------------------------------------------------------------------
+-- SEMILLAS DE PROTOTIPO: síntomas (UUID v4 fijos, deterministas)
+-- -----------------------------------------------------------------------------
+-- Síntomas de alarma incondicional (ES_ALARMA = 1)
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA, ES_ALARMA) VALUES ('a1b2c3d4-0001-4a10-8b01-5e7f00000001', 'DOLOR_TORACICO_OPRESIVO', 'Dolor torácico opresivo', 'CARDIOVASCULAR', 1);
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA, ES_ALARMA) VALUES ('a1b2c3d4-0002-4a10-8b02-5e7f00000002', 'DIFICULTAD_RESP_SEVERA', 'Dificultad respiratoria severa', 'RESPIRATORIO', 1);
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA, ES_ALARMA) VALUES ('a1b2c3d4-0003-4a10-8b03-5e7f00000003', 'PERDIDA_CONCIENCIA', 'Pérdida de conciencia', 'NEUROLOGICO', 1);
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA, ES_ALARMA) VALUES ('a1b2c3d4-0004-4a10-8b04-5e7f00000004', 'CONVULSIONES', 'Convulsiones', 'NEUROLOGICO', 1);
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA, ES_ALARMA) VALUES ('a1b2c3d4-0005-4a10-8b05-5e7f00000005', 'SANGRADO_INCONTROLABLE', 'Sangrado abundante incontrolable', 'TRAUMA', 1);
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA, ES_ALARMA) VALUES ('a1b2c3d4-0006-4a10-8b06-5e7f00000006', 'PARALISIS_FACIAL_SUBITA', 'Parálisis facial súbita (signo de posible ACV)', 'NEUROLOGICO', 1);
+
+-- Síntomas no alarma (ES_ALARMA = 0, valor por defecto)
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0007-4a10-8b07-5e7f00000007', 'FIEBRE', 'Fiebre', 'GENERAL');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0008-4a10-8b08-5e7f00000008', 'TOS', 'Tos', 'RESPIRATORIO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0009-4a10-8b09-5e7f00000009', 'DOLOR_GARGANTA', 'Dolor de garganta', 'RESPIRATORIO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0010-4a10-8b10-5e7f00000010', 'DOLOR_CABEZA', 'Dolor de cabeza', 'NEUROLOGICO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0011-4a10-8b11-5e7f00000011', 'MAREO', 'Mareo', 'NEUROLOGICO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0012-4a10-8b12-5e7f00000012', 'DOLOR_ABDOMINAL', 'Dolor abdominal', 'DIGESTIVO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0013-4a10-8b13-5e7f00000013', 'NAUSEAS', 'Náuseas', 'DIGESTIVO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0014-4a10-8b14-5e7f00000014', 'VOMITO', 'Vómito', 'DIGESTIVO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0015-4a10-8b15-5e7f00000015', 'DIARREA', 'Diarrea', 'DIGESTIVO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0016-4a10-8b16-5e7f00000016', 'DOLOR_MUSCULAR', 'Dolor muscular', 'MUSCULOESQUELETICO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0017-4a10-8b17-5e7f00000017', 'DOLOR_ESPALDA', 'Dolor de espalda', 'MUSCULOESQUELETICO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0018-4a10-8b18-5e7f00000018', 'ERUPCION_PIEL', 'Erupción en la piel', 'DERMATOLOGICO');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0019-4a10-8b19-5e7f00000019', 'FATIGA', 'Fatiga o cansancio', 'GENERAL');
+INSERT INTO SINTOMA (PUBLIC_ID, CODIGO, NOMBRE, CATEGORIA) VALUES ('a1b2c3d4-0020-4a10-8b20-5e7f00000020', 'CONGESTION_NASAL', 'Congestión nasal', 'RESPIRATORIO');
+
+-- -----------------------------------------------------------------------------
+-- SEMILLAS DE PROTOTIPO: REGLA_TRIAJE versión 'v1-prototipo'
+-- -----------------------------------------------------------------------------
+-- REGLAS DE PROTOTIPO - NO VALIDADAS CLINICAMENTE (ADR-009).
+-- Los síntomas de alarma NO llevan reglas: el corte de emergencia es incondicional.
+-- Cada síntoma no alarma tiene 3 reglas que cubren TODO el rango de intensidad
+-- 0-10 sin huecos ni solapes y toda duración (>= 0, sin límite superior), por lo
+-- que la duración no discrimina en v1-prototipo (DURACION_MAX_HORAS = NULL).
+--   Intensidad 7-10 -> Nivel II
+--   Intensidad 4-6  -> Nivel III
+--   Intensidad 0-3  -> Nivel IV
+INSERT INTO REGLA_TRIAJE (VERSION, SINTOMA_ID, DURACION_MIN_HORAS, DURACION_MAX_HORAS, INTENSIDAD_MIN, INTENSIDAD_MAX, NIVEL_PRIORIDAD)
+    SELECT 'v1-prototipo', ID, 0, NULL, 7, 10, 'II' FROM SINTOMA WHERE ES_ALARMA = 0;
+INSERT INTO REGLA_TRIAJE (VERSION, SINTOMA_ID, DURACION_MIN_HORAS, DURACION_MAX_HORAS, INTENSIDAD_MIN, INTENSIDAD_MAX, NIVEL_PRIORIDAD)
+    SELECT 'v1-prototipo', ID, 0, NULL, 4, 6, 'III' FROM SINTOMA WHERE ES_ALARMA = 0;
+INSERT INTO REGLA_TRIAJE (VERSION, SINTOMA_ID, DURACION_MIN_HORAS, DURACION_MAX_HORAS, INTENSIDAD_MIN, INTENSIDAD_MAX, NIVEL_PRIORIDAD)
+    SELECT 'v1-prototipo', ID, 0, NULL, 0, 3, 'IV' FROM SINTOMA WHERE ES_ALARMA = 0;

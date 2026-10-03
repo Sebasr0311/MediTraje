@@ -7,6 +7,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Added
+- **Migración V007 de triaje (M5.1, ADR-009, ADR-012)**: tablas `SINTOMA`, `REGLA_TRIAJE`, `TRIAJE`, `TRIAJE_SINTOMA`; FK compuesta `FK_CITA_TRIAJE_PACIENTE` en `CITA`; GRANTs mínimos (catálogos solo lectura, triaje inmutable); semillas de PROTOTIPO no validadas clínicamente (20 síntomas, 6 de alarma, reglas `v1-prototipo`). Pruebas de integración ampliadas en `OracleIntegrationTest`.
+
 ## [0.4.0] - 2026-10-03
 
 ### Added
