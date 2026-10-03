@@ -2,6 +2,7 @@ package com.meditriaje.service;
 
 import com.meditriaje.dto.AuthSessionResponse;
 import com.meditriaje.dto.AuthTokens;
+import com.meditriaje.dto.CambiarPasswordRequest;
 import com.meditriaje.dto.LoginRequest;
 import com.meditriaje.dto.RegistroPacienteRequest;
 import com.meditriaje.dto.RegistroPacienteResponse;
@@ -271,7 +272,8 @@ public class AuthService {
                 usuario.publicId(),
                 usuario.email(),
                 roles,
-                "Inicio de sesion exitoso."
+                "Inicio de sesion exitoso.",
+                usuario.debeCambiarPassword()
         );
 
         return new AuthTokens(accessToken, rawRefreshToken, sessionResponse);
@@ -340,7 +342,8 @@ public class AuthService {
                 usuario.publicId(),
                 usuario.email(),
                 roles,
-                "Sesion actualizada exitosamente."
+                "Sesion actualizada exitosamente.",
+                usuario.debeCambiarPassword()
         );
 
         return new AuthTokens(nuevoAccessToken, nuevoRawRefreshToken, sessionResponse);
@@ -375,6 +378,54 @@ public class AuthService {
                 AccionAuditable.LOGOUT,
                 "USUARIO",
                 null,
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        );
+    }
+
+    /**
+     * Cambia la contraseña del usuario autenticado (ADR-002, M3.3).
+     * Valida la contraseña actual, que la nueva no sea idéntica y actualiza restableciendo debeCambiarPassword = false.
+     */
+    @Transactional
+    public void cambiarPassword(String usuarioPublicId, CambiarPasswordRequest request, String ipOrigen) {
+        Objects.requireNonNull(request, "La solicitud de cambio de contrasena no puede ser nula");
+
+        Usuario usuario = usuarioRepository.buscarPorPublicId(usuarioPublicId)
+                .orElseThrow(() -> new CredencialesInvalidasException("Credenciales invalidas."));
+
+        if (!passwordEncoder.matches(request.passwordActual(), usuario.passwordHash())) {
+            auditoriaService.registrarEvento(
+                    usuario.id(),
+                    AccionAuditable.CAMBIO_PASSWORD,
+                    "USUARIO",
+                    usuario.publicId(),
+                    ResultadoAuditoria.FALLO,
+                    ipOrigen
+            );
+            throw new CredencialesInvalidasException("Credenciales invalidas.");
+        }
+
+        if (passwordEncoder.matches(request.passwordNuevo(), usuario.passwordHash())) {
+            auditoriaService.registrarEvento(
+                    usuario.id(),
+                    AccionAuditable.CAMBIO_PASSWORD,
+                    "USUARIO",
+                    usuario.publicId(),
+                    ResultadoAuditoria.FALLO,
+                    ipOrigen
+            );
+            throw new DatosInvalidosException("La nueva contrasena no puede ser igual a la anterior.");
+        }
+
+        String nuevoHash = passwordEncoder.encode(request.passwordNuevo());
+        usuarioRepository.actualizarPassword(usuario.id(), nuevoHash, false);
+
+        auditoriaService.registrarEvento(
+                usuario.id(),
+                AccionAuditable.CAMBIO_PASSWORD,
+                "USUARIO",
+                usuario.publicId(),
                 ResultadoAuditoria.EXITO,
                 ipOrigen
         );

@@ -25,6 +25,27 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
     - `AdminSiteController` en `/api/v1/admin/sites` (POST, GET paginado con filtro de institución, GET por id, PUT, PATCH deactivate/activate).
   - Pruebas unitarias completas de negocio y auditoría en `AdminCatalogServiceTest` (22 pruebas).
   - Pruebas de integración MockMvc con seguridad en `AdminSpecialtyControllerTest`, `AdminInstitutionControllerTest` y `AdminSiteControllerTest` validando permisos para ADMINISTRADOR, rechazo 403 para PACIENTE/PROFESIONAL, 401 sin autenticación, 400 datos inválidos y 404 recursos inexistentes.
+- **Alta y Gestión de Profesionales Asistenciales (M3.3, HU-10, ADR-002, ADR-003, ADR-011, ADR-012)**:
+  - Migración Flyway V005 (`database/migrations/V005__usuario_cambio_password.sql`):
+    - Columna `DEBE_CAMBIAR_PASSWORD NUMBER(1) DEFAULT 0 NOT NULL` y restricción `CK_USUARIO_CAMBIO_PASS` en tabla `USUARIO`.
+  - Modelos de dominio en `com.meditriaje.model`:
+    - `Usuario`: soporte para `debeCambiarPassword` y sobrecarga de constructor retrocompatible.
+    - `Profesional`: modelo inmutable para profesional asistencial.
+    - `AccionAuditable`: incorporación de acción `CAMBIO_PASSWORD`.
+  - DTOs en `com.meditriaje.dto`:
+    - `CrearProfesionalRequest`, `ActualizarProfesionalRequest`, `ProfesionalResponse`, `CrearProfesionalResponse`, `CambiarPasswordRequest` y actualización retrocompatible de `AuthSessionResponse`.
+  - Repositorios JDBC con SQL 100% parametrizado:
+    - `UsuarioRepository`: mapeo de `DEBE_CAMBIAR_PASSWORD`, sobrecarga de creación, actualización de contraseña y de estado.
+    - `ProfesionalRepository`: creación, actualización, búsquedas por IDs y clave pública, validación de duplicidad de registro médico, listado paginado con filtros (`especialidadPublicId`, `estado`) y conteo.
+  - Servicios de negocio:
+    - `AdminProfessionalService`: alta con generación criptográfica segura de contraseña temporal de un solo uso (Argon2id), asignación de `ROLE_PROFESIONAL`, validación de especialidad activa, unicidad de correo y registro médico, actualización de datos asistenciales, activación/desactivación y auditoría inmutable obligatoria (`CAMBIO_ADMINISTRATIVO`).
+    - `AuthService`: soporte para `debeCambiarPassword` en login/refresh y método `cambiarPassword` con validación de credenciales actuales, no reuso de la clave anterior, actualización a `debeCambiarPassword = false` y auditoría (`CAMBIO_PASSWORD`).
+  - Controladores REST y seguridad (Spring Security):
+    - `AdminProfessionalController` en `/api/v1/admin/professionals` protegido con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")` (POST, GET paginado, GET por id, PUT, PATCH deactivate/activate).
+    - `AuthController` en `/api/v1/auth/change-password` para usuarios autenticados.
+    - Configuración en `SecurityConfig` delimitando endpoints públicos e integrando autenticación para el cambio de credenciales.
+  - Pruebas unitarias y de integración:
+    - `AdminProfessionalServiceTest` (16 pruebas), `AdminProfessionalControllerTest` (11 pruebas), pruebas de cambio de contraseña en `AuthServiceTest` y `AuthControllerTest`, pruebas de repositorio en `ProfesionalRepositoryTest` y `UsuarioRepositoryTest` (147 pruebas en total pasando exitosamente).
 
 ## [0.2.0] - 2026-10-03
 

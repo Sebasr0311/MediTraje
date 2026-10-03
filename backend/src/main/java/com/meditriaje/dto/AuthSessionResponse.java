@@ -10,5 +10,10 @@ public record AuthSessionResponse(
         String publicId,
         String email,
         List<String> roles,
-        String mensaje
-) {}
+        String mensaje,
+        boolean debeCambiarPassword
+) {
+    public AuthSessionResponse(String publicId, String email, List<String> roles, String mensaje) {
+        this(publicId, email, roles, mensaje, false);
+    }
+}

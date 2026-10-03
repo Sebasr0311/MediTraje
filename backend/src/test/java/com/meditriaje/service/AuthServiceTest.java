@@ -1,6 +1,7 @@
 package com.meditriaje.service;
 
 import com.meditriaje.dto.AuthTokens;
+import com.meditriaje.dto.CambiarPasswordRequest;
 import com.meditriaje.dto.LoginRequest;
 import com.meditriaje.dto.RegistroPacienteRequest;
 import com.meditriaje.dto.RegistroPacienteResponse;
@@ -33,6 +34,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -493,5 +495,100 @@ class AuthServiceTest {
                 eq(ResultadoAuditoria.EXITO),
                 eq("192.168.1.10")
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // CAMBIO DE CONTRASEÑA
+    // -------------------------------------------------------------------------
+
+    @Test
+    void cambiarPassword_conDatosValidos_actualizaPasswordYAudita() {
+        String userPubId = "user-pub-id-1";
+        Usuario usuario = new Usuario(
+                10L, userPubId, "carlos@hospital.com", "$argon2id$oldhash", "ACTIVO", 0, null, Instant.now(), true
+        );
+        CambiarPasswordRequest req = new CambiarPasswordRequest("PasswordActual123*", "PasswordNuevo123*");
+
+        when(usuarioRepository.buscarPorPublicId(userPubId)).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("PasswordActual123*", "$argon2id$oldhash")).thenReturn(true);
+        when(passwordEncoder.matches("PasswordNuevo123*", "$argon2id$oldhash")).thenReturn(false);
+        when(passwordEncoder.encode("PasswordNuevo123*")).thenReturn("$argon2id$newhash");
+
+        authService.cambiarPassword(userPubId, req, "192.168.1.10");
+
+        verify(usuarioRepository).actualizarPassword(10L, "$argon2id$newhash", false);
+        verify(auditoriaService).registrarEvento(
+                eq(10L),
+                eq(AccionAuditable.CAMBIO_PASSWORD),
+                eq("USUARIO"),
+                eq(userPubId),
+                eq(ResultadoAuditoria.EXITO),
+                eq("192.168.1.10")
+        );
+    }
+
+    @Test
+    void cambiarPassword_passwordActualIncorrecto_lanzaCredencialesInvalidasYAuditaFallo() {
+        String userPubId = "user-pub-id-1";
+        Usuario usuario = new Usuario(
+                10L, userPubId, "carlos@hospital.com", "$argon2id$oldhash", "ACTIVO", 0, null, Instant.now(), true
+        );
+        CambiarPasswordRequest req = new CambiarPasswordRequest("PasswordErroneo123*", "PasswordNuevo123*");
+
+        when(usuarioRepository.buscarPorPublicId(userPubId)).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("PasswordErroneo123*", "$argon2id$oldhash")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.cambiarPassword(userPubId, req, "192.168.1.10"))
+                .isInstanceOf(CredencialesInvalidasException.class)
+                .hasMessageContaining("Credenciales invalidas");
+
+        verify(usuarioRepository, never()).actualizarPassword(anyLong(), anyString(), anyBoolean());
+        verify(auditoriaService).registrarEvento(
+                eq(10L),
+                eq(AccionAuditable.CAMBIO_PASSWORD),
+                eq("USUARIO"),
+                eq(userPubId),
+                eq(ResultadoAuditoria.FALLO),
+                eq("192.168.1.10")
+        );
+    }
+
+    @Test
+    void cambiarPassword_passwordNuevoIgualAlActual_lanzaDatosInvalidosExceptionYAuditaFallo() {
+        String userPubId = "user-pub-id-1";
+        Usuario usuario = new Usuario(
+                10L, userPubId, "carlos@hospital.com", "$argon2id$oldhash", "ACTIVO", 0, null, Instant.now(), true
+        );
+        CambiarPasswordRequest req = new CambiarPasswordRequest("PasswordActual123*", "PasswordActual123*");
+
+        when(usuarioRepository.buscarPorPublicId(userPubId)).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("PasswordActual123*", "$argon2id$oldhash")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.cambiarPassword(userPubId, req, "192.168.1.10"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("no puede ser igual a la anterior");
+
+        verify(usuarioRepository, never()).actualizarPassword(anyLong(), anyString(), anyBoolean());
+        verify(auditoriaService).registrarEvento(
+                eq(10L),
+                eq(AccionAuditable.CAMBIO_PASSWORD),
+                eq("USUARIO"),
+                eq(userPubId),
+                eq(ResultadoAuditoria.FALLO),
+                eq("192.168.1.10")
+        );
+    }
+
+    @Test
+    void cambiarPassword_usuarioNoEncontrado_lanzaCredencialesInvalidasException() {
+        String userPubId = "user-no-existe";
+        CambiarPasswordRequest req = new CambiarPasswordRequest("PasswordActual123*", "PasswordNuevo123*");
+
+        when(usuarioRepository.buscarPorPublicId(userPubId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.cambiarPassword(userPubId, req, "192.168.1.10"))
+                .isInstanceOf(CredencialesInvalidasException.class);
+
+        verify(usuarioRepository, never()).actualizarPassword(anyLong(), anyString(), anyBoolean());
     }
 }
