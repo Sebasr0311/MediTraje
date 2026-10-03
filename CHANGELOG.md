@@ -14,6 +14,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - Índices de rendimiento: `IX_SEDE_INSTITUCION`, `IX_PROFESIONAL_ESPECIALIDAD`, `IX_SLOT_BUSQUEDA` e `IX_SLOT_SEDE`.
   - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (ADR-012): `SELECT`, `INSERT`, `UPDATE` en instituciones, sedes, especialidades y profesionales; y `SELECT`, `INSERT`, `UPDATE`, `DELETE` en slots de disponibilidad.
   - Actualización de pruebas de integración en `OracleIntegrationTest.java` para verificar V004 y acceso de `MEDITRIAJE_APP` a las 5 tablas de oferta.
+- **CRUD de Especialidades, Instituciones y Sedes (M3.2, HU-10, ADR-002, ADR-003, ADR-011)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`: `Especialidad`, `Institucion`, `Sede`.
+  - DTOs y paginación en `com.meditriaje.dto.admin` y `com.meditriaje.dto.common`: `CrearEspecialidadRequest`, `ActualizarEspecialidadRequest`, `EspecialidadResponse`, `CrearInstitucionRequest`, `ActualizarInstitucionRequest`, `InstitucionResponse`, `CrearSedeRequest`, `ActualizarSedeRequest`, `SedeResponse`, `PaginatedResponse<T>`.
+  - Repositorios JDBC con SQL 100% parametrizado y paginación Oracle (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`): `EspecialidadRepository`, `InstitucionRepository`, `SedeRepository`.
+  - Servicio de negocio `AdminCatalogService`: validaciones de unicidad de nombre de especialidad y NIT de institución, verificación de institución activa para sedes, transiciones de estado (`ACTIVO`/`INACTIVO`, sin borrado físico) y registro inmutable obligatorio de auditoría (`CAMBIO_ADMINISTRATIVO`) vía `AuditoriaService`.
+  - Controladores REST protegidos con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`:
+    - `AdminSpecialtyController` en `/api/v1/admin/specialties` (POST, GET paginado, GET por id, PUT, PATCH deactivate/activate).
+    - `AdminInstitutionController` en `/api/v1/admin/institutions` (POST, GET paginado, GET por id, PUT, PATCH deactivate/activate).
+    - `AdminSiteController` en `/api/v1/admin/sites` (POST, GET paginado con filtro de institución, GET por id, PUT, PATCH deactivate/activate).
+  - Pruebas unitarias completas de negocio y auditoría en `AdminCatalogServiceTest` (22 pruebas).
+  - Pruebas de integración MockMvc con seguridad en `AdminSpecialtyControllerTest`, `AdminInstitutionControllerTest` y `AdminSiteControllerTest` validando permisos para ADMINISTRADOR, rechazo 403 para PACIENTE/PROFESIONAL, 401 sin autenticación, 400 datos inválidos y 404 recursos inexistentes.
 
 ## [0.2.0] - 2026-10-03
 
