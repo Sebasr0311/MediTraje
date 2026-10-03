@@ -13,8 +13,21 @@ public record Usuario(
         String estado,
         int intentosFallidos,
         Instant bloqueadoHasta,
-        Instant createdAt
+        Instant createdAt,
+        boolean debeCambiarPassword
 ) {
+    public Usuario(
+            Long id,
+            String publicId,
+            String email,
+            String passwordHash,
+            String estado,
+            int intentosFallidos,
+            Instant bloqueadoHasta,
+            Instant createdAt
+    ) {
+        this(id, publicId, email, passwordHash, estado, intentosFallidos, bloqueadoHasta, createdAt, false);
+    }
     /**
      * Retorna verdadero si la cuenta está actualmente bloqueada por intentos fallidos.
      */

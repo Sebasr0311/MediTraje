@@ -8,6 +8,78 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Migración V004 (`database/migrations/V004__oferta_administracion.sql`) (M3.1)**:
+  - Tablas: `INSTITUCION`, `SEDE`, `ESPECIALIDAD`, `PROFESIONAL`, `DISPONIBILIDAD_SLOT`.
+  - Restricciones relacionales: FKs, checks de estados (`ACTIVO`/`INACTIVO`, `LIBRE`/`OCUPADO`/`BLOQUEADO`), modalidades (`PRESENCIAL`/`TELEMEDICINA`), coherencia horaria (`FECHA_HORA_FIN > FECHA_HORA_INICIO`) y unicidad (`UQ_SLOT_PROFESIONAL_INICIO`).
+  - Índices de rendimiento: `IX_SEDE_INSTITUCION`, `IX_PROFESIONAL_ESPECIALIDAD`, `IX_SLOT_BUSQUEDA` e `IX_SLOT_SEDE`.
+  - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (ADR-012): `SELECT`, `INSERT`, `UPDATE` en instituciones, sedes, especialidades y profesionales; y `SELECT`, `INSERT`, `UPDATE`, `DELETE` en slots de disponibilidad.
+  - Actualización de pruebas de integración en `OracleIntegrationTest.java` para verificar V004 y acceso de `MEDITRIAJE_APP` a las 5 tablas de oferta.
+- **CRUD de Especialidades, Instituciones y Sedes (M3.2, HU-10, ADR-002, ADR-003, ADR-011)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`: `Especialidad`, `Institucion`, `Sede`.
+  - DTOs y paginación en `com.meditriaje.dto.admin` y `com.meditriaje.dto.common`: `CrearEspecialidadRequest`, `ActualizarEspecialidadRequest`, `EspecialidadResponse`, `CrearInstitucionRequest`, `ActualizarInstitucionRequest`, `InstitucionResponse`, `CrearSedeRequest`, `ActualizarSedeRequest`, `SedeResponse`, `PaginatedResponse<T>`.
+  - Repositorios JDBC con SQL 100% parametrizado y paginación Oracle (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`): `EspecialidadRepository`, `InstitucionRepository`, `SedeRepository`.
+  - Servicio de negocio `AdminCatalogService`: validaciones de unicidad de nombre de especialidad y NIT de institución, verificación de institución activa para sedes, transiciones de estado (`ACTIVO`/`INACTIVO`, sin borrado físico) y registro inmutable obligatorio de auditoría (`CAMBIO_ADMINISTRATIVO`) vía `AuditoriaService`.
+  - Controladores REST protegidos con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`:
+    - `AdminSpecialtyController` en `/api/v1/admin/specialties` (POST, GET paginado, GET por id, PUT, PATCH deactivate/activate).
+    - `AdminInstitutionController` en `/api/v1/admin/institutions` (POST, GET paginado, GET por id, PUT, PATCH deactivate/activate).
+    - `AdminSiteController` en `/api/v1/admin/sites` (POST, GET paginado con filtro de institución, GET por id, PUT, PATCH deactivate/activate).
+  - Pruebas unitarias completas de negocio y auditoría en `AdminCatalogServiceTest` (22 pruebas).
+  - Pruebas de integración MockMvc con seguridad en `AdminSpecialtyControllerTest`, `AdminInstitutionControllerTest` y `AdminSiteControllerTest` validando permisos para ADMINISTRADOR, rechazo 403 para PACIENTE/PROFESIONAL, 401 sin autenticación, 400 datos inválidos y 404 recursos inexistentes.
+- **Alta y Gestión de Profesionales Asistenciales (M3.3, HU-10, ADR-002, ADR-003, ADR-011, ADR-012)**:
+  - Migración Flyway V005 (`database/migrations/V005__usuario_cambio_password.sql`):
+    - Columna `DEBE_CAMBIAR_PASSWORD NUMBER(1) DEFAULT 0 NOT NULL` y restricción `CK_USUARIO_CAMBIO_PASS` en tabla `USUARIO`.
+  - Modelos de dominio en `com.meditriaje.model`:
+    - `Usuario`: soporte para `debeCambiarPassword` y sobrecarga de constructor retrocompatible.
+    - `Profesional`: modelo inmutable para profesional asistencial.
+    - `AccionAuditable`: incorporación de acción `CAMBIO_PASSWORD`.
+  - DTOs en `com.meditriaje.dto`:
+    - `CrearProfesionalRequest`, `ActualizarProfesionalRequest`, `ProfesionalResponse`, `CrearProfesionalResponse`, `CambiarPasswordRequest` y actualización retrocompatible de `AuthSessionResponse`.
+  - Repositorios JDBC con SQL 100% parametrizado:
+    - `UsuarioRepository`: mapeo de `DEBE_CAMBIAR_PASSWORD`, sobrecarga de creación, actualización de contraseña y de estado.
+    - `ProfesionalRepository`: creación, actualización, búsquedas por IDs y clave pública, validación de duplicidad de registro médico, listado paginado con filtros (`especialidadPublicId`, `estado`) y conteo.
+  - Servicios de negocio:
+    - `AdminProfessionalService`: alta con generación criptográfica segura de contraseña temporal de un solo uso (Argon2id), asignación de `ROLE_PROFESIONAL`, validación de especialidad activa, unicidad de correo y registro médico, actualización de datos asistenciales, activación/desactivación y auditoría inmutable obligatoria (`CAMBIO_ADMINISTRATIVO`).
+    - `AuthService`: soporte para `debeCambiarPassword` en login/refresh y método `cambiarPassword` con validación de credenciales actuales, no reuso de la clave anterior, actualización a `debeCambiarPassword = false` y auditoría (`CAMBIO_PASSWORD`).
+  - Controladores REST y seguridad (Spring Security):
+    - `AdminProfessionalController` en `/api/v1/admin/professionals` protegido con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")` (POST, GET paginado, GET por id, PUT, PATCH deactivate/activate).
+    - `AuthController` en `/api/v1/auth/change-password` para usuarios autenticados.
+    - Configuración en `SecurityConfig` delimitando endpoints públicos e integrando autenticación para el cambio de credenciales.
+  - Pruebas unitarias y de integración:
+    - `AdminProfessionalServiceTest` (16 pruebas), `AdminProfessionalControllerTest` (11 pruebas), pruebas de cambio de contraseña en `AuthServiceTest` y `AuthControllerTest`, pruebas de repositorio en `ProfesionalRepositoryTest` y `UsuarioRepositoryTest` (147 pruebas en total pasando exitosamente).
+- **Generador de Slots de Disponibilidad (M3.4, HU-10, ADR-002, ADR-003, ADR-005, ADR-006, ADR-011, ADR-012)**:
+  - Manejo temporal centralizado con zona horaria `America/Bogota` (ADR-005) y persistencia en `TIMESTAMP WITH TIME ZONE` (`Instant`).
+  - Modelo de dominio inmutable en `com.meditriaje.model`: `DisponibilidadSlot` (id, publicId, profesionalId, sedeId, especialidadId, fechaHoraInicio, fechaHoraFin, modalidad, estado).
+  - DTOs en `com.meditriaje.dto.admin`: `GenerarSlotsRequest`, `GenerarSlotsResponse`, `SlotResponse`.
+  - Repositorio JDBC `DisponibilidadSlotRepository` con SQL 100% parametrizado:
+    - Inserción unitaria y por lotes (`guardarLote` con `BatchPreparedStatementSetter`).
+    - Búsqueda por `publicId` (con JOINs a `PROFESIONAL`, `SEDE` y `ESPECIALIDAD`), por `id` y por entidad.
+    - Detección de solapes de agenda mediante consulta relacional de intervalos: `FECHA_HORA_INICIO < fin AND FECHA_HORA_FIN > inicio`.
+    - Transición de estados (`cambiarEstado`) y borrado físico condicional (`eliminar` solo en estado `LIBRE`).
+    - Consulta paginada dinámica con filtros (`profesionalPublicId`, `sedePublicId`, `especialidadPublicId`, `fechaDesde`, `fechaHasta`, `estado`) y conteo total.
+  - Servicio de negocio `SlotGeneratorService`:
+    - Validaciones estrictas: profesional existente con usuario activo, sede activa, coherencia de rango de fechas (máx. 90 días, no anterior a hoy en Bogotá), hora fin > hora inicio, duración de turno (5-120 min, default de especialidad o 20 min) y modalidad (`PRESENCIAL` o `TELEMEDICINA`).
+    - Algoritmo generador de turnos: iteración por fechas, filtrado opcional por días de la semana (`diasSemana`), generación de intervalos sin superar la ventana diaria y verificación transaccional de colisiones contra agenda previa del profesional (`DatosInvalidosException`).
+    - Gestión de turnos: bloqueo de slots (`LIBRE` -> `BLOQUEADO`), desbloqueo (`BLOQUEADO` -> `LIBRE`), eliminación física condicionada y auditoría inmutable obligatoria (`CAMBIO_ADMINISTRATIVO`) vía `AuditoriaService`.
+  - Controlador REST `AdminSlotController` en `/api/v1/admin/slots` protegido con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`:
+    - `POST /generate` (201 Created), `GET` paginado (200 OK), `GET /{publicId}` (200 OK), `PATCH /{publicId}/block` (200 OK), `PATCH /{publicId}/unblock` (200 OK), `DELETE /{publicId}` (204 No Content).
+  - Pruebas unitarias y de integración exhaustivas:
+    - `DisponibilidadSlotRepositoryTest` (8 pruebas), `SlotGeneratorServiceTest` (21 pruebas), `AdminSlotControllerTest` (14 pruebas) con verificación de permisos, CSRF (`X-Requested-With`), casos de borde y 190 pruebas en total pasando exitosamente.
+- **Seeds Ficticios y Colección HTTP de Pruebas (M3.5, HU-10, ADR-004, ADR-012)**:
+  - Script SQL de datos ficticios para desarrollo en `database/seeds/dev_seeds_m3.sql`:
+    - 1 usuario administrador (`admin@meditriaje.com` / `Admin12345*`).
+    - 1 institución prestadora de salud (`IPS MediSalud Valledupar S.A.S.`).
+    - 2 sedes asistenciales (`Sede Centro Valledupar`, `Sede Norte Valledupar`).
+    - 4 especialidades médicas (`Medicina General`, `Pediatria`, `Medicina Interna`, `Odontologia`).
+    - 4 profesionales asistenciales con sus usuarios, contraseñas temporales iniciales (`Temporal12345*`) y rol `ROLE_PROFESIONAL`.
+    - Slots de disponibilidad distribuidos en días hábiles de los próximos 14 días en zona `America/Bogota`.
+  - Documentación de advertencia y guía de ejecución en `database/seeds/README.md` (prohibido en producción).
+  - Script PowerShell de conveniencia `database/seeds/cargar_seeds_dev.ps1`.
+  - Colección completa de pruebas de integración HTTP en formato REST Client en `docs/api/M3.http`: 11 escenarios cubriendo login de admin, CRUD de especialidades, instituciones, sedes, alta de profesional, primer login con clave temporal, cambio obligatorio de contraseña, generación masiva de slots, gestión de slots y aislamiento de roles (403 Forbidden para paciente/profesional, 401 Unauthorized sin token y 400 Bad Request en solapes).
+  - Puerta de salida M3 completada con éxito.
+
+## [0.2.0] - 2026-10-03
+
+### Added
 - **Migración V002 (`database/migrations/V002__seguridad.sql`) (M2.1)**:
   - Tablas: `USUARIO`, `ROL`, `USUARIO_ROL`, `REFRESH_TOKEN`, `CONSENTIMIENTO`, `AUDITORIA`.
   - Triggers de inmutabilidad: `TR_CONSENTIMIENTO_INMUTABILIDAD` (restringe updates y bloquea delete) y `TR_AUDITORIA_INMUTABILIDAD` (insert-only estricto).

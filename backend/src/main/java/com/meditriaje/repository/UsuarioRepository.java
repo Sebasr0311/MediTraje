@@ -34,7 +34,8 @@ public class UsuarioRepository {
                 rs.getString("ESTADO"),
                 rs.getInt("INTENTOS_FALLIDOS"),
                 tsBloqueado != null ? tsBloqueado.toInstant() : null,
-                tsCreated != null ? tsCreated.toInstant() : null
+                tsCreated != null ? tsCreated.toInstant() : null,
+                rs.getInt("DEBE_CAMBIAR_PASSWORD") == 1
         );
     };
 
@@ -49,9 +50,13 @@ public class UsuarioRepository {
     }
 
     public Long crear(String publicId, String email, String passwordHash) {
+        return crear(publicId, email, passwordHash, false);
+    }
+
+    public Long crear(String publicId, String email, String passwordHash, boolean debeCambiarPassword) {
         final String sql = """
-            INSERT INTO USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS)
-            VALUES (?, ?, ?, 'ACTIVO', 0)
+            INSERT INTO USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, DEBE_CAMBIAR_PASSWORD)
+            VALUES (?, ?, ?, 'ACTIVO', 0, ?)
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -60,6 +65,7 @@ public class UsuarioRepository {
             ps.setString(1, publicId);
             ps.setString(2, email);
             ps.setString(3, passwordHash);
+            ps.setInt(4, debeCambiarPassword ? 1 : 0);
             return ps;
         }, keyHolder);
 
@@ -72,7 +78,7 @@ public class UsuarioRepository {
 
     public Optional<Usuario> buscarPorEmail(String email) {
         final String sql = """
-            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT
+            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT, DEBE_CAMBIAR_PASSWORD
             FROM USUARIO
             WHERE EMAIL = ?
             """;
@@ -82,7 +88,7 @@ public class UsuarioRepository {
 
     public Optional<Usuario> buscarPorId(Long id) {
         final String sql = """
-            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT
+            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT, DEBE_CAMBIAR_PASSWORD
             FROM USUARIO
             WHERE ID = ?
             """;
@@ -92,7 +98,7 @@ public class UsuarioRepository {
 
     public Optional<Usuario> buscarPorPublicId(String publicId) {
         final String sql = """
-            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT
+            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT, DEBE_CAMBIAR_PASSWORD
             FROM USUARIO
             WHERE PUBLIC_ID = ?
             """;
@@ -143,5 +149,23 @@ public class UsuarioRepository {
     public void asignarRol(Long usuarioId, Long rolId) {
         final String sql = "INSERT INTO USUARIO_ROL (USUARIO_ID, ROL_ID) VALUES (?, ?)";
         jdbcTemplate.update(sql, usuarioId, rolId);
+    }
+
+    public void actualizarPassword(Long usuarioId, String passwordHash, boolean debeCambiarPassword) {
+        final String sql = """
+            UPDATE USUARIO
+            SET PASSWORD_HASH = ?, DEBE_CAMBIAR_PASSWORD = ?, INTENTOS_FALLIDOS = 0, BLOQUEADO_HASTA = NULL, UPDATED_AT = CURRENT_TIMESTAMP
+            WHERE ID = ?
+            """;
+        jdbcTemplate.update(sql, passwordHash, debeCambiarPassword ? 1 : 0, usuarioId);
+    }
+
+    public void actualizarEstado(Long usuarioId, String estado) {
+        final String sql = """
+            UPDATE USUARIO
+            SET ESTADO = ?, UPDATED_AT = CURRENT_TIMESTAMP
+            WHERE ID = ?
+            """;
+        jdbcTemplate.update(sql, estado, usuarioId);
     }
 }

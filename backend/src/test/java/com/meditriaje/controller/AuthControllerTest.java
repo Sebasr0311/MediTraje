@@ -5,6 +5,7 @@ import com.meditriaje.config.CorsConfig;
 import com.meditriaje.config.SecurityConfig;
 import com.meditriaje.dto.AuthSessionResponse;
 import com.meditriaje.dto.AuthTokens;
+import com.meditriaje.dto.CambiarPasswordRequest;
 import com.meditriaje.dto.LoginRequest;
 import com.meditriaje.dto.RegistroPacienteRequest;
 import com.meditriaje.dto.RegistroPacienteResponse;
@@ -33,6 +34,7 @@ import java.util.List;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -233,5 +235,59 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mensaje").value("Sesion cerrada exitosamente."))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
+    }
+
+    // -------------------------------------------------------------------------
+    // CHANGE PASSWORD
+    // -------------------------------------------------------------------------
+
+    @Test
+    void changePassword_sinAutenticacion_retorna401Unauthorized() throws Exception {
+        CambiarPasswordRequest request = new CambiarPasswordRequest("PasswordActual123*", "PasswordNuevo123*");
+
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
+    }
+
+    @Test
+    void changePassword_conTokenValido_retorna200OK() throws Exception {
+        String tokenValido = "jwt.usuario.valido";
+        String userPubId = "user-pub-id-1";
+        CambiarPasswordRequest request = new CambiarPasswordRequest("PasswordActual123*", "PasswordNuevo123*");
+
+        when(jwtService.esValido(tokenValido)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenValido)).thenReturn(userPubId);
+        when(jwtService.extraerRoles(tokenValido)).thenReturn(List.of("ROLE_PACIENTE"));
+        doNothing().when(authService).cambiarPassword(eq(userPubId), any(), anyString());
+
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                        .cookie(new Cookie("access_token", tokenValido))
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mensaje").value("Contrasena actualizada exitosamente."));
+    }
+
+    @Test
+    void changePassword_conContrasenaCorta_retorna400BadRequest() throws Exception {
+        String tokenValido = "jwt.usuario.valido";
+        when(jwtService.esValido(tokenValido)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenValido)).thenReturn("user-pub-id-1");
+        when(jwtService.extraerRoles(tokenValido)).thenReturn(List.of("ROLE_PACIENTE"));
+
+        CambiarPasswordRequest request = new CambiarPasswordRequest("PasswordActual123*", "corta");
+
+        mockMvc.perform(post("/api/v1/auth/change-password")
+                        .cookie(new Cookie("access_token", tokenValido))
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("VALIDACION_FALLIDA"));
     }
 }

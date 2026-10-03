@@ -109,13 +109,13 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV3() {
+    void flyway_schema_history_tieneAlMenosV4() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(3);
+        assertThat(count).isGreaterThanOrEqualTo(4);
     }
 
     @Test
@@ -149,6 +149,17 @@ class OracleIntegrationTest {
                 Integer.class
         );
         assertThat(count).isNotNull();
+    }
+
+    @Test
+    void app_puedeConsultarTablasOferta() {
+        // MEDITRIAJE_APP puede consultar las tablas de oferta asistencial (V004)
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + ".INSTITUCION", Integer.class)).isNotNull();
+        assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + ".SEDE", Integer.class)).isNotNull();
+        assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + ".ESPECIALIDAD", Integer.class)).isNotNull();
+        assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + ".PROFESIONAL", Integer.class)).isNotNull();
+        assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + ".DISPONIBILIDAD_SLOT", Integer.class)).isNotNull();
     }
 
     @Test

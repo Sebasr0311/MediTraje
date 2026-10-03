@@ -2,6 +2,7 @@ package com.meditriaje.controller;
 
 import com.meditriaje.dto.AuthSessionResponse;
 import com.meditriaje.dto.AuthTokens;
+import com.meditriaje.dto.CambiarPasswordRequest;
 import com.meditriaje.dto.LoginRequest;
 import com.meditriaje.dto.RegistroPacienteRequest;
 import com.meditriaje.dto.RegistroPacienteResponse;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -101,6 +104,19 @@ public class AuthController {
                 .header(HttpHeaders.SET_COOKIE, clearAccessCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, clearRefreshCookie.toString())
                 .body(Map.of("mensaje", "Sesion cerrada exitosamente."));
+    }
+
+    @PostMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> cambiarPassword(
+            @Valid @RequestBody CambiarPasswordRequest request,
+            Authentication authentication,
+            HttpServletRequest httpRequest
+    ) {
+        String usuarioPublicId = (String) authentication.getPrincipal();
+        String ipOrigen = IpUtil.extraerIp(httpRequest);
+        authService.cambiarPassword(usuarioPublicId, request, ipOrigen);
+        return ResponseEntity.ok(Map.of("mensaje", "Contrasena actualizada exitosamente."));
     }
 
     private ResponseCookie crearAccessCookie(String token, Duration maxAge) {

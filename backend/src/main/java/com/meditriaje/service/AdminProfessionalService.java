@@ -1,0 +1,351 @@
+package com.meditriaje.service;
+
+import com.meditriaje.dto.admin.ActualizarProfesionalRequest;
+import com.meditriaje.dto.admin.CrearProfesionalRequest;
+import com.meditriaje.dto.admin.CrearProfesionalResponse;
+import com.meditriaje.dto.admin.ProfesionalResponse;
+import com.meditriaje.dto.common.PaginatedResponse;
+import com.meditriaje.exception.DatosInvalidosException;
+import com.meditriaje.exception.RecursoNoEncontradoException;
+import com.meditriaje.model.AccionAuditable;
+import com.meditriaje.model.Especialidad;
+import com.meditriaje.model.Profesional;
+import com.meditriaje.model.ResultadoAuditoria;
+import com.meditriaje.model.Usuario;
+import com.meditriaje.repository.EspecialidadRepository;
+import com.meditriaje.repository.ProfesionalRepository;
+import com.meditriaje.repository.UsuarioRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.UUID;
+
+/**
+ * Servicio de administración de profesionales asistenciales (HU-10, ADR-002, ADR-003, ADR-011).
+ * Gestiona el alta con contraseña temporal de un solo uso, actualización de perfil asistencial,
+ * activación/desactivación y auditoría inmutable de cada cambio administrativo.
+ */
+@Service
+public class AdminProfessionalService {
+
+    private static final String ESTADO_ACTIVO = "ACTIVO";
+    private static final String ESTADO_INACTIVO = "INACTIVO";
+    private static final String RECURSO_PROFESIONAL = "PROFESIONAL";
+
+    private final ProfesionalRepository profesionalRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final EspecialidadRepository especialidadRepository;
+    private final AuditoriaService auditoriaService;
+    private final PasswordEncoder passwordEncoder;
+
+    public AdminProfessionalService(
+            ProfesionalRepository profesionalRepository,
+            UsuarioRepository usuarioRepository,
+            EspecialidadRepository especialidadRepository,
+            AuditoriaService auditoriaService,
+            PasswordEncoder passwordEncoder
+    ) {
+        this.profesionalRepository = Objects.requireNonNull(profesionalRepository, "ProfesionalRepository no puede ser nulo");
+        this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "UsuarioRepository no puede ser nulo");
+        this.especialidadRepository = Objects.requireNonNull(especialidadRepository, "EspecialidadRepository no puede ser nulo");
+        this.auditoriaService = Objects.requireNonNull(auditoriaService, "AuditoriaService no puede ser nulo");
+        this.passwordEncoder = Objects.requireNonNull(passwordEncoder, "PasswordEncoder no puede ser nulo");
+    }
+
+    /**
+     * Da de alta a un profesional asistencial creando su cuenta de usuario con contraseña temporal segura,
+     * asignando el rol asistencial y registrando el evento en la bitácora inmutable.
+     */
+    @Transactional
+    public CrearProfesionalResponse altaProfesional(CrearProfesionalRequest request, String adminPublicId, String ipOrigen) {
+        Objects.requireNonNull(request, "La solicitud de creacion no puede ser nula");
+
+        // 1. Validar especialidad existente y activa
+        Especialidad esp = especialidadRepository.buscarPorPublicId(request.especialidadPublicId().trim())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Especialidad no encontrada: " + request.especialidadPublicId()));
+
+        if (!ESTADO_ACTIVO.equalsIgnoreCase(esp.estado())) {
+            throw new DatosInvalidosException("La especialidad seleccionada no se encuentra activa.");
+        }
+
+        // 2. Validar correo electronico unico
+        String emailNormalizado = request.email().trim().toLowerCase(Locale.ROOT);
+        if (usuarioRepository.existePorEmail(emailNormalizado)) {
+            throw new DatosInvalidosException("El correo electronico ya se encuentra registrado.");
+        }
+
+        // 3. Validar registro medico unico
+        String registroMedicoNormalizado = request.registroMedico().trim();
+        if (profesionalRepository.existePorRegistroMedico(registroMedicoNormalizado)) {
+            throw new DatosInvalidosException("El registro medico ya se encuentra registrado.");
+        }
+
+        // 4. Generar contraseña temporal segura (mínimo 12 caracteres: mayúsculas, minúsculas, dígitos, símbolos)
+        String passwordTemporal = generarPasswordTemporal();
+        String passwordHash = passwordEncoder.encode(passwordTemporal);
+
+        // 5. Crear USUARIO con debeCambiarPassword = true y estado ACTIVO
+        String usuarioPublicId = UUID.randomUUID().toString();
+        Long usuarioId = usuarioRepository.crear(usuarioPublicId, emailNormalizado, passwordHash, true);
+
+        // 6. Asignar rol ROLE_PROFESIONAL
+        Long rolId = usuarioRepository.buscarRolIdPorNombre("ROLE_PROFESIONAL")
+                .orElseThrow(() -> new IllegalStateException("El rol ROLE_PROFESIONAL no existe en el sistema."));
+        usuarioRepository.asignarRol(usuarioId, rolId);
+
+        // 7. Crear PROFESIONAL vinculado a usuarioId y especialidadId
+        String profesionalPublicId = UUID.randomUUID().toString();
+        Profesional profesional = new Profesional(
+                usuarioId,
+                profesionalPublicId,
+                esp.id(),
+                registroMedicoNormalizado,
+                request.nombres().trim(),
+                request.apellidos().trim()
+        );
+        profesionalRepository.crear(profesional);
+
+        // 8. Auditar evento administrativo
+        Long adminId = obtenerAdminUsuarioId(adminPublicId);
+        auditoriaService.registrarEvento(
+                adminId,
+                AccionAuditable.CAMBIO_ADMINISTRATIVO,
+                RECURSO_PROFESIONAL,
+                profesionalPublicId,
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        );
+
+        return new CrearProfesionalResponse(
+                profesionalPublicId,
+                usuarioPublicId,
+                registroMedicoNormalizado,
+                request.nombres().trim(),
+                request.apellidos().trim(),
+                emailNormalizado,
+                esp.publicId(),
+                esp.nombre(),
+                passwordTemporal,
+                true,
+                Instant.now()
+        );
+    }
+
+    /**
+     * Actualiza los datos asistenciales del profesional (nombres, apellidos, especialidad).
+     */
+    @Transactional
+    public ProfesionalResponse actualizarProfesional(
+            String publicId,
+            ActualizarProfesionalRequest request,
+            String adminPublicId,
+            String ipOrigen
+    ) {
+        Objects.requireNonNull(request, "La solicitud no puede ser nula");
+
+        Profesional actual = profesionalRepository.buscarPorPublicId(publicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Profesional no encontrado: " + publicId));
+
+        Especialidad esp = especialidadRepository.buscarPorPublicId(request.especialidadPublicId().trim())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Especialidad no encontrada: " + request.especialidadPublicId()));
+
+        if (!ESTADO_ACTIVO.equalsIgnoreCase(esp.estado())) {
+            throw new DatosInvalidosException("La especialidad seleccionada no se encuentra activa.");
+        }
+
+        Profesional actualizado = new Profesional(
+                actual.id(),
+                actual.usuarioId(),
+                actual.publicId(),
+                esp.id(),
+                actual.registroMedico(),
+                request.nombres().trim(),
+                request.apellidos().trim(),
+                actual.createdAt(),
+                Instant.now()
+        );
+        profesionalRepository.actualizar(actualizado);
+
+        Long adminId = obtenerAdminUsuarioId(adminPublicId);
+        auditoriaService.registrarEvento(
+                adminId,
+                AccionAuditable.CAMBIO_ADMINISTRATIVO,
+                RECURSO_PROFESIONAL,
+                publicId,
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        );
+
+        Usuario usuario = usuarioRepository.buscarPorId(actual.usuarioId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
+
+        return new ProfesionalResponse(
+                actual.publicId(),
+                usuario.publicId(),
+                actual.registroMedico(),
+                request.nombres().trim(),
+                request.apellidos().trim(),
+                usuario.email(),
+                esp.publicId(),
+                esp.nombre(),
+                usuario.estado(),
+                usuario.debeCambiarPassword(),
+                actual.createdAt()
+        );
+    }
+
+    /**
+     * Cambia el estado de la cuenta del profesional (ACTIVO / INACTIVO) a nivel de USUARIO.
+     */
+    @Transactional
+    public ProfesionalResponse cambiarEstado(String publicId, String nuevoEstado, String adminPublicId, String ipOrigen) {
+        String estadoNormalizado = validarYNormalizarEstado(nuevoEstado);
+
+        Profesional profesional = profesionalRepository.buscarPorPublicId(publicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Profesional no encontrado: " + publicId));
+
+        usuarioRepository.actualizarEstado(profesional.usuarioId(), estadoNormalizado);
+
+        Long adminId = obtenerAdminUsuarioId(adminPublicId);
+        auditoriaService.registrarEvento(
+                adminId,
+                AccionAuditable.CAMBIO_ADMINISTRATIVO,
+                RECURSO_PROFESIONAL,
+                publicId,
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        );
+
+        Usuario usuario = usuarioRepository.buscarPorId(profesional.usuarioId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
+
+        Especialidad esp = especialidadRepository.buscarPorId(profesional.especialidadId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Especialidad no encontrada"));
+
+        return new ProfesionalResponse(
+                profesional.publicId(),
+                usuario.publicId(),
+                profesional.registroMedico(),
+                profesional.nombres(),
+                profesional.apellidos(),
+                usuario.email(),
+                esp.publicId(),
+                esp.nombre(),
+                estadoNormalizado,
+                usuario.debeCambiarPassword(),
+                profesional.createdAt()
+        );
+    }
+
+    /**
+     * Obtiene los datos detallados de un profesional asistencial.
+     */
+    @Transactional(readOnly = true)
+    public ProfesionalResponse obtenerPorPublicId(String publicId) {
+        Profesional profesional = profesionalRepository.buscarPorPublicId(publicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Profesional no encontrado: " + publicId));
+
+        Usuario usuario = usuarioRepository.buscarPorId(profesional.usuarioId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));
+
+        Especialidad esp = especialidadRepository.buscarPorId(profesional.especialidadId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Especialidad no encontrada"));
+
+        return new ProfesionalResponse(
+                profesional.publicId(),
+                usuario.publicId(),
+                profesional.registroMedico(),
+                profesional.nombres(),
+                profesional.apellidos(),
+                usuario.email(),
+                esp.publicId(),
+                esp.nombre(),
+                usuario.estado(),
+                usuario.debeCambiarPassword(),
+                profesional.createdAt()
+        );
+    }
+
+    /**
+     * Lista profesionales asistenciales con paginación y filtros opcionales por especialidad y estado.
+     */
+    @Transactional(readOnly = true)
+    public PaginatedResponse<ProfesionalResponse> listar(int page, int size, String especialidadPublicId, String estado) {
+        String estadoFiltro = null;
+        if (estado != null && !estado.isBlank()) {
+            estadoFiltro = validarYNormalizarEstado(estado);
+        }
+
+        String especialidadFiltro = (especialidadPublicId != null && !especialidadPublicId.isBlank())
+                ? especialidadPublicId.trim()
+                : null;
+
+        List<ProfesionalResponse> items = profesionalRepository.listar(page, size, especialidadFiltro, estadoFiltro);
+        int total = profesionalRepository.contar(especialidadFiltro, estadoFiltro);
+
+        return PaginatedResponse.of(items, page, size, (long) total);
+    }
+
+    // =========================================================================
+    // UTILIDADES PRIVADAS
+    // =========================================================================
+
+    private Long obtenerAdminUsuarioId(String adminPublicId) {
+        return usuarioRepository.buscarPorPublicId(adminPublicId)
+                .map(Usuario::id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario administrador"));
+    }
+
+    private String validarYNormalizarEstado(String estado) {
+        if (estado == null || estado.isBlank()) {
+            throw new DatosInvalidosException("El estado no puede ser vacio.");
+        }
+        String normalizado = estado.trim().toUpperCase(Locale.ROOT);
+        if (!ESTADO_ACTIVO.equals(normalizado) && !ESTADO_INACTIVO.equals(normalizado)) {
+            throw new DatosInvalidosException("Estado invalido. Los valores permitidos son: ACTIVO, INACTIVO.");
+        }
+        return normalizado;
+    }
+
+    /**
+     * Genera una contraseña aleatoria de 14 caracteres garantizando al menos:
+     * 2 mayúsculas, 2 minúsculas, 2 dígitos y 2 símbolos especiales.
+     */
+    private String generarPasswordTemporal() {
+        final String UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        final String LOWER = "abcdefghijkmnopqrstuvwxyz";
+        final String DIGITS = "23456789";
+        final String SYMBOLS = "!@#$%&*+-_=";
+        final String ALL = UPPER + LOWER + DIGITS + SYMBOLS;
+
+        SecureRandom random = new SecureRandom();
+        StringBuilder sb = new StringBuilder(14);
+        sb.append(UPPER.charAt(random.nextInt(UPPER.length())));
+        sb.append(UPPER.charAt(random.nextInt(UPPER.length())));
+        sb.append(LOWER.charAt(random.nextInt(LOWER.length())));
+        sb.append(LOWER.charAt(random.nextInt(LOWER.length())));
+        sb.append(DIGITS.charAt(random.nextInt(DIGITS.length())));
+        sb.append(DIGITS.charAt(random.nextInt(DIGITS.length())));
+        sb.append(SYMBOLS.charAt(random.nextInt(SYMBOLS.length())));
+        sb.append(SYMBOLS.charAt(random.nextInt(SYMBOLS.length())));
+
+        for (int i = 0; i < 6; i++) {
+            sb.append(ALL.charAt(random.nextInt(ALL.length())));
+        }
+
+        char[] chars = sb.toString().toCharArray();
+        for (int i = chars.length - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            char temp = chars[i];
+            chars[i] = chars[j];
+            chars[j] = temp;
+        }
+        return new String(chars);
+    }
+}
