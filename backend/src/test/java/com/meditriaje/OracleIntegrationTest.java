@@ -109,13 +109,13 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV8() {
+    void flyway_schema_history_tieneAlMenosV9() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(8);
+        assertThat(count).isGreaterThanOrEqualTo(9);
     }
 
     @Test
@@ -659,6 +659,129 @@ class OracleIntegrationTest {
                 org.springframework.dao.DataAccessException.class,
                 () -> ownerTemplate.update("DELETE FROM " + OWNER_USER + ".ATENCION_ENMIENDA WHERE ID = ?", enmiendaId),
                 "El trigger debe bloquear DELETE en ATENCION_ENMIENDA (ORA-20004)"
+        );
+    }
+
+    @Test
+    void app_puedeConsultarTablasRecetas() {
+        // MEDITRIAJE_APP puede consultar tablas de recetas y medicamentos (V009)
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        for (String tabla : new String[] {"MEDICAMENTO", "RECETA", "RECETA_DETALLE"}) {
+            assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + "." + tabla, Integer.class))
+                    .as("SELECT en " + tabla).isNotNull();
+        }
+    }
+
+    @Test
+    void semillas_medicamentos_tienenAlMenos15() {
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        Integer total = appTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".MEDICAMENTO WHERE ESTADO = 'ACTIVO'", Integer.class);
+        assertThat(total).isGreaterThanOrEqualTo(15);
+    }
+
+    @Test
+    void app_noPuedeUpdateNiDeleteEnRecetas() {
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> appTemplate.update("UPDATE " + OWNER_USER + ".RECETA SET VIGENCIA_DIAS = 60"),
+                "RECETA es inmutable: sin UPDATE para MEDITRIAJE_APP");
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> appTemplate.update("DELETE FROM " + OWNER_USER + ".RECETA"),
+                "RECETA es inmutable: sin DELETE para MEDITRIAJE_APP");
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> appTemplate.update("UPDATE " + OWNER_USER + ".RECETA_DETALLE SET CANTIDAD = 2"),
+                "RECETA_DETALLE es inmutable: sin UPDATE para MEDITRIAJE_APP");
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> appTemplate.update("DELETE FROM " + OWNER_USER + ".RECETA_DETALLE"),
+                "RECETA_DETALLE es inmutable: sin DELETE para MEDITRIAJE_APP");
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> appTemplate.update("UPDATE " + OWNER_USER + ".MEDICAMENTO SET NOMBRE_COMERCIAL = 'Otro'"),
+                "MEDICAMENTO es catálogo de solo lectura para MEDITRIAJE_APP");
+    }
+
+    @Test
+    void db_triggersInmutabilidadRecetaYDetalle() {
+        JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
+        String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
+
+        // Precondición: Paciente, profesional, slot, cita y atención
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO) VALUES (?, ?, 'hash', 'ACTIVO')",
+                "usr-rx-pac-" + uid, "rx-pac-" + uid + "@test.com");
+        Long usuarioPacId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "usr-rx-pac-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PACIENTE (PUBLIC_ID, USUARIO_ID, TIPO_DOCUMENTO, NUMERO_DOCUMENTO, NOMBRES, APELLIDOS) "
+                + "VALUES (?, ?, 'CC', ?, 'Paciente', 'Receta')", "pac-rx-" + uid, usuarioPacId, "DOC-RX-" + uid);
+        Long pacienteId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PACIENTE WHERE PUBLIC_ID = ?", Long.class, "pac-rx-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO) VALUES (?, ?, 'hash', 'ACTIVO')",
+                "usr-rx-prof-" + uid, "rx-prof-" + uid + "@test.com");
+        Long usuarioProfId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "usr-rx-prof-" + uid);
+        Long espId = ownerTemplate.queryForObject("SELECT MIN(ID) FROM " + OWNER_USER + ".ESPECIALIDAD", Long.class);
+        Long sedeId = ownerTemplate.queryForObject("SELECT MIN(ID) FROM " + OWNER_USER + ".SEDE", Long.class);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PROFESIONAL (PUBLIC_ID, USUARIO_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS) "
+                + "VALUES (?, ?, ?, ?, 'Dr', 'Prescriptor')", "prof-rx-" + uid, usuarioProfId, espId, "RM-RX-" + uid);
+        Long profesionalId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PROFESIONAL WHERE PUBLIC_ID = ?", Long.class, "prof-rx-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".DISPONIBILIDAD_SLOT (PUBLIC_ID, PROFESIONAL_ID, SEDE_ID, ESPECIALIDAD_ID, FECHA_HORA_INICIO, FECHA_HORA_FIN, ESTADO) "
+                + "VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP + INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY + INTERVAL '20' MINUTE, 'OCUPADO')",
+                "slot-rx-" + uid, profesionalId, sedeId, espId);
+        Long slotId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".DISPONIBILIDAD_SLOT WHERE PUBLIC_ID = ?", Long.class, "slot-rx-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".CITA (PUBLIC_ID, SLOT_ID, PACIENTE_ID, ESTADO) VALUES (?, ?, ?, 'CONFIRMADA')",
+                "cita-rx-" + uid, slotId, pacienteId);
+        Long citaId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".CITA WHERE PUBLIC_ID = ?", Long.class, "cita-rx-" + uid);
+
+        Long cie10Id = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".DIAGNOSTICO_CIE10 WHERE CODIGO = 'J00'", Long.class);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".ATENCION (PUBLIC_ID, CITA_ID, PACIENTE_ID, PROFESIONAL_ID, ESTADO, FECHA_CIERRE, MOTIVO_CONSULTA, EVOLUCION, DIAGNOSTICO_PRINCIPAL_ID, INDICACIONES) "
+                + "VALUES (?, ?, ?, ?, 'CERRADA', CURRENT_TIMESTAMP, 'Consulta', 'Evolucion', ?, 'Indicaciones')",
+                "atn-rx-" + uid, citaId, pacienteId, profesionalId, cie10Id);
+        Long atencionId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".ATENCION WHERE PUBLIC_ID = ?", Long.class, "atn-rx-" + uid);
+
+        Long medId = ownerTemplate.queryForObject("SELECT MIN(ID) FROM " + OWNER_USER + ".MEDICAMENTO WHERE CODIGO = 'MED-ACE-500'", Long.class);
+
+        // 1. Insertar RECETA
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".RECETA (PUBLIC_ID, ATENCION_ID, PACIENTE_ID, PROFESIONAL_ID, VIGENCIA_DIAS) "
+                + "VALUES (?, ?, ?, ?, 30)", "receta-" + uid, atencionId, pacienteId, profesionalId);
+        Long recetaId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".RECETA WHERE PUBLIC_ID = ?", Long.class, "receta-" + uid);
+
+        // 2. Insertar RECETA_DETALLE con snapshot
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".RECETA_DETALLE (RECETA_ID, MEDICAMENTO_ID, SNAPSHOT_NOMBRE, SNAPSHOT_PRINCIPIO_ACTIVO, "
+                + "SNAPSHOT_PRESENTACION, SNAPSHOT_CONCENTRACION, DOSIS, FRECUENCIA, DURACION_DIAS, CANTIDAD, INDICACIONES) "
+                + "VALUES (?, ?, 'Acetaminofen', 'Acetaminofen', 'Tableta', '500 mg', '500 mg', 'Cada 8 horas', 3, 10, 'Tomar con agua')",
+                recetaId, medId);
+        Long detalleId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".RECETA_DETALLE WHERE RECETA_ID = ?", Long.class, recetaId);
+
+        // 3. Demostrar que el trigger TR_RECETA_INMUTABILIDAD bloquea UPDATE en RECETA (ORA-20007)
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("UPDATE " + OWNER_USER + ".RECETA SET VIGENCIA_DIAS = 60 WHERE ID = ?", recetaId),
+                "El trigger debe bloquear UPDATE en RECETA (ORA-20007)"
+        );
+
+        // 4. Demostrar que el trigger TR_RECETA_INMUTABILIDAD bloquea DELETE en RECETA (ORA-20006)
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("DELETE FROM " + OWNER_USER + ".RECETA WHERE ID = ?", recetaId),
+                "El trigger debe bloquear DELETE en RECETA (ORA-20006)"
+        );
+
+        // 5. Demostrar que el trigger TR_RECETA_DETALLE_INMUTABILIDAD bloquea UPDATE en RECETA_DETALLE (ORA-20009)
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("UPDATE " + OWNER_USER + ".RECETA_DETALLE SET CANTIDAD = 20 WHERE ID = ?", detalleId),
+                "El trigger debe bloquear UPDATE en RECETA_DETALLE (ORA-20009)"
+        );
+
+        // 6. Demostrar que el trigger TR_RECETA_DETALLE_INMUTABILIDAD bloquea DELETE en RECETA_DETALLE (ORA-20008)
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("DELETE FROM " + OWNER_USER + ".RECETA_DETALLE WHERE ID = ?", detalleId),
+                "El trigger debe bloquear DELETE en RECETA_DETALLE (ORA-20008)"
         );
     }
 }
