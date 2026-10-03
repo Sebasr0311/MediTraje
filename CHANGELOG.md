@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-03
+
 ### Added
 - **Agenda del Profesional Asistencial y Colección de Pruebas HTTP M4 (M4.6, HU-06, ADR-003, ADR-005, ADR-006, ADR-007, ADR-011)**:
   - Repositorio `CitaRepository`:
