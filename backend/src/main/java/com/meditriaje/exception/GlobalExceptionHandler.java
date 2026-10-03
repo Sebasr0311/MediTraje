@@ -37,6 +37,22 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of("RECURSO_NO_ENCONTRADO", "El recurso solicitado no fue encontrado.", null));
     }
 
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    public ResponseEntity<ApiError> handleCredencialesInvalidas(CredencialesInvalidasException ex) {
+        log.warn("Autenticacion fallida: codigo={}", ex.getCodigo());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(TokenInvalidoException.class)
+    public ResponseEntity<ApiError> handleTokenInvalido(TokenInvalidoException ex) {
+        log.warn("Token invalido: codigo={}", ex.getCodigo());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));
+    }
+
     @ExceptionHandler(DatosInvalidosException.class)
     public ResponseEntity<ApiError> handleDatosInvalidos(DatosInvalidosException ex) {
         log.warn("Datos invalidos: codigo={}", ex.getCodigo());

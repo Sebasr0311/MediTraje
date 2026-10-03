@@ -3,25 +3,35 @@ package com.meditriaje.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meditriaje.config.CorsConfig;
 import com.meditriaje.config.SecurityConfig;
+import com.meditriaje.dto.AuthSessionResponse;
+import com.meditriaje.dto.AuthTokens;
+import com.meditriaje.dto.LoginRequest;
 import com.meditriaje.dto.RegistroPacienteRequest;
 import com.meditriaje.dto.RegistroPacienteResponse;
+import com.meditriaje.exception.CredencialesInvalidasException;
 import com.meditriaje.exception.GlobalExceptionHandler;
 import com.meditriaje.service.AuthService;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
+import java.util.List;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -111,7 +121,7 @@ class AuthControllerTest {
                 "maria.gomez@example.com",
                 "PasswordSegura123*",
                 "v1.0",
-                false // Rechaza consentimiento
+                false
         );
 
         mockMvc.perform(post("/api/v1/auth/register")
@@ -120,5 +130,90 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACION_FALLIDA"))
                 .andExpect(jsonPath("$.mensaje").exists());
+    }
+
+    // -------------------------------------------------------------------------
+    // LOGIN
+    // -------------------------------------------------------------------------
+
+    @Test
+    void login_credencialesValidas_retorna200YSeteaCookiesHttpOnly() throws Exception {
+        LoginRequest request = new LoginRequest("maria.gomez@example.com", "PasswordSegura123*");
+
+        AuthSessionResponse session = new AuthSessionResponse(
+                "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+                "maria.gomez@example.com",
+                List.of("ROLE_PACIENTE"),
+                "Inicio de sesion exitoso."
+        );
+        AuthTokens tokens = new AuthTokens("mock.jwt.token", "mock-refresh-token", session);
+
+        when(authService.login(any(), anyString())).thenReturn(tokens);
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicId").value("f81d4fae-7dec-11d0-a765-00a0c91e6bf6"))
+                .andExpect(jsonPath("$.email").value("maria.gomez@example.com"))
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_PACIENTE"))
+                .andExpect(jsonPath("$.token").doesNotExist()) // Tokens NO en body
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("access_token=mock.jwt.token")))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Strict")));
+    }
+
+    @Test
+    void login_credencialesInvalidas_retorna401Unauthorized() throws Exception {
+        LoginRequest request = new LoginRequest("maria.gomez@example.com", "ClaveErronea123*");
+
+        when(authService.login(any(), anyString())).thenThrow(new CredencialesInvalidasException());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("CREDENCIALES_INVALIDAS"))
+                .andExpect(jsonPath("$.mensaje").value("Credenciales invalidas."));
+    }
+
+    // -------------------------------------------------------------------------
+    // REFRESH
+    // -------------------------------------------------------------------------
+
+    @Test
+    void refresh_conCookieValida_retorna200YNuevasCookies() throws Exception {
+        AuthSessionResponse session = new AuthSessionResponse(
+                "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+                "maria.gomez@example.com",
+                List.of("ROLE_PACIENTE"),
+                "Sesion actualizada exitosamente."
+        );
+        AuthTokens tokens = new AuthTokens("new.jwt.token", "new-refresh-token", session);
+
+        when(authService.refresh(anyString(), anyString())).thenReturn(tokens);
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(new Cookie("refresh_token", "existing-refresh-token")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicId").value("f81d4fae-7dec-11d0-a765-00a0c91e6bf6"))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("access_token=new.jwt.token")))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Strict")));
+    }
+
+    // -------------------------------------------------------------------------
+    // LOGOUT
+    // -------------------------------------------------------------------------
+
+    @Test
+    void logout_limpiaCookiesYRetorna200() throws Exception {
+        doNothing().when(authService).logout(any(), anyString());
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .cookie(new Cookie("refresh_token", "existing-refresh-token")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mensaje").value("Sesion cerrada exitosamente."))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
     }
 }

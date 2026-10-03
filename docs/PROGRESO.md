@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** M2 — Seguridad base
-- **Tarea actual:** M2.4 (Login, refresh y logout)
+- **Tarea actual:** M2.5 (Spring Security y roles)
 - **Última etiqueta:** v0.1 (M1 completa)
 - **Rama de trabajo:** feature/m2-seguridad
 
@@ -31,7 +31,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M2.1 Migración de seguridad
 - [x] M2.2 Servicio de auditoría
 - [x] M2.3 Registro de paciente
-- [ ] M2.4 Login, refresh y logout
+- [x] M2.4 Login, refresh y logout
 - [ ] M2.5 Spring Security y roles
 - [ ] M2.6 Revisión de seguridad
 
@@ -105,3 +105,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · M2.1 · Migración Flyway V002__seguridad.sql con tablas USUARIO, ROL, USUARIO_ROL, REFRESH_TOKEN, CONSENTIMIENTO, AUDITORIA; triggers TR_CONSENTIMIENTO_INMUTABILIDAD y TR_AUDITORIA_INMUTABILIDAD; semillas de roles (ROLE_PACIENTE, ROLE_PROFESIONAL, ROLE_ADMINISTRADOR) y privilegios mínimos a MEDITRIAJE_APP (ADR-012, sin DELETE clínico ni UPDATE/DELETE en auditoría). Tests de integración ampliados · mvn clean verify exitoso · feat(database): migracion flyway v002 seguridad roles consentimiento y auditoria m2.1
 - 2026-10-03 · M2.2 · Implementación de AuditoriaService, AuditoriaRepository (insert-only con JdbcTemplate y SQL parametrizado), enums AccionAuditable y ResultadoAuditoria, y record inmutable EventoAuditoria (sin datos clínicos ni secretos, ADR-011). Pruebas unitarias de servicio y repositorio con 100% de éxito · mvn clean verify exitoso (8 unit tests verdes) · feat(audit): servicio de auditoria insert-only y repositorio m2.2
 - 2026-10-03 · M2.3 · Migración Flyway V003__paciente.sql (tabla PACIENTE con constraints y grants); AuthService y AuthController implementando POST /api/v1/auth/register con transacción atómica (USUARIO + PACIENTE + CONSENTIMIENTO + ROLE_PACIENTE), hashing Argon2id (OWASP v5.8), validación estricta de documentos, correo y contraseña (≥10), auditoría REGISTRO_PACIENTE (éxito/fallo) y DTOs sin datos sensibles (ADR-003). Tests unitarios y web MVC al 100% · mvn clean verify exitoso (15 unit tests verdes) · feat(auth): registro de paciente atomico con argon2id y migracion v003 m2.3
+- 2026-10-03 · M2.4 · Implementación de login, rotación de refresh tokens y logout según ADR-002 y HU-01. Access JWT (15 min) firmado HMAC-SHA256 con claims (sub=publicId, email, roles). Refresh token opaco guardado hasheado (SHA-256) en REFRESH_TOKEN con rotación obligatoria y detección de reuso (revocación masiva de sesiones ante tokens ya revocados). Ambos tokens transmitidos exclusivamente en cookies HttpOnly; Secure; SameSite=Strict (nada en body ni localStorage). Bloqueo temporal de cuenta tras 5 intentos fallidos (15 min) con mensaje genérico ("Credenciales invalidas.") que no revela si el correo existe. Auditoría automática de LOGIN_EXITOSO, LOGIN_FALLIDO (fallo/bloqueado) y LOGOUT. Repositorios UsuarioRepository y RefreshTokenRepository, JwtService, TokenHashUtil, AuthController y AuthService. Pruebas unitarias al 100% (31 tests verdes) · mvn clean verify exitoso · feat(auth): login con bloqueo temporal refresh token rotativo y cookies httponly m2.4
