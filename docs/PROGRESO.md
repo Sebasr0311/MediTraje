@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M1 — ✅ COMPLETA (puerta de salida M1 cumplida)
-- **Tarea actual:** M2.1 (pendiente aprobación de Juan para avanzar a M2)
+- **Fase actual:** M2 — Seguridad base
+- **Tarea actual:** M2.2 (Servicio de auditoría)
 - **Última etiqueta:** v0.1 (M1 completa)
-- **Rama de trabajo:** feature/m1-base-oracle
+- **Rama de trabajo:** feature/m2-seguridad
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -28,7 +28,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M1.5 Pruebas y CI
 
 ### M2 — Seguridad base
-- [ ] M2.1 Migración de seguridad
+- [x] M2.1 Migración de seguridad
 - [ ] M2.2 Servicio de auditoría
 - [ ] M2.3 Registro de paciente
 - [ ] M2.4 Login, refresh y logout
@@ -102,3 +102,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-01 · M1.3 · Configuración de migraciones Flyway empaquetadas en classpath y vía plugin Maven, creación de migración inicial V001__baseline.sql con tabla CONTROL_SISTEMA y GRANTs a MEDITRIAJE_APP según ADR-012, y documentación de comandos en DATABASE.md · mvn clean verify exitoso con empaquetado de recursos de migración · feat(flyway): configurar migraciones flyway con linea base v001 y grants m1.3
 - 2026-10-01 · M1.4 · ApiError record (codigo, mensaje, timestamp, traceId), jerarquía de excepciones de dominio (RecursoNoEncontrado 404, DatosInvalidos 400, AccesoNoAutorizado 403, CitaNoDisponible 409, MediTriajeException base), GlobalExceptionHandler @RestControllerAdvice sin stack traces, CorsConfig leyendo CORS_ORIGINS, SecurityConfig integrado con CorsConfigurationSource, logging configurado sin datos sensibles · mvn clean verify exitoso - Tests run: 2, Failures: 0 · feat(error-handling): manejo global de errores cors y logging m1.4
 - 2026-10-01 · M1.5 · OracleIntegrationTest con Testcontainers (gvenzl/oracle-free:23-slim-faststart): crea MEDITRIAJE_OWNER y MEDITRIAJE_APP, aplica Flyway, valida historial y segregación de privilegios DDL. @Testcontainers(disabledWithoutDocker=true) + Assumptions.assumeTrue() para SKIPPED graceful en local sin Docker. Failsafe plugin separado de Surefire vía @Tag("integration"). GitHub Actions workflow .github/workflows/ci.yml con Java 21 Temurin. Sección de pruebas en README.md · mvn clean verify exitoso - Tests run: 5 unit (2 pass) + 3 integration (3 skipped en local, pasan en CI) · feat(ci): testcontainers oracle y workflow github actions m1.5
+- 2026-10-03 · M2.1 · Migración Flyway V002__seguridad.sql con tablas USUARIO, ROL, USUARIO_ROL, REFRESH_TOKEN, CONSENTIMIENTO, AUDITORIA; triggers TR_CONSENTIMIENTO_INMUTABILIDAD y TR_AUDITORIA_INMUTABILIDAD; semillas de roles (ROLE_PACIENTE, ROLE_PROFESIONAL, ROLE_ADMINISTRADOR) y privilegios mínimos a MEDITRIAJE_APP (ADR-012, sin DELETE clínico ni UPDATE/DELETE en auditoría). Tests de integración ampliados · mvn clean verify exitoso · feat(database): migracion flyway v002 seguridad roles consentimiento y auditoria m2.1
