@@ -109,13 +109,13 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV7() {
+    void flyway_schema_history_tieneAlMenosV8() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(7);
+        assertThat(count).isGreaterThanOrEqualTo(8);
     }
 
     @Test
@@ -508,4 +508,158 @@ class OracleIntegrationTest {
         }
         assertThat(tuvoError).as("MEDITRIAJE_APP no debe poder hacer UPDATE sobre AUDITORIA").isTrue();
     }
+
+    @Test
+    void app_puedeConsultarTablasClinicas() {
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        for (String tabla : new String[] {"DIAGNOSTICO_CIE10", "ATENCION", "SIGNO_VITAL", "ATENCION_ENMIENDA", "ALERGIA"}) {
+            assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + "." + tabla, Integer.class))
+                    .as("SELECT en " + tabla).isNotNull();
+        }
+    }
+
+    @Test
+    void semillas_cie10_tienenCodigosYDescripciones() {
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        Integer total = appTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".DIAGNOSTICO_CIE10 WHERE ESTADO = 'ACTIVO'",
+                Integer.class
+        );
+        assertThat(total).isGreaterThanOrEqualTo(20);
+
+        Integer sinCodigoODesc = appTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".DIAGNOSTICO_CIE10 WHERE CODIGO IS NULL OR DESCRIPCION IS NULL",
+                Integer.class
+        );
+        assertThat(sinCodigoODesc).isZero();
+    }
+
+    @Test
+    void app_noTieneDeleteSobreTablasClinicas() {
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        for (String tabla : new String[] {"ATENCION", "SIGNO_VITAL", "ATENCION_ENMIENDA", "ALERGIA"}) {
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    org.springframework.dao.DataAccessException.class,
+                    () -> appTemplate.update("DELETE FROM " + OWNER_USER + "." + tabla),
+                    "MEDITRIAJE_APP no debe tener privilegio DELETE sobre " + tabla
+            );
+        }
+    }
+
+    @Test
+    void app_noTieneUpdateSobreAtencionEnmienda() {
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> appTemplate.update("UPDATE " + OWNER_USER + ".ATENCION_ENMIENDA SET MOTIVO = 'Invalido'"),
+                "MEDITRIAJE_APP no debe tener privilegio UPDATE sobre ATENCION_ENMIENDA (append-only)"
+        );
+    }
+
+    @Test
+    void db_triggerBloqueaUpdateYDeleteSobreAtencionesCerradas() {
+        JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
+        String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
+
+        // Provisionar usuario y paciente
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH) VALUES (?, ?, ?)",
+                "u-clin-" + uid, "clin-" + uid + "@test.com", "hash");
+        Long usuarioId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "u-clin-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PACIENTE (PUBLIC_ID, USUARIO_ID, NUMERO_IDENTIFICACION, NOMBRES, APELLIDOS, FECHA_NACIMIENTO, GENERO, TELEFONO) "
+                + "VALUES (?, ?, ?, ?, ?, DATE '1985-05-15', 'F', '3109876543')",
+                "pac-clin-" + uid, usuarioId, "CC-CLIN-" + uid, "Paciente", "Clinica");
+        Long pacienteId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PACIENTE WHERE PUBLIC_ID = ?", Long.class, "pac-clin-" + uid);
+
+        // Especialidad, institución, sede y profesional
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".ESPECIALIDAD (PUBLIC_ID, NOMBRE, DURACION_SLOT_MIN) VALUES (?, ?, 20)",
+                "esp-clin-" + uid, "Medicina General " + uid);
+        Long espId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".ESPECIALIDAD WHERE PUBLIC_ID = ?", Long.class, "esp-clin-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".INSTITUCION (PUBLIC_ID, NIT, RAZON_SOCIAL) VALUES (?, ?, ?)",
+                "inst-clin-" + uid, "901-CLIN-" + uid, "Clinica IPS " + uid);
+        Long instId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".INSTITUCION WHERE PUBLIC_ID = ?", Long.class, "inst-clin-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".SEDE (INSTITUCION_ID, PUBLIC_ID, NOMBRE, DIRECCION, CIUDAD) VALUES (?, ?, ?, ?, 'Bogota')",
+                instId, "sede-clin-" + uid, "Sede Central " + uid, "Calle 100 # 15-20");
+        Long sedeId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".SEDE WHERE PUBLIC_ID = ?", Long.class, "sede-clin-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH) VALUES (?, ?, ?)",
+                "u-med-" + uid, "med-" + uid + "@test.com", "hash");
+        Long uMedId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "u-med-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PROFESIONAL (PUBLIC_ID, USUARIO_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS) "
+                + "VALUES (?, ?, ?, ?, 'Doctor', 'Asistencial')",
+                "pro-clin-" + uid, uMedId, espId, "RM-CLIN-" + uid);
+        Long profesionalId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PROFESIONAL WHERE PUBLIC_ID = ?", Long.class, "pro-clin-" + uid);
+
+        // Slot y cita
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".DISPONIBILIDAD_SLOT (PUBLIC_ID, PROFESIONAL_ID, SEDE_ID, ESPECIALIDAD_ID, FECHA_HORA_INICIO, FECHA_HORA_FIN, MODALIDAD, ESTADO) "
+                + "VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP + INTERVAL '1' DAY, CURRENT_TIMESTAMP + INTERVAL '1' DAY + INTERVAL '20' MINUTE, 'PRESENCIAL', 'OCUPADO')",
+                "slot-clin-" + uid, profesionalId, sedeId, espId);
+        Long slotId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".DISPONIBILIDAD_SLOT WHERE PUBLIC_ID = ?", Long.class, "slot-clin-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".CITA (PUBLIC_ID, SLOT_ID, PACIENTE_ID, ESTADO) VALUES (?, ?, ?, 'CONFIRMADA')",
+                "cita-clin-" + uid, slotId, pacienteId);
+        Long citaId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".CITA WHERE PUBLIC_ID = ?", Long.class, "cita-clin-" + uid);
+
+        Long cie10Id = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".DIAGNOSTICO_CIE10 WHERE CODIGO = 'J00'", Long.class);
+
+        // 1. Insertar ATENCION en estado ABIERTA
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".ATENCION (PUBLIC_ID, CITA_ID, PACIENTE_ID, PROFESIONAL_ID, ESTADO) "
+                + "VALUES (?, ?, ?, ?, 'ABIERTA')",
+                "atn-clin-" + uid, citaId, pacienteId, profesionalId);
+        Long atencionId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".ATENCION WHERE PUBLIC_ID = ?", Long.class, "atn-clin-" + uid);
+
+        // 2. Modificación permitida mientras está ABIERTA
+        ownerTemplate.update("UPDATE " + OWNER_USER + ".ATENCION SET MOTIVO_CONSULTA = 'Sintomas gripales iniciales' WHERE ID = ?", atencionId);
+
+        // 3. Registrar signos vitales mientras está ABIERTA (permitido)
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".SIGNO_VITAL (ATENCION_ID, PRESION_SISTOLICA, PRESION_DIASTOLICA, FRECUENCIA_CARDIACA, TEMPERATURA) "
+                + "VALUES (?, 120, 80, 75, 36.8)", atencionId);
+
+        // 4. Cerrar la atención con todos los campos obligatorios
+        ownerTemplate.update("UPDATE " + OWNER_USER + ".ATENCION SET ESTADO = 'CERRADA', FECHA_CIERRE = CURRENT_TIMESTAMP, "
+                + "MOTIVO_CONSULTA = 'Cuadro gripal de 3 dias', EVOLUCION = 'Paciente afebril, orofaringe normal', "
+                + "DIAGNOSTICO_PRINCIPAL_ID = ?, INDICACIONES = 'Reposo e hidratacion abundante' WHERE ID = ?",
+                cie10Id, atencionId);
+
+        // 5. Demostrar que el trigger TR_ATENCION_INMUTABILIDAD bloquea UPDATE sobre atención CERRADA
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("UPDATE " + OWNER_USER + ".ATENCION SET EVOLUCION = 'Modificacion no autorizada' WHERE ID = ?", atencionId),
+                "El trigger debe bloquear cualquier UPDATE posterior al cierre de la atencion (ORA-20002)"
+        );
+
+        // 6. Demostrar que el trigger TR_ATENCION_INMUTABILIDAD bloquea DELETE sobre atención
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("DELETE FROM " + OWNER_USER + ".ATENCION WHERE ID = ?", atencionId),
+                "El trigger debe bloquear DELETE sobre la atencion (ORA-20001)"
+        );
+
+        // 7. Demostrar que el trigger TR_SIGNO_VITAL_INMUTABILIDAD bloquea INSERT en atención CERRADA
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("INSERT INTO " + OWNER_USER + ".SIGNO_VITAL (ATENCION_ID, PRESION_SISTOLICA, PRESION_DIASTOLICA) VALUES (?, 130, 85)", atencionId),
+                "El trigger debe bloquear insertar signos vitales en atencion CERRADA (ORA-20003)"
+        );
+
+        // 8. Enmiendas sobre atención cerrada: INSERT permitido, UPDATE/DELETE bloqueados
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".ATENCION_ENMIENDA (ATENCION_ID, PROFESIONAL_ID, MOTIVO, CONTENIDO) "
+                + "VALUES (?, ?, 'Aclaracion dosis', 'Se precisa toma de liquidos tibios')", atencionId, profesionalId);
+        Long enmiendaId = ownerTemplate.queryForObject(
+                "SELECT ID FROM " + OWNER_USER + ".ATENCION_ENMIENDA WHERE ATENCION_ID = ?", Long.class, atencionId);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("UPDATE " + OWNER_USER + ".ATENCION_ENMIENDA SET MOTIVO = 'Nuevo motivo' WHERE ID = ?", enmiendaId),
+                "El trigger debe bloquear UPDATE en ATENCION_ENMIENDA (ORA-20004)"
+        );
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("DELETE FROM " + OWNER_USER + ".ATENCION_ENMIENDA WHERE ID = ?", enmiendaId),
+                "El trigger debe bloquear DELETE en ATENCION_ENMIENDA (ORA-20004)"
+        );
+    }
 }
+

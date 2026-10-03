@@ -7,6 +7,76 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-03
+
+### Added
+- **Consulta de Historia Clínica del Paciente y Colección M6.http (M6.5, HU-09, ADR-007, ADR-008, ADR-011)**:
+  - Repositorio `AtencionRepository`: métodos `listarHistoriaPaciente` (con JOINs relacionales a CITA, PACIENTE, PROFESIONAL, DISPONIBILIDAD_SLOT, ESPECIALIDAD, DIAGNOSTICO_CIE10, signos vitales y enmiendas, ordenación cronológica descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y `contarHistoriaPaciente`.
+  - Servicio `ClinicalAttentionService.obtenerMiHistoriaClinica`:
+    - Resolución de paciente autenticado a partir de su identidad (`UsuarioRepository` y `PacienteRepository`).
+    - Paginación segura con saneamiento de parámetros.
+    - Auditoría inmutable obligatoria `CONSULTA_HISTORIA` (`recurso = "HISTORIA_CLINICA"`, `recursoPublicId = paciente.publicId()`) sin exponer datos clínicos ni diagnósticos en logs ni bitácora (ADR-011).
+    - Cero exposición de identificadores numéricos autonuméricos de base de datos (ADR-003).
+  - Controlador REST `PacienteController`: endpoint `GET /api/v1/patients/me/history` blindado exclusivamente para pacientes (`@PreAuthorize("hasAuthority('ROLE_PACIENTE')")`). Administradores y profesionales reciben 403 Forbidden.
+  - Colección de pruebas HTTP `docs/api/M6.http`: 8 secciones exhaustivas con 18 escenarios para la puerta de salida de la Fase M6 (healthcheck, login de roles, catálogo CIE-10, agendamiento previo, ciclo de atención médica, enmiendas append-only, aislamiento de acceso clínico y consulta de historia clínica del paciente).
+  - Pruebas automatizadas (10 pruebas nuevas, suite consolidada en 439 pruebas al 100%):
+    - `AtencionRepositoryTest` (3 pruebas): consulta y conteo con filtros nulos y registros.
+    - `ClinicalAttentionServiceTest` (3 pruebas): consulta exitosa con paginación y auditoría, rechazo si usuario no es paciente (403), y rechazo si usuario no existe (404).
+    - `PacienteControllerTest` (4 pruebas MockMvc): 200 OK para paciente con historial paginado, 403 Forbidden para profesional, 403 Forbidden para administrador, y 401 Unauthorized sin autenticación.
+- **Enmiendas Médicas a Atenciones Cerradas (M6.4, HU-07, ADR-007, ADR-008, ADR-011)**:
+  - Modelo de dominio inmutable en `com.meditriaje.model`: `AtencionEnmienda` (id, atencionId, profesionalId, motivo, contenido, fechaEnmienda).
+  - DTOs en `com.meditriaje.dto.clinical`: `CrearEnmiendaRequest` con validaciones `@NotBlank` y `@Size`, y `EnmiendaResponse` (profesionalPublicId, profesionalNombre, motivo, contenido, fechaEnmienda) protegiendo IDs numéricos internos.
+  - Actualización de `AtencionResponse` para incluir `List<EnmiendaResponse> enmiendas` con sobrecarga de compatibilidad hacia atrás.
+  - Ampliación de `AtencionRepository`: métodos `crearEnmienda` (KeyHolder) y `buscarEnmiendasPorAtencionId`, integrando las enmiendas cronológicamente en `buscarDetallePorPublicId`.
+  - Ampliación de `AccesoClinicoService`: método `validarRelacionAsistencial(Long profesionalId, Long pacienteId)`.
+  - Servicio `ClinicalAttentionService.crearEnmienda`:
+    - Valida inmutabilidad exigiendo que la atención esté estrictamente `CERRADA` (ADR-008).
+    - Valida autorización exigiendo que el médico sea el autor de la atención o cuente con una relación asistencial activa (ADR-007).
+    - Registra auditoría inmutable obligatoria `ENMIENDA_ATENCION` sin incluir datos clínicos ni motivos en logs ni bitácora (ADR-011).
+  - Controlador REST `ClinicalAttentionController`: endpoint `POST /api/v1/attentions/{publicId}/amendments` restringido a `ROLE_PROFESIONAL` retornando 201 Created con cabecera `Location`.
+  - Pruebas automatizadas (11 pruebas nuevas, suite consolidada en 429 pruebas al 100%):
+    - `AtencionRepositoryTest`: prueba de búsqueda de enmiendas.
+    - `ClinicalAttentionServiceTest` (5 pruebas): creación por autor, por médico con relación activa, rechazo si atención está abierta (400), rechazo si usuario no es médico (403), y rechazo si médico ajeno no tiene relación (403).
+    - `ClinicalAttentionControllerTest` (5 pruebas MockMvc): control de acceso por rol (médico 201, paciente 403, admin 403, anónimo 401) y validaciones de request.
+- **Crear y Cerrar Atención Médica Inmutable y Catálogo CIE-10 (M6.3, HU-07, HU-09, ADR-007, ADR-008, ADR-011, ADR-013)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`: `Atencion`, `SignoVital` y `DiagnosticoCie10`.
+  - DTOs en `com.meditriaje.dto.clinical`: `IniciarAtencionRequest`, `CerrarAtencionRequest`, `SignosVitalesDto`, `AtencionResponse` y `DiagnosticoCie10Response`.
+  - Repositorio `DiagnosticoCie10Repository`: búsqueda por código, por ID y listado de diagnósticos activos con filtro textual parametrizado.
+  - Ampliación de `AtencionRepository`: métodos `crear` (KeyHolder), `cerrarAtencion`, `guardarSignosVitales`, `buscarEntidadPorPublicId`, `buscarEntidadPorCitaId`, `existePorCitaId` y `buscarDetallePorPublicId` consolidando signos vitales y datos asistenciales.
+  - Servicio `ClinicalAttentionService`:
+    - `iniciarAtencion`: valida asignación médica del profesional a la cita, valida estado de cita (PROGRAMADA/CONFIRMADA), transición atómica a CONFIRMADA, creación de atención ABIERTA y auditoría inmutable `CREACION_ATENCION`.
+    - `cerrarAtencion`: valida que la atención esté ABIERTA (inmutabilidad ADR-008), valida asignación del profesional, valida código CIE-10 activo, valida rangos y consistencia de signos vitales (presión sistólica > diastólica), persiste signos antes del cierre, cierra atención en BD, transiciona cita a ATENDIDA mediante `CitaStateMachine` y audita `CIERRE_ATENCION` sin incluir datos clínicos ni diagnósticos en logs ni bitácora (ADR-011).
+    - `obtenerPorPublicId`: valida relación asistencial o paciente dueño mediante `AccesoClinicoService` y audita `CONSULTA_HISTORIA`.
+  - Controladores REST:
+    - `ClinicalAttentionController`: `POST /api/v1/attentions` (201 Created + Location), `POST /api/v1/attentions/{id}/close` (200 OK) restringidos a `ROLE_PROFESIONAL`, y `GET /api/v1/attentions/{id}` para usuarios autenticados con verificación asistencial.
+    - `Cie10CatalogController`: `GET /api/v1/catalogs/icd10` para usuarios autenticados con búsqueda opcional `?q=`.
+  - Pruebas automatizadas (26 pruebas nuevas, suite consolidada en 418 pruebas al 100%):
+    - `DiagnosticoCie10RepositoryTest` (3 pruebas): búsqueda por código, ID y listado con filtro.
+    - `ClinicalAttentionServiceTest` (11 pruebas): inicio, cierres con y sin signos vitales, validaciones clínicas, inmutabilidad y auditoría.
+    - `ClinicalAttentionControllerTest` (10 pruebas MockMvc): control de acceso por rol (médico 201/200, paciente 403, admin 403, anónimo 401) y validaciones.
+    - `Cie10CatalogControllerTest` (2 pruebas MockMvc): consulta y seguridad del catálogo.
+- **Servicio Centralizado de Acceso Clínico y Relación Asistencial (M6.2, HU-07, HU-09, ADR-007)**:
+  - Implementación con TDD de `AccesoClinicoService` en `com.meditriaje.service`, blindando el acceso a todo el contenido clínico del sistema:
+    - Paciente dueño: acceso permitido únicamente a sus propios datos clínicos; intento de consultar a otro paciente rechazado con 403 (`AccesoNoAutorizadoException`).
+    - Administrador: acceso a contenido clínico bloqueado incondicionalmente con 403 (ADR-007).
+    - Profesional asistencial: acceso condicionado a relación asistencial activa:
+      - Cita activa futura (`PROGRAMADA` o `CONFIRMADA` con inicio posterior al instante actual), O
+      - Atención previa propia realizada dentro de la ventana configurable (`meditriaje.clinical.access-window-months`, por defecto 12 meses).
+      - Sin relación asistencial: rechazado categóricamente con 403 (`AccesoNoAutorizadoException`).
+  - Repositorio `AtencionRepository` en `com.meditriaje.repository`: método `existeAtencionPreviaEnVentana` con SQL 100% parametrizado.
+  - Ampliación de `CitaRepository`: método `existeCitaActivaFutura` con JOIN a `DISPONIBILIDAD_SLOT` y filtro de estados activos y tiempo futuro.
+  - Ampliación de `PacienteRepository`: método `buscarPorPublicId`.
+  - Suite de pruebas exhaustiva: `AccesoClinicoServiceTest` (10 pruebas unitarias deterministas con `Clock.fixed`), `AtencionRepositoryTest` (2 pruebas) y ampliación de `PacienteRepositoryTest` (4 pruebas), elevando la suite a 392 pruebas verdes al 100%.
+- **Migraciones Clínicas e Inmutabilidad de Historia Clínica (M6.1, HU-07, HU-09, ADR-008, ADR-012)**:
+  - Migración Flyway `V008__atencion_historia_clinica.sql` incorporando las entidades nucleares de la historia clínica según el modelo relacional:
+    - `DIAGNOSTICO_CIE10`: catálogo maestro con 21 patologías ambulatorias estándar sembradas (J00, J20, I10, E11, K29, M54, R10, R51, N39, etc.).
+    - `ATENCION`: cabecera del acto médico asistencial con relación 1:1 estricta con `CITA`, campos clínicos obligatorios al cierre (`FECHA_CIERRE`, `MOTIVO_CONSULTA`, `EVOLUCION`, `DIAGNOSTICO_PRINCIPAL_ID`, `INDICACIONES`) y trigger `TR_ATENCION_INMUTABILIDAD` que bloquea categoricamente `UPDATE` tras el cierre (ORA-20002) y prohíbe `DELETE` (ORA-20001).
+    - `SIGNO_VITAL`: parámetros fisiológicos (presión arterial sistólica/diastólica, frecuencia cardíaca, respiratoria, temperatura, saturación, peso, talla) con validaciones de rango médico y trigger `TR_SIGNO_VITAL_INMUTABILIDAD` que bloquea modificaciones e inserciones si la atención está CERRADA (ORA-20003).
+    - `ATENCION_ENMIENDA`: aclaraciones clínicas append-only (ADR-008) sobre atenciones cerradas con trigger `TR_ENMIENDA_INMUTABILIDAD` que prohíbe `UPDATE` y `DELETE` (ORA-20004) y exige que la atención vinculada esté CERRADA (ORA-20005).
+    - `ALERGIA`: registro de hipersensibilidades del paciente con niveles de severidad ('LEVE', 'MODERADA', 'GRAVE').
+  - Segregación y privilegios mínimos (ADR-012): el usuario de runtime `MEDITRIAJE_APP` no posee privilegio `DELETE` sobre ninguna tabla clínica, ni `UPDATE` sobre `ATENCION_ENMIENDA` (append-only), ni permisos DML sobre `DIAGNOSTICO_CIE10` (solo lectura).
+  - Pruebas de integración en `OracleIntegrationTest` actualizadas (>= V8, permisos SELECT/INSERT/UPDATE, prohibición de DELETE y verificación empírica de triggers de inmutabilidad).
+
 ## [0.5.0] - 2026-10-03
 
 ### Added

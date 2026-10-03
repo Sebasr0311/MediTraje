@@ -148,4 +148,33 @@ public class PacienteRepository {
         }, id);
         return resultados.stream().findFirst();
     }
+
+    public Optional<Paciente> buscarPorPublicId(String publicId) {
+        final String sql = """
+            SELECT ID, USUARIO_ID, PUBLIC_ID, TIPO_DOCUMENTO, NUMERO_DOCUMENTO,
+                   NOMBRES, APELLIDOS, FECHA_NACIMIENTO, TELEFONO, CREATED_AT, UPDATED_AT
+            FROM PACIENTE
+            WHERE PUBLIC_ID = ?
+            """;
+        List<Paciente> resultados = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Date fNac = rs.getDate("FECHA_NACIMIENTO");
+            Timestamp tsCreated = rs.getTimestamp("CREATED_AT");
+            Timestamp tsUpdated = rs.getTimestamp("UPDATED_AT");
+            return new Paciente(
+                    rs.getLong("ID"),
+                    rs.getLong("USUARIO_ID"),
+                    rs.getString("PUBLIC_ID"),
+                    rs.getString("TIPO_DOCUMENTO"),
+                    rs.getString("NUMERO_DOCUMENTO"),
+                    rs.getString("NOMBRES"),
+                    rs.getString("APELLIDOS"),
+                    fNac != null ? fNac.toLocalDate() : null,
+                    rs.getString("TELEFONO"),
+                    tsCreated != null ? tsCreated.toInstant() : null,
+                    tsUpdated != null ? tsUpdated.toInstant() : null
+            );
+        }, publicId);
+        return resultados.stream().findFirst();
+    }
 }
+

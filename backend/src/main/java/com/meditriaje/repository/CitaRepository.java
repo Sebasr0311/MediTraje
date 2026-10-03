@@ -330,4 +330,39 @@ public class CitaRepository {
         Integer total = jdbcTemplate.queryForObject(sql.toString(), Integer.class, params.toArray());
         return total != null ? total : 0;
     }
+
+    /**
+     * Verifica si existe una cita activa futura (PROGRAMADA o CONFIRMADA) entre un profesional
+     * y un paciente para fundamentar relación asistencial (ADR-007).
+     *
+     * @param profesionalId Identificador interno del profesional
+     * @param pacienteId    Identificador interno del paciente
+     * @param ahora         Instante de referencia temporal
+     * @return true si existe al menos una cita activa futura
+     */
+    public boolean existeCitaActivaFutura(Long profesionalId, Long pacienteId, Instant ahora) {
+        Objects.requireNonNull(profesionalId, "profesionalId no puede ser nulo");
+        Objects.requireNonNull(pacienteId, "pacienteId no puede ser nulo");
+        Objects.requireNonNull(ahora, "ahora no puede ser nulo");
+
+        String sql = """
+            SELECT COUNT(*)
+            FROM CITA c
+            JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
+            WHERE c.PACIENTE_ID = ?
+              AND s.PROFESIONAL_ID = ?
+              AND c.ESTADO IN ('PROGRAMADA', 'CONFIRMADA')
+              AND s.FECHA_HORA_INICIO > ?
+            """;
+
+        Integer count = jdbcTemplate.queryForObject(
+                sql,
+                Integer.class,
+                pacienteId,
+                profesionalId,
+                Timestamp.from(ahora)
+        );
+        return count != null && count > 0;
+    }
 }
+

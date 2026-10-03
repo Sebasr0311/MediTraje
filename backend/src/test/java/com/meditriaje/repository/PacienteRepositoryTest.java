@@ -76,4 +76,21 @@ class PacienteRepositoryTest {
         assertThat(resultado).isPresent();
         assertThat(resultado.get().id()).isEqualTo(10L);
     }
+
+    @Test
+    void buscarPorPublicId_retornaPacienteSiExiste() {
+        Paciente paciente = new Paciente(
+                10L, 1L, "pac-uuid", "CC", "12345678", "Pepito", "Perez",
+                LocalDate.of(1990, 1, 1), "3001234567", Instant.now(), null
+        );
+
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq("pac-uuid")))
+                .thenReturn(List.of(paciente));
+
+        Optional<Paciente> resultado = repository.buscarPorPublicId("pac-uuid");
+
+        assertThat(resultado).isPresent();
+        assertThat(resultado.get().publicId()).isEqualTo("pac-uuid");
+    }
 }
+
