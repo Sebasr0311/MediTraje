@@ -5,9 +5,9 @@
 
 ## Estado actual
 - **Fase actual:** M6 — Atención e historia clínica
-- **Tarea actual:** M6.1 — Migraciones clínicas
+- **Tarea actual:** M6.2 — AccesoClinicoService
 - **Última etiqueta:** v0.5 (M5 completa)
-- **Rama de trabajo:** develop
+- **Rama de trabajo:** feature/m6-atencion-historia
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -57,7 +57,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M5.4 Endpoints de triaje
 
 ### M6 — Atención e historia clínica
-- [ ] M6.1 Migraciones clínicas
+- [x] M6.1 Migraciones clínicas
 - [ ] M6.2 AccesoClinicoService
 - [ ] M6.3 Crear y cerrar atención
 - [ ] M6.4 Enmiendas
@@ -129,3 +129,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · M5.3 · Corte de emergencia infalible por síntomas de alarma (HU-02, ADR-009, ADR-011): lógica en MotorTriajeBasadoEnReglas que ante cualquier síntoma con esAlarma=1 o evaluación de Nivel I activa condición de emergencia (fuerza Nivel I, ruta URGENCIAS, omite citas y emite mensaje 'Llama al 123 o acude a urgencias de inmediato.'); AccionAuditable.TRIAJE_EMERGENCIA reservado; suite CorteEmergenciaTest (12 pruebas) con validación cruzada dinámica sobre V007__triaje.sql asegurando que cada una de las 6 alarmas produce corte infalible. 345 pruebas unitarias pasando al 100%. · feat(triage): corte de emergencia infalible por sintomas de alarma (M5.3)
 - 2026-10-03 · M5.4 · Endpoints de triaje y vinculación con citas (HU-02, HU-04, HU-11, ADR-002, ADR-003, ADR-007, ADR-009, ADR-011): Modelos de dominio inmutables Triaje, TriajeSintoma, Sintoma en com.meditriaje.model; DTOs en com.meditriaje.dto.triage (SintomaItemRequest, CrearTriajeRequest, SintomaItemResponse, TriajeResponse, CatalogoSintomaResponse); TriajeRepository con JdbcTemplate 100% parametrizado (guardarTriaje con GeneratedKeyHolder, guardarSintomas por batch, buscarPorPublicId con JOINs optimizados a PACIENTE y SINTOMA, buscarEntidadPorPublicId, buscarEntidadPorId, listarCatalogoSintomasActivos y mapeo de IDs); TriajeService con evaluación transaccional, corte de emergencia, aislamiento estricto de paciente y exclusión clínica para administradores, y auditoría inmutable doble (TRIAJE_EMERGENCIA y TRIAJE_REALIZADO sin datos clínicos); vinculación triaje-cita en AppointmentService.reservarCita (validación de pertenencia al mismo paciente y rechazo categórico de triajes de emergencia); TriajeController con POST /api/v1/triage (ROLE_PACIENTE), GET /api/v1/triage/{publicId} y GET /api/v1/triage/symptoms; colección exhaustiva docs/api/M5.http con 6 secciones y 15 escenarios cubriendo el ciclo completo; suite de 34 pruebas automatizadas nuevas (TriajeRepositoryTest, TriajeServiceTest, TriajeControllerTest MockMvc y AppointmentServiceTest con vinculación) para un total de 379 pruebas al 100% de éxito. · feat(triage): endpoints de triaje vinculacion con citas y coleccion m5.http (M5.4, HU-02)
 - 2026-10-03 · Cierre M5 · Aprobación y cumplimiento pleno de la Puerta de Salida M5: HU-02 cumplida, motor de reglas puro y determinista, corte de emergencia infalible por síntomas de alarma, vinculación con citas y aislamiento de datos clínicos, colección docs/api/M5.http completada, 379 pruebas unitarias e integradas verdes al 100%. Preparación de merge a develop y etiqueta v0.5 · merge: fase m5 triaje completada (v0.5)
+- 2026-10-03 · M6.1 · Migración Flyway V008__atencion_historia_clinica.sql con tablas DIAGNOSTICO_CIE10, ATENCION (relación 1:1 estricta con CITA y campos obligatorios al cierre), SIGNO_VITAL (validaciones de rangos fisiológicos), ATENCION_ENMIENDA (aclaraciones append-only) y ALERGIA; triggers de inmutabilidad en BD TR_ATENCION_INMUTABILIDAD (bloquea UPDATE tras cierre con ORA-20002 y DELETE total con ORA-20001), TR_SIGNO_VITAL_INMUTABILIDAD (prohíbe INSERT/UPDATE/DELETE en atenciones cerradas con ORA-20003) y TR_ENMIENDA_INMUTABILIDAD (prohíbe UPDATE/DELETE con ORA-20004 y exige atención cerrada con ORA-20005); concesión de privilegios mínimos a MEDITRIAJE_APP (sin permisos DELETE en tablas clínicas ni UPDATE en enmiendas); siembra de catálogo reducido CIE-10 (21 patologías ambulatorias estándar); pruebas en OracleIntegrationTest ampliadas (>= V8, permisos, catálogo y demostración de triggers). 379 pruebas unitarias pasando al 100% · feat(database): migracion flyway v008 atencion historia clinica y triggers de inmutabilidad (M6.1)

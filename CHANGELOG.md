@@ -7,6 +7,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Added
+- **Migraciones Clínicas e Inmutabilidad de Historia Clínica (M6.1, HU-07, HU-09, ADR-008, ADR-012)**:
+  - Migración Flyway `V008__atencion_historia_clinica.sql` incorporando las entidades nucleares de la historia clínica según el modelo relacional:
+    - `DIAGNOSTICO_CIE10`: catálogo maestro con 21 patologías ambulatorias estándar sembradas (J00, J20, I10, E11, K29, M54, R10, R51, N39, etc.).
+    - `ATENCION`: cabecera del acto médico asistencial con relación 1:1 estricta con `CITA`, campos clínicos obligatorios al cierre (`FECHA_CIERRE`, `MOTIVO_CONSULTA`, `EVOLUCION`, `DIAGNOSTICO_PRINCIPAL_ID`, `INDICACIONES`) y trigger `TR_ATENCION_INMUTABILIDAD` que bloquea categoricamente `UPDATE` tras el cierre (ORA-20002) y prohíbe `DELETE` (ORA-20001).
+    - `SIGNO_VITAL`: parámetros fisiológicos (presión arterial sistólica/diastólica, frecuencia cardíaca, respiratoria, temperatura, saturación, peso, talla) con validaciones de rango médico y trigger `TR_SIGNO_VITAL_INMUTABILIDAD` que bloquea modificaciones e inserciones si la atención está CERRADA (ORA-20003).
+    - `ATENCION_ENMIENDA`: aclaraciones clínicas append-only (ADR-008) sobre atenciones cerradas con trigger `TR_ENMIENDA_INMUTABILIDAD` que prohíbe `UPDATE` y `DELETE` (ORA-20004) y exige que la atención vinculada esté CERRADA (ORA-20005).
+    - `ALERGIA`: registro de hipersensibilidades del paciente con niveles de severidad ('LEVE', 'MODERADA', 'GRAVE').
+  - Segregación y privilegios mínimos (ADR-012): el usuario de runtime `MEDITRIAJE_APP` no posee privilegio `DELETE` sobre ninguna tabla clínica, ni `UPDATE` sobre `ATENCION_ENMIENDA` (append-only), ni permisos DML sobre `DIAGNOSTICO_CIE10` (solo lectura).
+  - Pruebas de integración en `OracleIntegrationTest` actualizadas (>= V8, permisos SELECT/INSERT/UPDATE, prohibición de DELETE y verificación empírica de triggers de inmutabilidad).
+
 ## [0.5.0] - 2026-10-03
 
 ### Added
