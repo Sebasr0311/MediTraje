@@ -7,6 +7,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Added
+- **Migración V006 (`database/migrations/V006__citas.sql`) e Índice Funcional de Concurrencia (M4.1, HU-03, HU-04, ADR-003, ADR-006, ADR-012)**:
+  - Tabla `CITA`: clave pública UUID expuesta en API (`PUBLIC_ID`), relaciones FK con `DISPONIBILIDAD_SLOT`, `PACIENTE` y recursiva opcional `CITA_ORIGEN_ID` para trazabilidad de reprogramaciones.
+  - Columna `TRIAJE_ID` desacoplada temporalmente (se vinculará mediante constraint `FK_CITA_TRIAJE_PACIENTE` en M5.1 al crearse la tabla `TRIAJE`).
+  - Restricción de estados válidos (`CHECK ESTADO IN ('PROGRAMADA', 'CONFIRMADA', 'ATENDIDA', 'CANCELADA', 'NO_ASISTIO', 'REPROGRAMADA')`).
+  - Índice funcional único `UQ_CITA_SLOT_ACTIVA` sobre `CASE WHEN ESTADO IN ('PROGRAMADA', 'CONFIRMADA') THEN SLOT_ID END`: garantiza a nivel del motor Oracle que dos citas activas jamás puedan reservar el mismo slot simultáneamente, mitigando carreras concurrentes y permitiendo múltiples registros históricos inactivos o cancelados.
+  - Índices secundarios de rendimiento: `IX_CITA_PACIENTE`, `IX_CITA_SLOT`, `IX_CITA_ORIGEN`.
+  - Privilegios mínimos a `MEDITRIAJE_APP` (ADR-012): `SELECT, INSERT, UPDATE` (sin `DELETE`).
+  - Pruebas de integración en `OracleIntegrationTest.java`: verificación de versión Flyway (>= V6), validación de acceso de `MEDITRIAJE_APP` a la tabla `CITA` y prueba empírica `db_rechazaDobleCitaActivaEnMismoSlot()` comprobando el rechazo por `DataIntegrityViolationException` de dos reservas activas sobre un mismo slot y la posterior liberación tras cancelación.
+
 ## [0.3.0] - 2026-10-03
 
 ### Added

@@ -109,13 +109,13 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV4() {
+    void flyway_schema_history_tieneAlMenosV6() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(4);
+        assertThat(count).isGreaterThanOrEqualTo(6);
     }
 
     @Test
@@ -160,6 +160,117 @@ class OracleIntegrationTest {
         assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + ".ESPECIALIDAD", Integer.class)).isNotNull();
         assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + ".PROFESIONAL", Integer.class)).isNotNull();
         assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + ".DISPONIBILIDAD_SLOT", Integer.class)).isNotNull();
+    }
+
+    @Test
+    void app_puedeConsultarCitas() {
+        // MEDITRIAJE_APP puede consultar la tabla CITA (V006)
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + ".CITA", Integer.class)).isNotNull();
+    }
+
+    @Test
+    void db_rechazaDobleCitaActivaEnMismoSlot() {
+        // Demuestra a nivel de motor Oracle el índice funcional único UQ_CITA_SLOT_ACTIVA (ADR-006)
+        JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
+        String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
+
+        // 1. Crear datos mínimos para la prueba
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH) VALUES (?, ?, ?)",
+                "u-doc-" + uid, "doc-" + uid + "@test.com", "hash"
+        );
+        Long docUsuarioId = ownerTemplate.queryForObject(
+                "SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "u-doc-" + uid
+        );
+
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".ESPECIALIDAD (PUBLIC_ID, NOMBRE, DURACION_SLOT_MIN) VALUES (?, ?, ?)",
+                "esp-" + uid, "Esp-" + uid, 20
+        );
+        Long espId = ownerTemplate.queryForObject(
+                "SELECT ID FROM " + OWNER_USER + ".ESPECIALIDAD WHERE PUBLIC_ID = ?", Long.class, "esp-" + uid
+        );
+
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".PROFESIONAL (USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS) VALUES (?, ?, ?, ?, ?, ?)",
+                docUsuarioId, "prof-" + uid, espId, "RM-" + uid, "Doc", "Test"
+        );
+        Long profId = ownerTemplate.queryForObject(
+                "SELECT ID FROM " + OWNER_USER + ".PROFESIONAL WHERE PUBLIC_ID = ?", Long.class, "prof-" + uid
+        );
+
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".INSTITUCION (PUBLIC_ID, NIT, RAZON_SOCIAL) VALUES (?, ?, ?)",
+                "inst-" + uid, "NIT-" + uid, "Inst-" + uid
+        );
+        Long instId = ownerTemplate.queryForObject(
+                "SELECT ID FROM " + OWNER_USER + ".INSTITUCION WHERE PUBLIC_ID = ?", Long.class, "inst-" + uid
+        );
+
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".SEDE (INSTITUCION_ID, PUBLIC_ID, NOMBRE, DIRECCION, CIUDAD) VALUES (?, ?, ?, ?, ?)",
+                instId, "sede-" + uid, "Sede-" + uid, "Calle 1", "Bogota"
+        );
+        Long sedeId = ownerTemplate.queryForObject(
+                "SELECT ID FROM " + OWNER_USER + ".SEDE WHERE PUBLIC_ID = ?", Long.class, "sede-" + uid
+        );
+
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH) VALUES (?, ?, ?)",
+                "u-pac-" + uid, "pac-" + uid + "@test.com", "hash"
+        );
+        Long pacUsuarioId = ownerTemplate.queryForObject(
+                "SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "u-pac-" + uid
+        );
+
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".PACIENTE (PUBLIC_ID, USUARIO_ID, NUMERO_IDENTIFICACION, NOMBRES, APELLIDOS, FECHA_NACIMIENTO, GENERO, TELEFONO) " +
+                "VALUES (?, ?, ?, ?, ?, DATE '1990-01-01', 'M', '3001234567')",
+                "pac-" + uid, pacUsuarioId, "CC-" + uid, "Paciente", "Test"
+        );
+        Long pacId = ownerTemplate.queryForObject(
+                "SELECT ID FROM " + OWNER_USER + ".PACIENTE WHERE PUBLIC_ID = ?", Long.class, "pac-" + uid
+        );
+
+        java.time.Instant ahora = java.time.Instant.now();
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".DISPONIBILIDAD_SLOT (PUBLIC_ID, PROFESIONAL_ID, SEDE_ID, ESPECIALIDAD_ID, FECHA_HORA_INICIO, FECHA_HORA_FIN, MODALIDAD, ESTADO) " +
+                "VALUES (?, ?, ?, ?, ?, ?, 'PRESENCIAL', 'LIBRE')",
+                "slot-" + uid, profId, sedeId, espId, java.sql.Timestamp.from(ahora), java.sql.Timestamp.from(ahora.plusSeconds(1200))
+        );
+        Long slotId = ownerTemplate.queryForObject(
+                "SELECT ID FROM " + OWNER_USER + ".DISPONIBILIDAD_SLOT WHERE PUBLIC_ID = ?", Long.class, "slot-" + uid
+        );
+
+        // 2. Primera cita en estado PROGRAMADA sobre el slot -> ÉXITO
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".CITA (PUBLIC_ID, SLOT_ID, PACIENTE_ID, ESTADO) VALUES (?, ?, ?, 'PROGRAMADA')",
+                "cita-1-" + uid, slotId, pacId
+        );
+
+        // 3. Segunda cita concurrente en estado PROGRAMADA sobre el MISMO slot -> Debe fallar por UQ_CITA_SLOT_ACTIVA
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataIntegrityViolationException.class,
+                () -> ownerTemplate.update(
+                        "INSERT INTO " + OWNER_USER + ".CITA (PUBLIC_ID, SLOT_ID, PACIENTE_ID, ESTADO) VALUES (?, ?, ?, 'PROGRAMADA')",
+                        "cita-2-" + uid, slotId, pacId
+                ),
+                "El índice UQ_CITA_SLOT_ACTIVA debe impedir registrar una segunda cita activa en el mismo slot"
+        );
+
+        // 4. Cancelar la primera cita (pasa a estado CANCELADA)
+        ownerTemplate.update(
+                "UPDATE " + OWNER_USER + ".CITA SET ESTADO = 'CANCELADA' WHERE PUBLIC_ID = ?",
+                "cita-1-" + uid
+        );
+
+        // 5. Ahora sí debe permitir registrar una nueva cita activa en el mismo slot (el CASE devuelve NULL para CANCELADA)
+        int filasInsertadas = ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".CITA (PUBLIC_ID, SLOT_ID, PACIENTE_ID, ESTADO) VALUES (?, ?, ?, 'PROGRAMADA')",
+                "cita-3-" + uid, slotId, pacId
+        );
+        assertThat(filasInsertadas).isEqualTo(1);
     }
 
     @Test
