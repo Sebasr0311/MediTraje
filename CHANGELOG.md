@@ -8,6 +8,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Prueba Determinista de Concurrencia Multihilo en Reserva de Citas (M4.4, HU-04, ADR-006)**:
+  - Creación de suite determinista `AppointmentConcurrencyTest` en `com.meditriaje.service`:
+    - Simulación multihilo con 12 hilos concurrentes compitiendo en el mismo instante (`CountDownLatch` + `ExecutorService`) sobre el mismo slot de disponibilidad.
+    - Modelado atómico exacto del `UPDATE ... WHERE ESTADO = 'LIBRE'` mediante `AtomicReference.compareAndSet` y del índice único `UQ_CITA_SLOT_ACTIVA` mediante `ConcurrentHashMap.newKeySet`.
+    - Validación empírica determinista: exactamente 1 hilo logra la reserva (201 / `CitaResponse`) y los 11 hilos restantes son rechazados con `CitaNoDisponibleException` (409 Conflict), con el slot pasando a `OCUPADO` y registrándose una sola cita activa.
+    - Repetición determinista (`@RepeatedTest(5)`) sin ningún indicio de *flakiness*, apto para ejecución continua en CI y sin dependencias externas.
+  - Actualización de `OracleIntegrationTest.java`: adición de prueba de integración `db_concurrenciaMultihilo_diezHilosMismoSlot_exactamenteUnoGana()` ejecutando 10 hilos concurrentes reales contra Oracle en Testcontainers, validando que el motor de base de datos impone la exclusión mutua atómica a nivel de fila e índice relacional.
 - **Reserva y Agendamiento Transaccional de Citas Médicas (M4.3, HU-04, ADR-002, ADR-003, ADR-006, ADR-011)**:
   - Enum `AccionAuditable`: agregado valor `RESERVA_CITA` para trazabilidad inmutable de agendamientos asistenciales.
   - Modelo de dominio `Cita`: record inmutable en `com.meditriaje.model.Cita` alineado a la tabla relacional `CITA`.

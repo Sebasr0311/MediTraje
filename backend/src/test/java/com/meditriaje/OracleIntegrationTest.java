@@ -274,6 +274,112 @@ class OracleIntegrationTest {
     }
 
     @Test
+    void db_concurrenciaMultihilo_diezHilosMismoSlot_exactamenteUnoGana() throws Exception {
+        // Validación determinista multihilo en base de datos real (ADR-006, M4.4)
+        JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
+        String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
+
+        // 1. Crear profesional, sede, especialidad y slot libre
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH) VALUES (?, ?, ?)",
+                "u-doc-mc-" + uid, "doc-mc-" + uid + "@test.com", "hash");
+        Long docUsuarioId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "u-doc-mc-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".ESPECIALIDAD (PUBLIC_ID, NOMBRE, DURACION_SLOT_MIN) VALUES (?, ?, ?)",
+                "esp-mc-" + uid, "Esp-MC-" + uid, 20);
+        Long espId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".ESPECIALIDAD WHERE PUBLIC_ID = ?", Long.class, "esp-mc-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PROFESIONAL (USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS) VALUES (?, ?, ?, ?, ?, ?)",
+                docUsuarioId, "prof-mc-" + uid, espId, "RM-MC-" + uid, "Doc", "MultiThread");
+        Long profId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PROFESIONAL WHERE PUBLIC_ID = ?", Long.class, "prof-mc-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".INSTITUCION (PUBLIC_ID, NIT, RAZON_SOCIAL) VALUES (?, ?, ?)",
+                "inst-mc-" + uid, "NIT-MC-" + uid, "Inst-MC-" + uid);
+        Long instId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".INSTITUCION WHERE PUBLIC_ID = ?", Long.class, "inst-mc-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".SEDE (INSTITUCION_ID, PUBLIC_ID, NOMBRE, DIRECCION, CIUDAD) VALUES (?, ?, ?, ?, ?)",
+                instId, "sede-mc-" + uid, "Sede-MC-" + uid, "Calle 10", "Bogota");
+        Long sedeId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".SEDE WHERE PUBLIC_ID = ?", Long.class, "sede-mc-" + uid);
+
+        java.time.Instant ahora = java.time.Instant.now();
+        ownerTemplate.update(
+                "INSERT INTO " + OWNER_USER + ".DISPONIBILIDAD_SLOT (PUBLIC_ID, PROFESIONAL_ID, SEDE_ID, ESPECIALIDAD_ID, FECHA_HORA_INICIO, FECHA_HORA_FIN, MODALIDAD, ESTADO) " +
+                "VALUES (?, ?, ?, ?, ?, ?, 'PRESENCIAL', 'LIBRE')",
+                "slot-mc-" + uid, profId, sedeId, espId, java.sql.Timestamp.from(ahora), java.sql.Timestamp.from(ahora.plusSeconds(1200))
+        );
+        Long slotId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".DISPONIBILIDAD_SLOT WHERE PUBLIC_ID = ?", Long.class, "slot-mc-" + uid);
+
+        // 2. Crear 10 pacientes distintos
+        int numHilos = 10;
+        java.util.List<Long> pacienteIds = new java.util.ArrayList<>();
+        for (int i = 0; i < numHilos; i++) {
+            String pUid = uid + "-" + i;
+            ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH) VALUES (?, ?, ?)",
+                    "u-pac-mc-" + pUid, "pac-mc-" + pUid + "@test.com", "hash");
+            Long uId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "u-pac-mc-" + pUid);
+
+            ownerTemplate.update(
+                    "INSERT INTO " + OWNER_USER + ".PACIENTE (PUBLIC_ID, USUARIO_ID, NUMERO_IDENTIFICACION, NOMBRES, APELLIDOS, FECHA_NACIMIENTO, GENERO, TELEFONO) " +
+                    "VALUES (?, ?, ?, ?, ?, DATE '1990-01-01', 'M', '3001234567')",
+                    "pac-mc-" + pUid, uId, "CC-MC-" + pUid, "Paciente" + i, "Test"
+            );
+            Long pId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PACIENTE WHERE PUBLIC_ID = ?", Long.class, "pac-mc-" + pUid);
+            pacienteIds.add(pId);
+        }
+
+        // 3. Ejecutar 10 hilos concurrentes intentando reservar el MISMO slot
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(numHilos);
+        java.util.concurrent.CountDownLatch readyLatch = new java.util.concurrent.CountDownLatch(numHilos);
+        java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch finishLatch = new java.util.concurrent.CountDownLatch(numHilos);
+
+        java.util.concurrent.atomic.AtomicInteger exitos = new java.util.concurrent.atomic.AtomicInteger(0);
+        java.util.concurrent.atomic.AtomicInteger noDisponibles = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        for (int i = 0; i < numHilos; i++) {
+            final int index = i;
+            final Long pacId = pacienteIds.get(i);
+            executor.submit(() -> {
+                readyLatch.countDown();
+                try {
+                    startLatch.await();
+                    // Operación de reserva atómica idéntica a la capa de persistencia
+                    int filas = ownerTemplate.update(
+                            "UPDATE " + OWNER_USER + ".DISPONIBILIDAD_SLOT SET ESTADO = 'OCUPADO' WHERE ID = ? AND ESTADO = 'LIBRE'",
+                            slotId
+                    );
+                    if (filas == 1) {
+                        ownerTemplate.update(
+                                "INSERT INTO " + OWNER_USER + ".CITA (PUBLIC_ID, SLOT_ID, PACIENTE_ID, ESTADO) VALUES (?, ?, ?, 'PROGRAMADA')",
+                                "cita-mc-" + uid + "-" + index, slotId, pacId
+                        );
+                        exitos.incrementAndGet();
+                    } else {
+                        noDisponibles.incrementAndGet();
+                    }
+                } catch (Exception e) {
+                    noDisponibles.incrementAndGet();
+                } finally {
+                    finishLatch.countDown();
+                }
+            });
+        }
+
+        readyLatch.await(5, java.util.concurrent.TimeUnit.SECONDS);
+        startLatch.countDown();
+        finishLatch.await(10, java.util.concurrent.TimeUnit.SECONDS);
+        executor.shutdown();
+
+        assertThat(exitos.get()).as("Exactamente 1 hilo de 10 debe reservar el slot en la BD").isEqualTo(1);
+        assertThat(noDisponibles.get()).as("Los 9 hilos restantes deben fallar al intentar reservar").isEqualTo(numHilos - 1);
+
+        Integer citasActivas = ownerTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".CITA WHERE SLOT_ID = ? AND ESTADO = 'PROGRAMADA'",
+                Integer.class, slotId
+        );
+        assertThat(citasActivas).as("Solo debe existir 1 cita activa en la tabla CITA").isEqualTo(1);
+    }
+
+    @Test
     void app_noPuedeHacerDropTable() {
         // MEDITRIAJE_APP NO debe tener privilegio de DDL
         JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
