@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** M3 — Administración y catálogos
-- **Tarea actual:** M3.2 — CRUD especialidades, instituciones, sedes
+- **Tarea actual:** M3.3 — Alta de profesionales
 - **Última etiqueta:** v0.2 (M2 completa)
 - **Rama de trabajo:** feature/m3-administracion
 
@@ -37,8 +37,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 ### M3 — Administración y catálogos
 - [x] M3.1 Migraciones de oferta
-- [~] M3.2 CRUD especialidades, instituciones, sedes
-- [ ] M3.3 Alta de profesionales
+- [x] M3.2 CRUD especialidades, instituciones, sedes
+- [~] M3.3 Alta de profesionales
 - [ ] M3.4 Generador de slots
 - [ ] M3.5 Seeds ficticios
 
@@ -109,3 +109,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · M2.5 · Configuración de Spring Security con autorización declarativa por roles (@EnableMethodSecurity, @PreAuthorize), filtro JwtAuthenticationFilter (extracción de cookie HttpOnly access_token y fallback Bearer), filtro CsrfHeaderFilter exigiendo cabecera personalizada (X-Requested-With o X-CSRF-Protection) en operaciones mutantes según ADR-002, manejadores de error 401 (CustomAuthenticationEntryPoint) y 403 (CustomAccessDeniedHandler y Spring AccessDeniedException en GlobalExceptionHandler) retornando ApiError estructurado. Endpoint GET /api/v1/patients/me implementado en PacienteController, PacienteService y PacienteRepository (búsqueda por UUID expuesto publicId sin exponer IDs internos, ADR-003). 48 pruebas unitarias y de seguridad al 100% · mvn clean verify exitoso · feat(security): spring security roles jwt csrf y endpoint paciente me m2.5
 - 2026-10-03 · M2.6 · Auditoría exhaustiva de seguridad de la fase M2 (cero secretos en repositorio, ausencia de datos clínicos o sensibles en logs, SQL 100% parametrizado, tokens exclusivamente en cookies HttpOnly SameSite=Strict, CSRF mitigado, triggers de inmutabilidad en BD). Elaboración del informe docs/security/REVISION_M2.md y creación de la colección docs/api/M2.http. 48 pruebas unitarias y de seguridad pasando al 100% · mvn clean verify exitoso · docs(security): revision de seguridad m2 y coleccion de pruebas http m2.6
 - 2026-10-03 · M3.1 · Migración Flyway V004__oferta_administracion.sql con tablas INSTITUCION, SEDE, ESPECIALIDAD, PROFESIONAL y DISPONIBILIDAD_SLOT; constraints de unicidad, claves foráneas, validación horaria (inicio < fin), checks de modalidad/estados e índices optimizados; privilegios mínimos a MEDITRIAJE_APP (ADR-012) y pruebas de integración ampliadas en OracleIntegrationTest. mvn clean test exitoso (48 tests verdes) · feat(database): migracion flyway v004 oferta asistencial y administracion m3.1
+- 2026-10-03 · M3.2 · Implementación integral del CRUD administrativo para ESPECIALIDAD, INSTITUCION y SEDE: modelos inmutables, DTOs Jakarta, paginación ANSI SQL (OFFSET/FETCH NEXT) con PaginatedResponse<T>, repositorios JdbcTemplate con SQL parametrizado, validaciones de negocio en AdminCatalogService (unicidad de nombre/NIT, validación de institución activa para sedes, sin borrado físico: desactivación a INACTIVO / activación a ACTIVO) y auditoría inmutable obligatoria CAMBIO_ADMINISTRATIVO vía AuditoriaService. Controladores REST protegidos con @PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')") (/api/v1/admin/specialties, /api/v1/admin/institutions, /api/v1/admin/sites). Suite de 52 pruebas nuevas (unitarias y MockMvc de seguridad: 403 para otros roles, 401 sin auth, 400 datos inválidos, 404 no encontrado). mvn clean test exitoso (103 tests verdes) · feat(admin): implementar CRUD de especialidades, instituciones y sedes (M3.2)
