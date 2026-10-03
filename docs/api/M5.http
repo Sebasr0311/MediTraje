@@ -1,0 +1,380 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase M5: Triaje Clínico de Prototipo y Vinculación)
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+### Cumplimiento estricto: HU-02, HU-04, HU-11, ADR-002, ADR-003, ADR-007, ADR-009, ADR-011
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With
+@csrfValue = XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Autenticación y Credenciales de Prueba
+### ----------------------------------------------------------------------------
+
+### 2.1 Login como Administrador (ROLE_ADMINISTRADOR)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### 2.2 Registro de Paciente 1 (Carlos Pérez)
+# @name registrarPaciente1
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765432",
+  "nombres": "Carlos",
+  "apellidos": "Perez Gomez",
+  "fechaNacimiento": "1992-08-15",
+  "telefono": "3109876543",
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.3 Login Paciente 1 (Carlos Pérez)
+# @name loginPaciente1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.4 Registro de Paciente 2 (Ana Gómez)
+# @name registrarPaciente2
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765499",
+  "nombres": "Ana",
+  "apellidos": "Gomez Diaz",
+  "fechaNacimiento": "1995-05-20",
+  "telefono": "3119876500",
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.5 Login Paciente 2 (Ana Gómez)
+# @name loginPaciente2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.6 Login Médico / Profesional Asistencial (Dr. Carlos Mendoza - Medicina General)
+# @name loginMedico
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+### ----------------------------------------------------------------------------
+### 3. Catálogo de Síntomas Activos de Prototipo (HU-02, ADR-009)
+### ----------------------------------------------------------------------------
+
+### 3.1 Consulta de síntomas activos (Paciente autenticado) -> DEBE RETORNAR 200 OK con catálogo
+# @name catalogoSintomas
+GET {{baseUrl}}/triage/symptoms
+Accept: application/json
+
+### 3.2 Intento de consulta de síntomas sin autenticación -> DEBE RETORNAR 401 UNAUTHORIZED
+GET {{baseUrl}}/triage/symptoms
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 4. Evaluación y Registro de Triaje Clínico (HU-02, ADR-009, ADR-011)
+### ----------------------------------------------------------------------------
+
+### 4.1 Login con Paciente 1 (Carlos Pérez)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 4.2 Paciente 1 realiza triaje no urgente (Nivel IV / III: Tos y Fiebre leve)
+### -> DEBE RETORNAR 201 CREATED con Location: /api/v1/triage/{publicId}
+# @name crearTriajeNoUrgente
+POST {{baseUrl}}/triage
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "sintomas": [
+    {
+      "codigo": "TOS",
+      "duracionHoras": 24.0,
+      "intensidad": 3
+    },
+    {
+      "codigo": "CONGESTION_NASAL",
+      "duracionHoras": 12.0,
+      "intensidad": 2
+    }
+  ],
+  "observaciones": "Sintomas respiratorios leves desde ayer"
+}
+
+### Variable del triaje no urgente creado:
+@triajeNoUrgenteId = {{crearTriajeNoUrgente.response.body.publicId}}
+
+### 4.3 Paciente 1 realiza triaje con corte de emergencia (Síntoma de alarma incondicional)
+### -> DEBE RETORNAR 201 CREATED con Nivel I, ruta URGENCIAS, esEmergencia true y mensaje 123
+# @name crearTriajeEmergencia
+POST {{baseUrl}}/triage
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "sintomas": [
+    {
+      "codigo": "DOLOR_TORACICO_OPRESIVO",
+      "duracionHoras": 1.0,
+      "intensidad": 8
+    },
+    {
+      "codigo": "DIFICULTAD_RESP_SEVERA",
+      "duracionHoras": 0.5,
+      "intensidad": 9
+    }
+  ],
+  "observaciones": "Dolor fuerte en el pecho que se irradia al brazo"
+}
+
+### Variable del triaje de emergencia creado:
+@triajeEmergenciaId = {{crearTriajeEmergencia.response.body.publicId}}
+
+### 4.4 Intento de evaluación por un profesional médico -> DEBE RETORNAR 403 FORBIDDEN (solo pacientes)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+###
+POST {{baseUrl}}/triage
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "sintomas": [
+    {
+      "codigo": "FIEBRE",
+      "duracionHoras": 6.0,
+      "intensidad": 4
+    }
+  ]
+}
+
+### 4.5 Intento de evaluación con síntomas duplicados -> DEBE RETORNAR 400 BAD REQUEST
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+###
+POST {{baseUrl}}/triage
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "sintomas": [
+    {
+      "codigo": "FIEBRE",
+      "duracionHoras": 6.0,
+      "intensidad": 4
+    },
+    {
+      "codigo": "FIEBRE",
+      "duracionHoras": 12.0,
+      "intensidad": 6
+    }
+  ]
+}
+
+### ----------------------------------------------------------------------------
+### 5. Consulta y Aislamiento Estricto de Triaje (ADR-002, ADR-007, HU-02)
+### ----------------------------------------------------------------------------
+
+### 5.1 Paciente 1 consulta su propio triaje no urgente -> DEBE RETORNAR 200 OK
+GET {{baseUrl}}/triage/{{triajeNoUrgenteId}}
+Accept: application/json
+
+### 5.2 Login Paciente 2 (Ana Gómez)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 5.3 Paciente 2 intenta consultar el triaje de Paciente 1 -> DEBE RETORNAR 403 FORBIDDEN (Aislamiento)
+GET {{baseUrl}}/triage/{{triajeNoUrgenteId}}
+Accept: application/json
+
+### 5.4 Login Administrador
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### 5.5 Administrador intenta consultar triaje clínico -> DEBE RETORNAR 403 FORBIDDEN (Admin no accede a clínica)
+GET {{baseUrl}}/triage/{{triajeNoUrgenteId}}
+Accept: application/json
+
+### 5.6 Login Médico
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+### 5.7 Profesional asistencial consulta triaje de Paciente 1 -> DEBE RETORNAR 200 OK
+GET {{baseUrl}}/triage/{{triajeNoUrgenteId}}
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 6. Vinculación de Triaje con Cita Médica (HU-04, ADR-006, ADR-009)
+### ----------------------------------------------------------------------------
+
+### 6.1 Login Paciente 1 (Carlos Pérez)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 6.2 Consultar slots disponibles para obtener un slot LIBRE
+# @name buscarSlotDisponible
+GET {{baseUrl}}/availability?especialidad=esp-medicina-general-001&page=0&size=5
+Accept: application/json
+
+### Variable del primer slot disponible obtenido:
+@slotDisponibleId = {{buscarSlotDisponible.response.body.content[0].publicId}}
+
+### 6.3 Paciente 1 agenda cita vinculando su triaje no urgente propio
+### -> DEBE RETORNAR 201 CREATED con triajePublicId en la respuesta
+# @name reservarCitaConTriaje
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "slotPublicId": "{{slotDisponibleId}}",
+  "triajePublicId": "{{triajeNoUrgenteId}}"
+}
+
+### 6.4 Intento de agendar cita vinculada a triaje de emergencia -> DEBE RETORNAR 400 BAD REQUEST
+### (No se permite agendar cita para un triaje clasificado como emergencia)
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "slotPublicId": "{{slotDisponibleId}}",
+  "triajePublicId": "{{triajeEmergenciaId}}"
+}
+
+### 6.5 Paciente 2 intenta agendar cita vinculada a triaje ajeno (de Paciente 1)
+### -> DEBE RETORNAR 400 BAD REQUEST (El triaje no corresponde al paciente de la cita)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+###
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "slotPublicId": "{{slotDisponibleId}}",
+  "triajePublicId": "{{triajeNoUrgenteId}}"
+}
+
+### 6.6 Intento de agendar cita con triaje inexistente -> DEBE RETORNAR 404 NOT FOUND
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "slotPublicId": "{{slotDisponibleId}}",
+  "triajePublicId": "00000000-0000-0000-0000-000000000000"
+}

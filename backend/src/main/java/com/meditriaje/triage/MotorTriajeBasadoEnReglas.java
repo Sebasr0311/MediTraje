@@ -86,7 +86,7 @@ public final class MotorTriajeBasadoEnReglas implements MotorTriaje {
         return mejor != null ? mejor : NIVEL_POR_DEFECTO;
     }
 
-    private static String mensajePara(RutaSugerida ruta) {
+    public static String mensajePara(RutaSugerida ruta) {
         return switch (ruta) {
             case URGENCIAS -> MENSAJE_EMERGENCIA;
             case ATENCION_PRIORITARIA -> "Se sugiere atención prioritaria.";

@@ -16,11 +16,13 @@ import com.meditriaje.model.EventoAuditoria;
 import com.meditriaje.model.Paciente;
 import com.meditriaje.model.Profesional;
 import com.meditriaje.model.ResultadoAuditoria;
+import com.meditriaje.model.Triaje;
 import com.meditriaje.model.Usuario;
 import com.meditriaje.repository.CitaRepository;
 import com.meditriaje.repository.DisponibilidadSlotRepository;
 import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
+import com.meditriaje.repository.TriajeRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import com.meditriaje.dto.common.PaginatedResponse;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -55,6 +57,7 @@ public class AppointmentService {
     private final DisponibilidadSlotRepository disponibilidadSlotRepository;
     private final ProfesionalRepository profesionalRepository;
     private final CitaRepository citaRepository;
+    private final TriajeRepository triajeRepository;
     private final AuditoriaService auditoriaService;
     private final Clock clock;
 
@@ -64,6 +67,7 @@ public class AppointmentService {
             DisponibilidadSlotRepository disponibilidadSlotRepository,
             ProfesionalRepository profesionalRepository,
             CitaRepository citaRepository,
+            TriajeRepository triajeRepository,
             AuditoriaService auditoriaService
     ) {
         this(
@@ -72,6 +76,7 @@ public class AppointmentService {
                 disponibilidadSlotRepository,
                 profesionalRepository,
                 citaRepository,
+                triajeRepository,
                 auditoriaService,
                 Clock.systemUTC()
         );
@@ -83,6 +88,7 @@ public class AppointmentService {
             DisponibilidadSlotRepository disponibilidadSlotRepository,
             ProfesionalRepository profesionalRepository,
             CitaRepository citaRepository,
+            TriajeRepository triajeRepository,
             AuditoriaService auditoriaService,
             Clock clock
     ) {
@@ -91,6 +97,7 @@ public class AppointmentService {
         this.disponibilidadSlotRepository = Objects.requireNonNull(disponibilidadSlotRepository, "DisponibilidadSlotRepository no puede ser nulo");
         this.profesionalRepository = Objects.requireNonNull(profesionalRepository, "ProfesionalRepository no puede ser nulo");
         this.citaRepository = Objects.requireNonNull(citaRepository, "CitaRepository no puede ser nulo");
+        this.triajeRepository = Objects.requireNonNull(triajeRepository, "TriajeRepository no puede ser nulo");
         this.auditoriaService = Objects.requireNonNull(auditoriaService, "AuditoriaService no puede ser nulo");
         this.clock = Objects.requireNonNull(clock, "Clock no puede ser nulo");
     }
@@ -133,20 +140,37 @@ public class AppointmentService {
             throw new DatosInvalidosException("El profesional no corresponde a la especialidad del slot.");
         }
 
-        // 6. Intentar reservar atómicamente el slot (cambio de estado LIBRE -> OCUPADO)
+        // 6. Validar vinculación opcional con triaje clínico (ADR-009, HU-04, M5.4)
+        Long triajeId = null;
+        if (request.triajePublicId() != null && !request.triajePublicId().isBlank()) {
+            Triaje triaje = triajeRepository.buscarEntidadPorPublicId(request.triajePublicId().trim())
+                    .orElseThrow(() -> new RecursoNoEncontradoException("Triaje no encontrado."));
+
+            if (!Objects.equals(triaje.pacienteId(), paciente.id())) {
+                throw new DatosInvalidosException("El triaje no corresponde al paciente de la cita.");
+            }
+
+            if (triaje.esEmergencia()) {
+                throw new DatosInvalidosException("No se permite agendar cita para un triaje clasificado como emergencia.");
+            }
+
+            triajeId = triaje.id();
+        }
+
+        // 7. Intentar reservar atómicamente el slot (cambio de estado LIBRE -> OCUPADO)
         int filas = disponibilidadSlotRepository.reservarSlot(slot.id());
         if (filas == 0) {
             throw new CitaNoDisponibleException("El slot de atencion ya ha sido reservado o no esta disponible.");
         }
 
-        // 7. Insertar la cita en estado PROGRAMADA y manejar restricción de concurrencia
+        // 8. Insertar la cita en estado PROGRAMADA y manejar restricción de concurrencia
         String citaPublicId = UUID.randomUUID().toString();
         Cita cita = new Cita(
                 null,
                 citaPublicId,
                 slot.id(),
                 paciente.id(),
-                null, // TRIAJE_ID desacoplado hasta M5.1
+                triajeId,
                 null, // CITA_ORIGEN_ID para reprogramaciones
                 "PROGRAMADA",
                 null,

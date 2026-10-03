@@ -8,6 +8,33 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Endpoints de Triaje Clínico, Vinculación con Citas y Colección M5.http (M5.4, HU-02, HU-04, HU-11, ADR-002, ADR-003, ADR-007, ADR-009, ADR-011)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`: `Triaje`, `TriajeSintoma` y `Sintoma`.
+  - DTOs en `com.meditriaje.dto.triage`: `SintomaItemRequest` (validaciones `@NotBlank`, `@DecimalMin`, `@Min`, `@Max`), `CrearTriajeRequest` (`@NotEmpty`, `@Size(max=20)`), `SintomaItemResponse`, `TriajeResponse` y `CatalogoSintomaResponse`.
+  - Repositorio `TriajeRepository` en `com.meditriaje.repository`:
+    - Persistencia de triajes con `KeyHolder` y obtención de ID autogenerado.
+    - Inserción en lote de síntomas reportados mediante `batchUpdate`.
+    - Consulta consolidada de triaje y síntomas en una sola consulta relacional (`buscarPorPublicId`).
+    - Búsqueda de entidades por ID y publicId, catálogo de síntomas activos y mapa de códigos a IDs.
+  - Servicio `TriajeService` en `com.meditriaje.service`:
+    - Evaluación transaccional mediante `TriajeMotorFactory`.
+    - Detección y rechazo de síntomas duplicados o desconocidos (`DatosInvalidosException`).
+    - Auditoría inmutable obligatoria (`TRIAJE_REALIZADO` y `TRIAJE_EMERGENCIA` cuando aplique) sin incluir datos clínicos ni síntomas (ADR-011).
+    - Aislamiento estricto de pacientes: un paciente solo puede consultar su propio triaje; el personal administrativo tiene acceso bloqueado a contenido clínico (ADR-007).
+  - Vinculación Triaje-Cita en `AppointmentService.reservarCita`:
+    - Validación de correspondencia del triaje al mismo paciente de la cita (`DatosInvalidosException`).
+    - Prohibición estricta de agendamiento para triajes clasificados como emergencia (`DatosInvalidosException`).
+    - Persistencia de `triaje_id` en `CITA` y mapeo en `CitaResponse` y `CitaRepository`.
+  - Controlador REST `TriajeController` en `com.meditriaje.controller`:
+    - `POST /api/v1/triage`: creación de triaje restringida exclusivamente a pacientes (`ROLE_PACIENTE`), retornando 201 Created con cabecera `Location`.
+    - `GET /api/v1/triage/{publicId}`: consulta de triaje para usuarios autenticados con verificación de aislamiento.
+    - `GET /api/v1/triage/symptoms`: catálogo para usuarios autenticados.
+  - Colección de pruebas HTTP `docs/api/M5.http`: 6 secciones con 15 escenarios que validan healthcheck, login de roles, catálogo, triaje no urgente, corte de emergencia, aislamiento entre pacientes, exclusión de admin, y vinculación/rechazos en agendamiento de citas.
+  - Pruebas automatizadas (34 pruebas nuevas, suite consolidada en 379 pruebas al 100%):
+    - `TriajeRepositoryTest` (9 pruebas): inserción individual y por lote, consultas consolidadas, mapeo y catálogo.
+    - `TriajeServiceTest` (11 pruebas): evaluación, auditoría simple y de emergencia, aislamiento entre pacientes y roles, validación de duplicados y catálogo.
+    - `TriajeControllerTest` (8 pruebas): autorización declarativa, 201 Created con Location, 403 Forbidden para profesionales/admins en creación, 403 Forbidden en triaje ajeno, 401 Unauthorized sin sesión, 400 Bad Request en validación.
+    - `AppointmentServiceTest` (4 pruebas nuevas): reserva con triaje propio, rechazo ante triaje ajeno, rechazo ante triaje de emergencia, y rechazo ante triaje inexistente.
 - **Corte de Emergencia Infalible por Síntomas de Alarma (M5.3, HU-02, ADR-009, ADR-011)**:
   - Definición de corte de emergencia: si algún síntoma reportado tiene `esAlarma = true` o si la evaluación de prioridad resulta en Nivel I, se activa inmediatamente la condición de emergencia.
   - Comportamiento de emergencia: fuerza `nivel = NivelPrioridad.I`, `ruta = RutaSugerida.URGENCIAS`, omite cualquier asignación de cita y emite el mensaje mandatario: "Llama al 123 o acude a urgencias de inmediato.".

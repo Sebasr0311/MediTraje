@@ -12,6 +12,7 @@ import com.meditriaje.repository.CitaRepository;
 import com.meditriaje.repository.DisponibilidadSlotRepository;
 import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
+import com.meditriaje.repository.TriajeRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.RepeatedTest;
@@ -72,6 +73,8 @@ class AppointmentConcurrencyTest {
     @Mock
     private CitaRepository citaRepository;
     @Mock
+    private TriajeRepository triajeRepository;
+    @Mock
     private AuditoriaService auditoriaService;
 
     @Test
@@ -94,6 +97,7 @@ class AppointmentConcurrencyTest {
                 disponibilidadSlotRepository,
                 profesionalRepository,
                 citaRepository,
+                triajeRepository,
                 auditoriaService,
                 clock
         );
