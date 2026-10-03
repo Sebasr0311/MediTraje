@@ -8,6 +8,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Reserva y Agendamiento Transaccional de Citas Médicas (M4.3, HU-04, ADR-002, ADR-003, ADR-006, ADR-011)**:
+  - Enum `AccionAuditable`: agregado valor `RESERVA_CITA` para trazabilidad inmutable de agendamientos asistenciales.
+  - Modelo de dominio `Cita`: record inmutable en `com.meditriaje.model.Cita` alineado a la tabla relacional `CITA`.
+  - Modelo de dominio `Paciente`: record inmutable en `com.meditriaje.model.Paciente` y método `buscarPorUsuarioId` en `PacienteRepository`.
+  - DTOs en `com.meditriaje.dto.appointment`:
+    - `ReservarCitaRequest`: validación `@NotBlank` sobre `slotPublicId` y soporte para `triajePublicId` opcional.
+    - `CitaResponse`: respuesta consolidada con claves públicas UUID, nombres de profesional, paciente, especialidad, sede, dirección, horarios, modalidad, estado y trazabilidad.
+  - Excepciones de dominio: constructores sobrecargados con mensaje personalizado en `CitaNoDisponibleException` y `AccesoNoAutorizadoException`.
+  - Repositorio `DisponibilidadSlotRepository`: actualización atómica `reservarSlot(Long slotId)` (`UPDATE DISPONIBILIDAD_SLOT SET ESTADO = 'OCUPADO' WHERE ID = ? AND ESTADO = 'LIBRE'`) y método `liberarSlot(Long slotId)`.
+  - Repositorio `CitaRepository`: persistencia 100% parametrizada con `JdbcTemplate` (`crear`, `buscarPorPublicId` con JOINs asistenciales y cita origen, `buscarEntidadPorPublicId`, `buscarEntidadPorId`, `actualizarEstado`, `existeCitaActivaEnSlot`).
+  - Servicio de negocio `AppointmentService`: método transaccional `@Transactional CitaResponse reservarCita(...)` con validación estricta de paciente autenticado (`autenticado != autorizado`), slot no expirado en el pasado, concordancia profesional-especialidad, reserva atómica de slot, control de concurrencia y captura de `DataIntegrityViolationException` (índice único `UQ_CITA_SLOT_ACTIVA`), registro inmutable en auditoría (`RESERVA_CITA`) y retorno de la vista de cita.
+  - Controlador REST `AppointmentController`: endpoint `POST /api/v1/appointments` protegido con `@PreAuthorize("hasAnyAuthority('ROLE_PACIENTE', 'ROLE_ADMINISTRADOR')")`, extracción segura de IP cliente con `IpUtil` y retorno HTTP 201 Created con cabecera `Location`.
+  - Pruebas automatizadas: `CitaRepositoryTest` (7 pruebas), `AppointmentServiceTest` (8 pruebas), `AppointmentControllerTest` (5 pruebas), `PacienteRepositoryTest` (3 pruebas) y actualización de `DisponibilidadSlotRepositoryTest` (11 pruebas), totalizando 235 pruebas pasando al 100%.
 - **Consulta de Disponibilidad de Citas (M4.2, HU-03, ADR-002, ADR-003, ADR-005, ADR-006)**:
   - DTO `DisponibilidadSlotResponse` en `com.meditriaje.dto.availability` con claves públicas UUID, nombres de profesional/especialidad/sede, dirección, ciudad, inicio, fin, modalidad y cálculo de duración en minutos.
   - Repositorio `DisponibilidadSlotRepository`: métodos `consultarDisponibles` y `contarDisponibles` con filtros dinámicos asistenciales, ordenación `ORDER BY s.FECHA_HORA_INICIO ASC, s.ID ASC`, paginación ANSI SQL/Oracle (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y filtros estrictos de estado activo en profesionales (`USUARIO.ESTADO = 'ACTIVO'`), sedes y especialidades.

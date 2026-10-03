@@ -7,6 +7,10 @@ package com.meditriaje.exception;
 public class CitaNoDisponibleException extends MediTriajeException {
 
     public CitaNoDisponibleException() {
-        super("CITA_NO_DISPONIBLE", "El horario solicitado ya no esta disponible.");
+        this("El horario solicitado ya no esta disponible.");
+    }
+
+    public CitaNoDisponibleException(String mensaje) {
+        super("CITA_NO_DISPONIBLE", mensaje);
     }
 }

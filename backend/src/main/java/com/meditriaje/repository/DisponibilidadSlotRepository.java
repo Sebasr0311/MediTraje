@@ -474,4 +474,21 @@ public class DisponibilidadSlotRepository {
         Integer count = jdbcTemplate.queryForObject(sql.toString(), Integer.class, params.toArray());
         return count != null ? count : 0;
     }
+
+    /**
+     * Intenta reservar atómicamente un slot libre cambiándolo a OCUPADO.
+     * Retorna 1 si se reservó exitosamente, o 0 si el slot ya no estaba LIBRE (ADR-006, HU-04).
+     */
+    public int reservarSlot(Long slotId) {
+        final String sql = "UPDATE DISPONIBILIDAD_SLOT SET ESTADO = 'OCUPADO' WHERE ID = ? AND ESTADO = 'LIBRE'";
+        return jdbcTemplate.update(sql, slotId);
+    }
+
+    /**
+     * Libera un slot previamente ocupado cambiándolo de regreso a LIBRE (ADR-006).
+     */
+    public int liberarSlot(Long slotId) {
+        final String sql = "UPDATE DISPONIBILIDAD_SLOT SET ESTADO = 'LIBRE' WHERE ID = ? AND ESTADO = 'OCUPADO'";
+        return jdbcTemplate.update(sql, slotId);
+    }
 }
