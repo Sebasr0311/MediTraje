@@ -1,0 +1,446 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase M6: Atención e Historia Clínica Inmutable)
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+### Cumplimiento estricto: HU-07, HU-09, ADR-007, ADR-008, ADR-011, ADR-012
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With
+@csrfValue = XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Autenticación y Credenciales de Prueba
+### ----------------------------------------------------------------------------
+
+### 2.1 Login como Administrador (ROLE_ADMINISTRADOR)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### 2.2 Registro de Paciente 1 (Carlos Pérez)
+# @name registrarPaciente1
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765432",
+  "nombres": "Carlos",
+  "apellidos": "Perez Gomez",
+  "fechaNacimiento": "1992-08-15",
+  "telefono": "3109876543",
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.3 Login Paciente 1 (Carlos Pérez)
+# @name loginPaciente1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.4 Registro de Paciente 2 (Ana Gómez)
+# @name registrarPaciente2
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765499",
+  "nombres": "Ana",
+  "apellidos": "Gomez Diaz",
+  "fechaNacimiento": "1995-05-20",
+  "telefono": "3119876500",
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.5 Login Paciente 2 (Ana Gómez)
+# @name loginPaciente2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.6 Login Médico 1 (Dr. Carlos Mendoza - Medicina General)
+# @name loginMedico1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+### 2.7 Login Médico 2 (Dra. Laura Restrepo - Pediatría / Sin relación con Paciente 1)
+# @name loginMedico2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "laura.restrepo@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+### ----------------------------------------------------------------------------
+### 3. Catálogo Diagnóstico CIE-10 (HU-07)
+### ----------------------------------------------------------------------------
+
+### 3.1 Consulta de catálogo CIE-10 por término de búsqueda (Médico autenticado)
+### -> DEBE RETORNAR 200 OK con diagnósticos activos
+# @name buscarCie10
+GET {{baseUrl}}/catalogs/icd10?q=respirat&size=10
+Accept: application/json
+
+### 3.2 Consulta anónima del catálogo CIE-10 -> DEBE RETORNAR 401 UNAUTHORIZED
+GET {{baseUrl}}/catalogs/icd10
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 4. Flujo Previo: Disponibilidad y Reserva de Cita
+### ----------------------------------------------------------------------------
+
+### 4.1 Paciente 1 consulta disponibilidad
+# @name consultarDisponibilidad
+GET {{baseUrl}}/availability?modalidad=PRESENCIAL&page=0&size=5
+Accept: application/json
+
+@slotPublicId = {{consultarDisponibilidad.response.body.content[0].slotPublicId}}
+
+### 4.2 Paciente 1 reserva cita médica
+# @name reservarCita
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "slotPublicId": "{{slotPublicId}}"
+}
+
+@citaPublicId = {{reservarCita.response.body.publicId}}
+
+### ----------------------------------------------------------------------------
+### 5. Ciclo de Vida de la Atención Médica (HU-07)
+### ----------------------------------------------------------------------------
+
+### 5.1 Médico 1 inicia la atención médica para la cita agendada
+### -> DEBE RETORNAR 201 CREATED con estado ABIERTA y cita en CONFIRMADA
+# @name iniciarAtencion
+POST {{baseUrl}}/attentions
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "citaPublicId": "{{citaPublicId}}"
+}
+
+@atencionPublicId = {{iniciarAtencion.response.body.publicId}}
+
+### 5.2 Intento de inicio por Administrador -> DEBE RETORNAR 403 FORBIDDEN (Admin NO atiende)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+###
+POST {{baseUrl}}/attentions
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "citaPublicId": "{{citaPublicId}}"
+}
+
+### 5.3 Login de nuevo con Médico 1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+### 5.4 Cierre de atención médica por Médico 1
+### Incluye diagnóstico principal CIE-10, evolución, indicaciones y signos vitales
+### -> DEBE RETORNAR 200 OK con estado CERRADA y cita en ATENDIDA
+# @name cerrarAtencion
+POST {{baseUrl}}/attentions/{{atencionPublicId}}/close
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "diagnosticoCodigo": "J00",
+  "motivoConsulta": "Congestion nasal y malestar general desde hace 2 dias.",
+  "evolucion": "Paciente afebril al examen fisico, fauces congestivas sin placas, ruidos respiratorios limpios.",
+  "indicaciones": "Abundante hidratacion oral, reposo por 48 horas, lavado nasal con solucion salina. Consultar a urgencias si presenta dificultad respiratoria.",
+  "signosVitales": {
+    "presionSistolica": 118,
+    "presionDiastolica": 76,
+    "frecuenciaCardiaca": 72,
+    "frecuenciaRespiratoria": 16,
+    "temperatura": 36.6,
+    "saturacionOxigeno": 98,
+    "pesoKg": 68.5,
+    "tallaCm": 172.0
+  }
+}
+
+### 5.5 Intento de cerrar una atención ya cerrada -> DEBE RETORNAR 400 BAD REQUEST (Inmutabilidad)
+POST {{baseUrl}}/attentions/{{atencionPublicId}}/close
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "diagnosticoCodigo": "J00",
+  "motivoConsulta": "Intento de sobreescritura",
+  "evolucion": "Intento de sobreescritura",
+  "indicaciones": "Intento de sobreescritura"
+}
+
+### ----------------------------------------------------------------------------
+### 6. Enmiendas Clínicas Inmutables (HU-07, ADR-008)
+### ----------------------------------------------------------------------------
+
+### 6.1 Médico autor (Dr. Mendoza) registra una enmienda médica append-only
+### -> DEBE RETORNAR 201 CREATED con profesionalNombre, motivo y fechaEnmienda
+# @name crearEnmienda
+POST {{baseUrl}}/attentions/{{atencionPublicId}}/amendments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "motivo": "Aclaracion posologia hidratacion",
+  "contenido": "Se aclara al paciente ingerir al menos 2 litros de agua diarios y evitar cambios bruscos de temperatura."
+}
+
+### 6.2 Intento de enmienda por Médico 2 (sin relación asistencial)
+### -> DEBE RETORNAR 403 FORBIDDEN
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "laura.restrepo@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+###
+POST {{baseUrl}}/attentions/{{atencionPublicId}}/amendments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "motivo": "Enmienda no autorizada",
+  "contenido": "Intento de modificacion sin relacion asistencial activa."
+}
+
+### 6.3 Intento de enmienda por Administrador -> DEBE RETORNAR 403 FORBIDDEN
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+###
+POST {{baseUrl}}/attentions/{{atencionPublicId}}/amendments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "motivo": "Intento admin",
+  "contenido": "Admin intentando ingresar enmienda clinica."
+}
+
+### ----------------------------------------------------------------------------
+### 7. Consulta de Atención y Aislamiento de Acceso (ADR-007, HU-09)
+### ----------------------------------------------------------------------------
+
+### 7.1 Médico 1 consulta la atención (Relación asistencial activa por atención cerrada reciente)
+### -> DEBE RETORNAR 200 OK con datos completos, diagnóstico, signos y enmiendas
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+###
+# @name verAtencionMedico
+GET {{baseUrl}}/attentions/{{atencionPublicId}}
+Accept: application/json
+
+### 7.2 Paciente 1 consulta su propia atención médica
+### -> DEBE RETORNAR 200 OK
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+###
+# @name verAtencionPacienteTitular
+GET {{baseUrl}}/attentions/{{atencionPublicId}}
+Accept: application/json
+
+### 7.3 Paciente 2 intenta consultar la atención médica de Paciente 1
+### -> DEBE RETORNAR 403 FORBIDDEN (Aislamiento de Paciente)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+###
+GET {{baseUrl}}/attentions/{{atencionPublicId}}
+Accept: application/json
+
+### 7.4 Administrador intenta consultar la atención médica
+### -> DEBE RETORNAR 403 FORBIDDEN (Admin NO accede a contenido clínico)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+###
+GET {{baseUrl}}/attentions/{{atencionPublicId}}
+Accept: application/json
+
+### 7.5 Médico 2 intenta consultar la atención médica sin relación asistencial activa
+### -> DEBE RETORNAR 403 FORBIDDEN (Sin cita activa ni atención previa <= 12 meses)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "laura.restrepo@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+###
+GET {{baseUrl}}/attentions/{{atencionPublicId}}
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 8. Historia Clínica del Paciente (HU-09)
+### ----------------------------------------------------------------------------
+
+### 8.1 Paciente 1 consulta su propio historial clínico completo
+### -> DEBE RETORNAR 200 OK con lista paginada de atenciones cerradas, diagnósticos, signos y enmiendas
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+###
+# @name miHistoriaClinica
+GET {{baseUrl}}/patients/me/history?page=0&size=10
+Accept: application/json
+
+### 8.2 Administrador intenta consultar /patients/me/history -> DEBE RETORNAR 403 FORBIDDEN
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+###
+GET {{baseUrl}}/patients/me/history
+Accept: application/json
+
+### 8.3 Médico intenta consultar /patients/me/history -> DEBE RETORNAR 403 FORBIDDEN (Solo rol PACIENTE)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+###
+GET {{baseUrl}}/patients/me/history
+Accept: application/json
+
+### 8.4 Solicitud anónima a /patients/me/history -> DEBE RETORNAR 401 UNAUTHORIZED
+GET {{baseUrl}}/patients/me/history
+Accept: application/json

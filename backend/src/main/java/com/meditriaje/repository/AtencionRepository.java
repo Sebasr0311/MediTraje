@@ -398,6 +398,88 @@ public class AtencionRepository {
         return count != null && count > 0;
     }
 
+    /**
+     * Consulta paginada del historial de atenciones médicas de un paciente con sus signos y enmiendas (HU-09).
+     */
+    public List<AtencionResponse> listarHistoriaPaciente(Long pacienteId, int page, int size) {
+        if (pacienteId == null) {
+            return List.of();
+        }
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = safePage * safeSize;
+
+        String sql = """
+            SELECT a.ID AS ATENCION_ID,
+                   a.PUBLIC_ID AS ATENCION_PUBLIC_ID,
+                   c.PUBLIC_ID AS CITA_PUBLIC_ID,
+                   p.PUBLIC_ID AS PACIENTE_PUBLIC_ID,
+                   TRIM(p.NOMBRES || ' ' || p.APELLIDOS) AS PACIENTE_NOMBRE,
+                   pr.PUBLIC_ID AS PROFESIONAL_PUBLIC_ID,
+                   TRIM(pr.NOMBRES || ' ' || pr.APELLIDOS) AS PROFESIONAL_NOMBRE,
+                   e.NOMBRE AS ESPECIALIDAD_NOMBRE,
+                   a.ESTADO,
+                   a.CREATED_AT,
+                   a.FECHA_CIERRE,
+                   d.CODIGO AS DIAGNOSTICO_CODIGO,
+                   d.DESCRIPCION AS DIAGNOSTICO_DESCRIPCION,
+                   a.MOTIVO_CONSULTA,
+                   a.EVOLUCION,
+                   a.INDICACIONES
+            FROM ATENCION a
+            JOIN CITA c ON a.CITA_ID = c.ID
+            JOIN PACIENTE p ON a.PACIENTE_ID = p.ID
+            JOIN PROFESIONAL pr ON a.PROFESIONAL_ID = pr.ID
+            JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
+            JOIN ESPECIALIDAD e ON s.ESPECIALIDAD_ID = e.ID
+            LEFT JOIN DIAGNOSTICO_CIE10 d ON a.DIAGNOSTICO_PRINCIPAL_ID = d.ID
+            WHERE a.PACIENTE_ID = ?
+            ORDER BY a.CREATED_AT DESC, a.ID DESC
+            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+            """;
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Long atencionId = rs.getLong("ATENCION_ID");
+            SignosVitalesDto signos = buscarSignosVitalesPorAtencionId(atencionId).orElse(null);
+            List<EnmiendaResponse> enmiendas = buscarEnmiendasPorAtencionId(atencionId);
+
+            Timestamp tsCreated = rs.getTimestamp("CREATED_AT");
+            Timestamp tsCierre = rs.getTimestamp("FECHA_CIERRE");
+
+            return new AtencionResponse(
+                    rs.getString("ATENCION_PUBLIC_ID"),
+                    rs.getString("CITA_PUBLIC_ID"),
+                    rs.getString("PACIENTE_PUBLIC_ID"),
+                    rs.getString("PACIENTE_NOMBRE"),
+                    rs.getString("PROFESIONAL_PUBLIC_ID"),
+                    rs.getString("PROFESIONAL_NOMBRE"),
+                    rs.getString("ESPECIALIDAD_NOMBRE"),
+                    rs.getString("ESTADO"),
+                    tsCreated != null ? tsCreated.toInstant() : null,
+                    tsCierre != null ? tsCierre.toInstant() : null,
+                    rs.getString("DIAGNOSTICO_CODIGO"),
+                    rs.getString("DIAGNOSTICO_DESCRIPCION"),
+                    rs.getString("MOTIVO_CONSULTA"),
+                    rs.getString("EVOLUCION"),
+                    rs.getString("INDICACIONES"),
+                    signos,
+                    enmiendas
+            );
+        }, pacienteId, offset, safeSize);
+    }
+
+    /**
+     * Cuenta el número total de atenciones médicas registradas para un paciente (HU-09).
+     */
+    public int contarHistoriaPaciente(Long pacienteId) {
+        if (pacienteId == null) {
+            return 0;
+        }
+        String sql = "SELECT COUNT(*) FROM ATENCION WHERE PACIENTE_ID = ?";
+        Integer total = jdbcTemplate.queryForObject(sql, Integer.class, pacienteId);
+        return total != null ? total : 0;
+    }
+
     private static void setNullableInt(PreparedStatement ps, int paramIndex, Integer value) throws SQLException {
         if (value != null) {
             ps.setInt(paramIndex, value);

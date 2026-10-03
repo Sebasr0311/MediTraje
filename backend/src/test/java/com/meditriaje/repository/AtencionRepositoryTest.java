@@ -63,4 +63,23 @@ class AtencionRepositoryTest {
         var lista = atencionRepository.buscarEnmiendasPorAtencionId(null);
         assertThat(lista).isEmpty();
     }
+
+    @Test
+    void listarHistoriaPaciente_pacienteIdNulo_retornaVacio() {
+        var lista = atencionRepository.listarHistoriaPaciente(null, 0, 10);
+        assertThat(lista).isEmpty();
+    }
+
+    @Test
+    void contarHistoriaPaciente_pacienteIdNulo_retornaCero() {
+        int total = atencionRepository.contarHistoriaPaciente(null);
+        assertThat(total).isZero();
+    }
+
+    @Test
+    void contarHistoriaPaciente_retornaTotal() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(5L))).thenReturn(3);
+        int total = atencionRepository.contarHistoriaPaciente(5L);
+        assertThat(total).isEqualTo(3);
+    }
 }

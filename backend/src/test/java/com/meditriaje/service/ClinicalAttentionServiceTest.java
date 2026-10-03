@@ -6,6 +6,7 @@ import com.meditriaje.dto.clinical.CrearEnmiendaRequest;
 import com.meditriaje.dto.clinical.EnmiendaResponse;
 import com.meditriaje.dto.clinical.IniciarAtencionRequest;
 import com.meditriaje.dto.clinical.SignosVitalesDto;
+import com.meditriaje.dto.common.PaginatedResponse;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
 import com.meditriaje.exception.DatosInvalidosException;
 import com.meditriaje.exception.RecursoNoEncontradoException;
@@ -15,6 +16,7 @@ import com.meditriaje.model.Cita;
 import com.meditriaje.model.DiagnosticoCie10;
 import com.meditriaje.model.DisponibilidadSlot;
 import com.meditriaje.model.EventoAuditoria;
+import com.meditriaje.model.Paciente;
 import com.meditriaje.model.Profesional;
 import com.meditriaje.model.SignoVital;
 import com.meditriaje.model.Usuario;
@@ -22,6 +24,7 @@ import com.meditriaje.repository.AtencionRepository;
 import com.meditriaje.repository.CitaRepository;
 import com.meditriaje.repository.DiagnosticoCie10Repository;
 import com.meditriaje.repository.DisponibilidadSlotRepository;
+import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,6 +66,9 @@ class ClinicalAttentionServiceTest {
     private UsuarioRepository usuarioRepository;
 
     @Mock
+    private PacienteRepository pacienteRepository;
+
+    @Mock
     private ProfesionalRepository profesionalRepository;
 
     @Mock
@@ -96,6 +102,7 @@ class ClinicalAttentionServiceTest {
     void setUp() {
         clinicalAttentionService = new ClinicalAttentionService(
                 usuarioRepository,
+                pacienteRepository,
                 profesionalRepository,
                 citaRepository,
                 disponibilidadSlotRepository,
@@ -485,5 +492,84 @@ class ClinicalAttentionServiceTest {
                 .hasMessageContaining("El profesional no cuenta con una relacion asistencial activa");
 
         verify(atencionRepository, never()).crearEnmienda(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("obtenerMiHistoriaClinica - éxito: paciente consulta su propio historial, retorna paginado y audita")
+    void obtenerMiHistoriaClinica_exito() {
+        String usuarioPublicId = "usr-pac-1";
+        Long usuarioId = 20L;
+        Long pacienteId = 300L;
+        String pacientePublicId = "pac-uuid-1";
+
+        Usuario usuarioPaciente = new Usuario(usuarioId, usuarioPublicId, "paciente@test.com", "hash", "ACTIVO", 0, null, AHORA, false);
+        Paciente paciente = new Paciente(pacienteId, usuarioId, pacientePublicId, "CC", "10101010", "Maria", "Lopez", java.time.LocalDate.of(1995, 5, 20), "3001234567");
+
+        AtencionResponse atencion = new AtencionResponse(
+                "atencion-uuid-1",
+                "cita-uuid-1",
+                pacientePublicId,
+                "Maria Lopez",
+                "prof-1",
+                "Carlos Gomez",
+                "Medicina General",
+                "CERRADA",
+                AHORA.minusSeconds(3600),
+                AHORA,
+                "J00",
+                "Rinofaringitis aguda",
+                "Congestion nasal",
+                "Paciente estable",
+                "Reposo e hidratacion",
+                null
+        );
+
+        when(usuarioRepository.buscarPorPublicId(usuarioPublicId)).thenReturn(Optional.of(usuarioPaciente));
+        when(pacienteRepository.buscarPorUsuarioId(usuarioId)).thenReturn(Optional.of(paciente));
+        when(atencionRepository.listarHistoriaPaciente(pacienteId, 0, 10)).thenReturn(List.of(atencion));
+        when(atencionRepository.contarHistoriaPaciente(pacienteId)).thenReturn(1);
+
+        PaginatedResponse<AtencionResponse> respuesta = clinicalAttentionService.obtenerMiHistoriaClinica(usuarioPublicId, 0, 10, "192.168.1.50");
+
+        assertThat(respuesta).isNotNull();
+        assertThat(respuesta.content()).hasSize(1);
+        assertThat(respuesta.content().get(0).publicId()).isEqualTo("atencion-uuid-1");
+        assertThat(respuesta.totalElements()).isEqualTo(1L);
+        assertThat(respuesta.page()).isEqualTo(0);
+        assertThat(respuesta.size()).isEqualTo(10);
+
+        ArgumentCaptor<EventoAuditoria> captorAuditoria = ArgumentCaptor.forClass(EventoAuditoria.class);
+        verify(auditoriaService).auditar(captorAuditoria.capture());
+        EventoAuditoria evento = captorAuditoria.getValue();
+        assertThat(evento.usuarioId()).isEqualTo(usuarioId);
+        assertThat(evento.accion()).isEqualTo(AccionAuditable.CONSULTA_HISTORIA);
+        assertThat(evento.tipoRecurso()).isEqualTo("HISTORIA_CLINICA");
+        assertThat(evento.recursoPublicId()).isEqualTo(pacientePublicId);
+        assertThat(evento.ipOrigen()).isEqualTo("192.168.1.50");
+    }
+
+    @Test
+    @DisplayName("obtenerMiHistoriaClinica - rechaza si usuario no está registrado como paciente (403)")
+    void obtenerMiHistoriaClinica_rechazaSiUsuarioNoEsPaciente() {
+        String usuarioPublicId = "usr-med-1";
+        when(usuarioRepository.buscarPorPublicId(usuarioPublicId)).thenReturn(Optional.of(usuarioMedico));
+        when(pacienteRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> clinicalAttentionService.obtenerMiHistoriaClinica(usuarioPublicId, 0, 10, "127.0.0.1"))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("Usuario no registrado como paciente.");
+
+        verify(atencionRepository, never()).listarHistoriaPaciente(any(), eq(0), eq(10));
+    }
+
+    @Test
+    @DisplayName("obtenerMiHistoriaClinica - rechaza si usuario autenticado no existe en BD (404)")
+    void obtenerMiHistoriaClinica_rechazaSiUsuarioNoExiste() {
+        String usuarioPublicId = "usr-inexistente";
+        when(usuarioRepository.buscarPorPublicId(usuarioPublicId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> clinicalAttentionService.obtenerMiHistoriaClinica(usuarioPublicId, 0, 10, "127.0.0.1"))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining("Usuario autenticado no encontrado.");
     }
 }

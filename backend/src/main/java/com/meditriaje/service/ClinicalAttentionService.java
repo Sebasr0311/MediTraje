@@ -6,6 +6,7 @@ import com.meditriaje.dto.clinical.CrearEnmiendaRequest;
 import com.meditriaje.dto.clinical.EnmiendaResponse;
 import com.meditriaje.dto.clinical.IniciarAtencionRequest;
 import com.meditriaje.dto.clinical.SignosVitalesDto;
+import com.meditriaje.dto.common.PaginatedResponse;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
 import com.meditriaje.exception.DatosInvalidosException;
 import com.meditriaje.exception.RecursoNoEncontradoException;
@@ -17,6 +18,7 @@ import com.meditriaje.model.DiagnosticoCie10;
 import com.meditriaje.model.DisponibilidadSlot;
 import com.meditriaje.model.EstadoCita;
 import com.meditriaje.model.EventoAuditoria;
+import com.meditriaje.model.Paciente;
 import com.meditriaje.model.Profesional;
 import com.meditriaje.model.ResultadoAuditoria;
 import com.meditriaje.model.SignoVital;
@@ -25,6 +27,7 @@ import com.meditriaje.repository.AtencionRepository;
 import com.meditriaje.repository.CitaRepository;
 import com.meditriaje.repository.DiagnosticoCie10Repository;
 import com.meditriaje.repository.DisponibilidadSlotRepository;
+import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import org.springframework.security.core.GrantedAuthority;
@@ -35,6 +38,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -48,6 +52,7 @@ public class ClinicalAttentionService {
     public static final ZoneId ZONE_BOGOTA = ZoneId.of("America/Bogota");
 
     private final UsuarioRepository usuarioRepository;
+    private final PacienteRepository pacienteRepository;
     private final ProfesionalRepository profesionalRepository;
     private final CitaRepository citaRepository;
     private final DisponibilidadSlotRepository disponibilidadSlotRepository;
@@ -59,6 +64,7 @@ public class ClinicalAttentionService {
 
     public ClinicalAttentionService(
             UsuarioRepository usuarioRepository,
+            PacienteRepository pacienteRepository,
             ProfesionalRepository profesionalRepository,
             CitaRepository citaRepository,
             DisponibilidadSlotRepository disponibilidadSlotRepository,
@@ -69,6 +75,7 @@ public class ClinicalAttentionService {
     ) {
         this(
                 usuarioRepository,
+                pacienteRepository,
                 profesionalRepository,
                 citaRepository,
                 disponibilidadSlotRepository,
@@ -82,6 +89,7 @@ public class ClinicalAttentionService {
 
     public ClinicalAttentionService(
             UsuarioRepository usuarioRepository,
+            PacienteRepository pacienteRepository,
             ProfesionalRepository profesionalRepository,
             CitaRepository citaRepository,
             DisponibilidadSlotRepository disponibilidadSlotRepository,
@@ -92,6 +100,7 @@ public class ClinicalAttentionService {
             Clock clock
     ) {
         this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "usuarioRepository no puede ser nulo");
+        this.pacienteRepository = Objects.requireNonNull(pacienteRepository, "pacienteRepository no puede ser nulo");
         this.profesionalRepository = Objects.requireNonNull(profesionalRepository, "profesionalRepository no puede ser nulo");
         this.citaRepository = Objects.requireNonNull(citaRepository, "citaRepository no puede ser nulo");
         this.disponibilidadSlotRepository = Objects.requireNonNull(disponibilidadSlotRepository, "disponibilidadSlotRepository no puede ser nulo");
@@ -354,5 +363,43 @@ public class ClinicalAttentionService {
                 request.contenido(),
                 ahora
         );
+    }
+
+    /**
+     * Consulta paginada del historial clínico del paciente actualmente autenticado (HU-09).
+     * Incluye atenciones, diagnósticos, signos vitales y enmiendas sin exponer IDs numéricos.
+     */
+    public PaginatedResponse<AtencionResponse> obtenerMiHistoriaClinica(
+            String usuarioAutenticadoPublicId,
+            int page,
+            int size,
+            String ipOrigen
+    ) {
+        if (usuarioAutenticadoPublicId == null || usuarioAutenticadoPublicId.isBlank()) {
+            throw new AccesoNoAutorizadoException("Usuario no autenticado.");
+        }
+
+        Usuario usuario = usuarioRepository.buscarPorPublicId(usuarioAutenticadoPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario autenticado no encontrado."));
+        Paciente paciente = pacienteRepository.buscarPorUsuarioId(usuario.id())
+                .orElseThrow(() -> new AccesoNoAutorizadoException("Usuario no registrado como paciente."));
+
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+
+        List<AtencionResponse> contenido = atencionRepository.listarHistoriaPaciente(paciente.id(), safePage, safeSize);
+        long total = atencionRepository.contarHistoriaPaciente(paciente.id());
+
+        // Auditar consulta de historia clínica del paciente (ADR-011)
+        auditoriaService.auditar(new EventoAuditoria(
+                usuario.id(),
+                AccionAuditable.CONSULTA_HISTORIA,
+                "HISTORIA_CLINICA",
+                paciente.publicId(),
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        ));
+
+        return PaginatedResponse.of(contenido, safePage, safeSize, total);
     }
 }

@@ -8,6 +8,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Consulta de Historia Clínica del Paciente y Colección M6.http (M6.5, HU-09, ADR-007, ADR-008, ADR-011)**:
+  - Repositorio `AtencionRepository`: métodos `listarHistoriaPaciente` (con JOINs relacionales a CITA, PACIENTE, PROFESIONAL, DISPONIBILIDAD_SLOT, ESPECIALIDAD, DIAGNOSTICO_CIE10, signos vitales y enmiendas, ordenación cronológica descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y `contarHistoriaPaciente`.
+  - Servicio `ClinicalAttentionService.obtenerMiHistoriaClinica`:
+    - Resolución de paciente autenticado a partir de su identidad (`UsuarioRepository` y `PacienteRepository`).
+    - Paginación segura con saneamiento de parámetros.
+    - Auditoría inmutable obligatoria `CONSULTA_HISTORIA` (`recurso = "HISTORIA_CLINICA"`, `recursoPublicId = paciente.publicId()`) sin exponer datos clínicos ni diagnósticos en logs ni bitácora (ADR-011).
+    - Cero exposición de identificadores numéricos autonuméricos de base de datos (ADR-003).
+  - Controlador REST `PacienteController`: endpoint `GET /api/v1/patients/me/history` blindado exclusivamente para pacientes (`@PreAuthorize("hasAuthority('ROLE_PACIENTE')")`). Administradores y profesionales reciben 403 Forbidden.
+  - Colección de pruebas HTTP `docs/api/M6.http`: 8 secciones exhaustivas con 18 escenarios para la puerta de salida de la Fase M6 (healthcheck, login de roles, catálogo CIE-10, agendamiento previo, ciclo de atención médica, enmiendas append-only, aislamiento de acceso clínico y consulta de historia clínica del paciente).
+  - Pruebas automatizadas (10 pruebas nuevas, suite consolidada en 439 pruebas al 100%):
+    - `AtencionRepositoryTest` (3 pruebas): consulta y conteo con filtros nulos y registros.
+    - `ClinicalAttentionServiceTest` (3 pruebas): consulta exitosa con paginación y auditoría, rechazo si usuario no es paciente (403), y rechazo si usuario no existe (404).
+    - `PacienteControllerTest` (4 pruebas MockMvc): 200 OK para paciente con historial paginado, 403 Forbidden para profesional, 403 Forbidden para administrador, y 401 Unauthorized sin autenticación.
 - **Enmiendas Médicas a Atenciones Cerradas (M6.4, HU-07, ADR-007, ADR-008, ADR-011)**:
   - Modelo de dominio inmutable en `com.meditriaje.model`: `AtencionEnmienda` (id, atencionId, profesionalId, motivo, contenido, fechaEnmienda).
   - DTOs en `com.meditriaje.dto.clinical`: `CrearEnmiendaRequest` con validaciones `@NotBlank` y `@Size`, y `EnmiendaResponse` (profesionalPublicId, profesionalNombre, motivo, contenido, fechaEnmienda) protegiendo IDs numéricos internos.
