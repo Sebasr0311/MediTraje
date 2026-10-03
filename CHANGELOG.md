@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-03
+
 ### Added
 - **Migración V004 (`database/migrations/V004__oferta_administracion.sql`) (M3.1)**:
   - Tablas: `INSTITUCION`, `SEDE`, `ESPECIALIDAD`, `PROFESIONAL`, `DISPONIBILIDAD_SLOT`.
