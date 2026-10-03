@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-03
+
 ### Added
 - **Endpoints de Triaje Clínico, Vinculación con Citas y Colección M5.http (M5.4, HU-02, HU-04, HU-11, ADR-002, ADR-003, ADR-007, ADR-009, ADR-011)**:
   - Modelos de dominio inmutables en `com.meditriaje.model`: `Triaje`, `TriajeSintoma` y `Sintoma`.
