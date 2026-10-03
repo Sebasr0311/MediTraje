@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Verifica que las excepciones de dominio retornan ApiError JSON estructurado
  * sin stack traces en el body de respuesta.
  */
-@WebMvcTest
+@WebMvcTest(controllers = GlobalExceptionHandlerTest.StubController.class)
 @Import({GlobalExceptionHandler.class, CorsConfig.class, GlobalExceptionHandlerTest.StubController.class})
 class GlobalExceptionHandlerTest {
 

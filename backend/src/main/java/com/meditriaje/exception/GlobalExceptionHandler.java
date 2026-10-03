@@ -29,6 +29,14 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        log.warn("Ruta o recurso no encontrado: {}", ex.getResourcePath());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiError.of("RECURSO_NO_ENCONTRADO", "El recurso solicitado no fue encontrado.", null));
+    }
+
     @ExceptionHandler(DatosInvalidosException.class)
     public ResponseEntity<ApiError> handleDatosInvalidos(DatosInvalidosException ex) {
         log.warn("Datos invalidos: codigo={}", ex.getCodigo());

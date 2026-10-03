@@ -109,13 +109,13 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV2() {
+    void flyway_schema_history_tieneAlMenosV3() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(2);
+        assertThat(count).isGreaterThanOrEqualTo(3);
     }
 
     @Test
@@ -138,6 +138,17 @@ class OracleIntegrationTest {
                 Integer.class
         );
         assertThat(count).isEqualTo(3);
+    }
+
+    @Test
+    void app_puedeConsultarPacientes() {
+        // MEDITRIAJE_APP puede consultar la tabla PACIENTE (V003)
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        Integer count = appTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".PACIENTE",
+                Integer.class
+        );
+        assertThat(count).isNotNull();
     }
 
     @Test

@@ -20,6 +20,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - `AccionAuditable` y `ResultadoAuditoria`: enums tipados alineados con restricciones relacionales.
   - `EventoAuditoria`: record de dominio con validaciones de campos obligatorios.
   - Pruebas unitarias para `AuditoriaService` y `AuditoriaRepository` (verificación de exclusión de datos clínicos y ausencia de métodos de modificación).
+- **Registro de Paciente y Migración V003 (M2.3)**:
+  - Migración `database/migrations/V003__paciente.sql`: tabla `PACIENTE` con constraints de documento, clave pública UUID y permisos mínimos para `MEDITRIAJE_APP`.
+  - Endpoint `POST /api/v1/auth/register` con DTOs `RegistroPacienteRequest` y `RegistroPacienteResponse`.
+  - Transacción atómica en `AuthService` creando `USUARIO`, asociando `ROLE_PACIENTE`, creando `PACIENTE` y registrando `CONSENTIMIENTO`.
+  - Hashing de contraseñas con Argon2id (OWASP v5.8) vía `bcprov-jdk18on` (ADR-002).
+  - Auditoría automática `REGISTRO_PACIENTE` tanto para eventos exitosos como fallidos.
+  - Manejo de `NoResourceFoundException` en `GlobalExceptionHandler` retornando 404 estandarizado.
+  - Pruebas unitarias y de integración para `AuthService`, `AuthController` y `OracleIntegrationTest`.
 
 ## [0.1.0] - 2026-10-01
 

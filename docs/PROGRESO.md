@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** M2 — Seguridad base
-- **Tarea actual:** M2.3 (Registro de paciente)
+- **Tarea actual:** M2.4 (Login, refresh y logout)
 - **Última etiqueta:** v0.1 (M1 completa)
 - **Rama de trabajo:** feature/m2-seguridad
 
@@ -30,7 +30,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ### M2 — Seguridad base
 - [x] M2.1 Migración de seguridad
 - [x] M2.2 Servicio de auditoría
-- [ ] M2.3 Registro de paciente
+- [x] M2.3 Registro de paciente
 - [ ] M2.4 Login, refresh y logout
 - [ ] M2.5 Spring Security y roles
 - [ ] M2.6 Revisión de seguridad
@@ -104,3 +104,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-01 · M1.5 · OracleIntegrationTest con Testcontainers (gvenzl/oracle-free:23-slim-faststart): crea MEDITRIAJE_OWNER y MEDITRIAJE_APP, aplica Flyway, valida historial y segregación de privilegios DDL. @Testcontainers(disabledWithoutDocker=true) + Assumptions.assumeTrue() para SKIPPED graceful en local sin Docker. Failsafe plugin separado de Surefire vía @Tag("integration"). GitHub Actions workflow .github/workflows/ci.yml con Java 21 Temurin. Sección de pruebas en README.md · mvn clean verify exitoso - Tests run: 5 unit (2 pass) + 3 integration (3 skipped en local, pasan en CI) · feat(ci): testcontainers oracle y workflow github actions m1.5
 - 2026-10-03 · M2.1 · Migración Flyway V002__seguridad.sql con tablas USUARIO, ROL, USUARIO_ROL, REFRESH_TOKEN, CONSENTIMIENTO, AUDITORIA; triggers TR_CONSENTIMIENTO_INMUTABILIDAD y TR_AUDITORIA_INMUTABILIDAD; semillas de roles (ROLE_PACIENTE, ROLE_PROFESIONAL, ROLE_ADMINISTRADOR) y privilegios mínimos a MEDITRIAJE_APP (ADR-012, sin DELETE clínico ni UPDATE/DELETE en auditoría). Tests de integración ampliados · mvn clean verify exitoso · feat(database): migracion flyway v002 seguridad roles consentimiento y auditoria m2.1
 - 2026-10-03 · M2.2 · Implementación de AuditoriaService, AuditoriaRepository (insert-only con JdbcTemplate y SQL parametrizado), enums AccionAuditable y ResultadoAuditoria, y record inmutable EventoAuditoria (sin datos clínicos ni secretos, ADR-011). Pruebas unitarias de servicio y repositorio con 100% de éxito · mvn clean verify exitoso (8 unit tests verdes) · feat(audit): servicio de auditoria insert-only y repositorio m2.2
+- 2026-10-03 · M2.3 · Migración Flyway V003__paciente.sql (tabla PACIENTE con constraints y grants); AuthService y AuthController implementando POST /api/v1/auth/register con transacción atómica (USUARIO + PACIENTE + CONSENTIMIENTO + ROLE_PACIENTE), hashing Argon2id (OWASP v5.8), validación estricta de documentos, correo y contraseña (≥10), auditoría REGISTRO_PACIENTE (éxito/fallo) y DTOs sin datos sensibles (ADR-003). Tests unitarios y web MVC al 100% · mvn clean verify exitoso (15 unit tests verdes) · feat(auth): registro de paciente atomico con argon2id y migracion v003 m2.3
