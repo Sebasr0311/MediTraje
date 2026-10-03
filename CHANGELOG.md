@@ -7,6 +7,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Added
+- **Migración Flyway V009 para Recetas Médicas, Medicamentos y Snapshot Inmutable (M7.1, HU-08, ADR-008, ADR-012)**:
+  - Migración `database/migrations/V009__recetas_medicamentos.sql`:
+    - `MEDICAMENTO`: Catálogo maestro de fármacos con código, nombre comercial, principio activo, presentación, concentración y estado.
+    - `RECETA`: Cabecera de prescripción médica vinculada a ATENCION, PACIENTE y PROFESIONAL, con vigencia configurable (default 30 días) y trigger de inmutabilidad `TR_RECETA_INMUTABILIDAD` (bloquea UPDATE con ORA-20007 y DELETE con ORA-20006).
+    - `RECETA_DETALLE`: Detalle farmacológico con copias snapshot de inmutabilidad histórica (`SNAPSHOT_NOMBRE`, `SNAPSHOT_PRINCIPIO_ACTIVO`, `SNAPSHOT_PRESENTACION`, `SNAPSHOT_CONCENTRACION`), dosis, frecuencia, duración en días, cantidad e indicaciones. Trigger de inmutabilidad `TR_RECETA_DETALLE_INMUTABILIDAD` (bloquea UPDATE con ORA-20009 y DELETE con ORA-20008).
+    - Concesión de privilegios mínimos a `MEDITRIAJE_APP`: solo SELECT en `MEDICAMENTO`, y SELECT, INSERT en `RECETA` y `RECETA_DETALLE` (sin DELETE, sin UPDATE).
+    - Semillas de medicamentos: 16 fármacos genéricos comunes (Acetaminofén, Ibuprofeno, Amoxicilina, Loratadina, Salbutamol, Omeprazol, Losartán, Enalapril, Metformina, Atorvastatina, Cetirizina, Dipirona, Dextrometorfano, SRO, Ciprofloxacino, Naproxeno) con UUIDs fijos y deterministas, sin dosificaciones preestablecidas.
+  - Pruebas en `OracleIntegrationTest` actualizadas (>= V9, permisos SELECT en catálogo, SELECT/INSERT en recetas, y validación empírica de triggers de inmutabilidad en BD).
+
 ## [0.6.0] - 2026-10-03
 
 ### Added

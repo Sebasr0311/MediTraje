@@ -5,9 +5,9 @@
 
 ## Estado actual
 - **Fase actual:** M7 — Recetas
-- **Tarea actual:** M7.1 — Migración
+- **Tarea actual:** M7.2 — Crear receta
 - **Última etiqueta:** v0.6 (M6 completa)
-- **Rama de trabajo:** develop
+- **Rama de trabajo:** feature/m7-recetas
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -64,7 +64,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M6.5 Historia del paciente
 
 ### M7 — Recetas
-- [ ] M7.1 Migración
+- [x] M7.1 Migración
 - [ ] M7.2 Crear receta
 - [ ] M7.3 Consulta del paciente
 
@@ -135,6 +135,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · M6.4 · Enmiendas médicas a atenciones cerradas (HU-07, ADR-007, ADR-008, ADR-011): modelo inmutable AtencionEnmienda; DTOs CrearEnmiendaRequest y EnmiendaResponse (sin IDs internos); actualización de AtencionResponse con lista de enmiendas y sobrecarga compatible; AtencionRepository con crearEnmienda (KeyHolder) y buscarEnmiendasPorAtencionId integrado en buscarDetallePorPublicId; método validarRelacionAsistencial en AccesoClinicoService; ClinicalAttentionService.crearEnmienda con validación estricta de inmutabilidad (atención CERRADA), autorización de relación asistencial activa o autor, y auditoría inmutable ENMIENDA_ATENCION sin datos clínicos; endpoint POST /api/v1/attentions/{publicId}/amendments para ROLE_PROFESIONAL (201 Created + Location); suite de 11 pruebas nuevas (AtencionRepositoryTest, ClinicalAttentionServiceTest y ClinicalAttentionControllerTest) elevando la suite a 429 pruebas verdes al 100% · feat(clinical): enmiendas a atenciones cerradas (M6.4, HU-07)
 - 2026-10-03 · M6.5 · Consulta de historia clínica del paciente y colección M6.http (HU-09, ADR-007, ADR-008, ADR-011): métodos listarHistoriaPaciente y contarHistoriaPaciente en AtencionRepository con JOINs asistenciales completos, signos vitales y enmiendas integradas, orden cronológico descendente y paginación ANSI SQL/Oracle OFFSET/FETCH NEXT; método ClinicalAttentionService.obtenerMiHistoriaClinica resolviendo la identidad del paciente autenticado vía UsuarioRepository y PacienteRepository, saneando parámetros de paginación y auditando CONSULTA_HISTORIA sin datos clínicos; endpoint GET /api/v1/patients/me/history en PacienteController blindado exclusivamente con @PreAuthorize("hasAuthority('ROLE_PACIENTE')") (403 Forbidden para profesionales y administradores, 401 sin sesión); colección HTTP exhaustiva docs/api/M6.http con 8 secciones y 18 escenarios para la puerta de salida M6; suite de 10 pruebas nuevas (AtencionRepositoryTest, ClinicalAttentionServiceTest y PacienteControllerTest MockMvc) consolidando la suite en 439 pruebas verdes al 100%. · feat(clinical): consulta de historia clinica del paciente y coleccion m6.http (M6.5, HU-09)
 - 2026-10-03 · Cierre M6 · Aprobación y cumplimiento pleno de la Puerta de Salida M6: HU-07 y HU-09 cumplidas, atención médica inmutable con triggers ORA-20001..20005, relación asistencial activa (ADR-007), enmiendas append-only, historia clínica del paciente, colección docs/api/M6.http completada, 439 pruebas unitarias e integradas verdes al 100%. Preparación de merge a develop y etiqueta v0.6 · merge: fase m6 atencion e historia clinica completada (v0.6)
+- 2026-10-03 · M7.1 · Migración Flyway V009__recetas_medicamentos.sql con tablas MEDICAMENTO (catálogo maestro de fármacos), RECETA (cabecera vinculada a atención, paciente y médico con vigencia configurable) y RECETA_DETALLE (ítem prescrito con snapshot cuádruple de inmutabilidad: nombre, principio activo, presentación y concentración); triggers de inmutabilidad en BD TR_RECETA_INMUTABILIDAD (bloquea UPDATE con ORA-20007 y DELETE con ORA-20006) y TR_RECETA_DETALLE_INMUTABILIDAD (bloquea UPDATE con ORA-20009 y DELETE con ORA-20008); concesión de privilegios mínimos a MEDITRIAJE_APP (solo SELECT en medicamentos, y SELECT, INSERT en recetas y detalles, sin UPDATE ni DELETE); siembra de 16 medicamentos genéricos comunes sin dosificaciones preestablecidas; actualización de OracleIntegrationTest con pruebas de esquema >= V9, permisos y demostración de triggers de inmutabilidad. 439 pruebas unitarias pasando al 100% · feat(database): migracion flyway v009 recetas medicamentos y snapshot inmutable (M7.1)
+
 
 
 
