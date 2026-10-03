@@ -8,6 +8,33 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Creación de Receta Médica y Catálogo de Medicamentos (M7.2, HU-08, ADR-003, ADR-007, ADR-008, ADR-011)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`:
+    - `Medicamento`: record con id, publicId, codigo, nombreComercial, principioActivo, presentacion, concentracion y estado.
+    - `Receta`: record con id, publicId, atencionId, pacienteId, profesionalId, vigenciaDias y createdAt.
+    - `RecetaDetalle`: record con id, recetaId, medicamentoId, snapshotNombre, snapshotPrincipioActivo, snapshotPresentacion, snapshotConcentracion, dosis, frecuencia, duracionDias, cantidad e indicaciones.
+  - DTOs en `com.meditriaje.dto.prescription`:
+    - `MedicamentoResponse`: representación limpia de fármacos sin IDs numéricos internos.
+    - `CrearRecetaDetalleRequest`: validación Bean Validation con `@NotBlank`, `@Size(max = 100)`, `@Min(1)` para duración y cantidad, y `@Size(max = 300)` para indicaciones.
+    - `CrearRecetaRequest`: `@NotBlank` para atención, vigencia entre 1 y 365 días (default 30) y `@NotEmpty` con `@Size(max = 20)` en detalles validados.
+    - `RecetaDetalleResponse`: detalle con lectura de snapshots históricos de inmutabilidad.
+    - `RecetaResponse`: cabecera relacional completa con nombres de paciente, profesional y especialidad, sin exposición de secuencias de BD (ADR-003).
+  - Repositorios en `com.meditriaje.repository`:
+    - `MedicamentoRepository`: búsqueda por publicId, por ID, conteo y listado de fármacos activos con búsqueda ILIKE / UPPER y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`.
+    - `RecetaRepository`: persistencia de receta con `GeneratedKeyHolder`, inserción por lotes con `batchUpdate` congelando snapshots, consulta por publicId con JOINs a ATENCION, PACIENTE, PROFESIONAL, CITA, DISPONIBILIDAD_SLOT y ESPECIALIDAD, búsqueda inmutable de detalles y verificación de existencia por atención.
+  - Servicio `PrescriptionService`:
+    - `emitirReceta`: emisión atómica transaccional validando profesional asistencial, atención médica y relación asistencial activa según ADR-007 (autor o `AccesoClinicoService`). Congela snapshots de medicamentos activos y registra auditoría inmutable obligatoria `CREACION_RECETA` sin datos clínicos en logs ni bitácora (ADR-011).
+    - `obtenerPorPublicId`: control de acceso estricto por rol: rechazo categórico a administradores (403), consulta permitida a pacientes únicamente para sus propias recetas (403 ante pacientes ajenos), y validación de médico autor o relación asistencial activa para profesionales (403 sin relación).
+    - `listarCatalogo`: paginación y filtrado seguro de medicamentos activos.
+  - Controladores REST en `com.meditriaje.controller`:
+    - `PrescriptionController`: `POST /api/v1/prescriptions` (201 Created con cabecera Location para `ROLE_PROFESIONAL`) y `GET /api/v1/prescriptions/{publicId}` (`isAuthenticated()`).
+    - `MedicationCatalogController`: `GET /api/v1/catalogs/medications` (`isAuthenticated()`) con parámetros `q`, `page` y `size`.
+  - Pruebas automatizadas (39 pruebas nuevas, suite consolidada en 478 pruebas al 100%):
+    - `MedicamentoRepositoryTest` (8 pruebas): búsquedas por publicId, por ID, nulos, listado con filtro y conteo.
+    - `RecetaRepositoryTest` (10 pruebas): inserción con KeyHolder, batchUpdate de detalles, JOINs relacionales y snapshots inmutables.
+    - `PrescriptionServiceTest` (10 pruebas): emisión exitosa y auditoría, rechazo por medicamento inexistente o inactivo (400), rechazo si usuario no es médico (403), rechazo sin relación asistencial (403), consulta autor y con relación (200), consulta paciente propio (200), rechazo admin (403), rechazo paciente ajeno (403), y catálogo paginado.
+    - `PrescriptionControllerTest` (7 pruebas MockMvc): 201 Created con Location, 403 Forbidden para paciente y admin, 401 sin auth, 400 Bad Request por validación DTO, 200 OK y 403 Forbidden.
+    - `MedicationCatalogControllerTest` (4 pruebas MockMvc): 200 OK para paciente, profesional y admin, y 401 Unauthorized sin autenticación.
 - **Migración Flyway V009 para Recetas Médicas, Medicamentos y Snapshot Inmutable (M7.1, HU-08, ADR-008, ADR-012)**:
   - Migración `database/migrations/V009__recetas_medicamentos.sql`:
     - `MEDICAMENTO`: Catálogo maestro de fármacos con código, nombre comercial, principio activo, presentación, concentración y estado.
