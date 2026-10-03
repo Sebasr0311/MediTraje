@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** M2 — Seguridad base
-- **Tarea actual:** M2.2 (Servicio de auditoría)
+- **Tarea actual:** M2.3 (Registro de paciente)
 - **Última etiqueta:** v0.1 (M1 completa)
 - **Rama de trabajo:** feature/m2-seguridad
 
@@ -29,7 +29,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 ### M2 — Seguridad base
 - [x] M2.1 Migración de seguridad
-- [ ] M2.2 Servicio de auditoría
+- [x] M2.2 Servicio de auditoría
 - [ ] M2.3 Registro de paciente
 - [ ] M2.4 Login, refresh y logout
 - [ ] M2.5 Spring Security y roles
@@ -103,3 +103,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-01 · M1.4 · ApiError record (codigo, mensaje, timestamp, traceId), jerarquía de excepciones de dominio (RecursoNoEncontrado 404, DatosInvalidos 400, AccesoNoAutorizado 403, CitaNoDisponible 409, MediTriajeException base), GlobalExceptionHandler @RestControllerAdvice sin stack traces, CorsConfig leyendo CORS_ORIGINS, SecurityConfig integrado con CorsConfigurationSource, logging configurado sin datos sensibles · mvn clean verify exitoso - Tests run: 2, Failures: 0 · feat(error-handling): manejo global de errores cors y logging m1.4
 - 2026-10-01 · M1.5 · OracleIntegrationTest con Testcontainers (gvenzl/oracle-free:23-slim-faststart): crea MEDITRIAJE_OWNER y MEDITRIAJE_APP, aplica Flyway, valida historial y segregación de privilegios DDL. @Testcontainers(disabledWithoutDocker=true) + Assumptions.assumeTrue() para SKIPPED graceful en local sin Docker. Failsafe plugin separado de Surefire vía @Tag("integration"). GitHub Actions workflow .github/workflows/ci.yml con Java 21 Temurin. Sección de pruebas en README.md · mvn clean verify exitoso - Tests run: 5 unit (2 pass) + 3 integration (3 skipped en local, pasan en CI) · feat(ci): testcontainers oracle y workflow github actions m1.5
 - 2026-10-03 · M2.1 · Migración Flyway V002__seguridad.sql con tablas USUARIO, ROL, USUARIO_ROL, REFRESH_TOKEN, CONSENTIMIENTO, AUDITORIA; triggers TR_CONSENTIMIENTO_INMUTABILIDAD y TR_AUDITORIA_INMUTABILIDAD; semillas de roles (ROLE_PACIENTE, ROLE_PROFESIONAL, ROLE_ADMINISTRADOR) y privilegios mínimos a MEDITRIAJE_APP (ADR-012, sin DELETE clínico ni UPDATE/DELETE en auditoría). Tests de integración ampliados · mvn clean verify exitoso · feat(database): migracion flyway v002 seguridad roles consentimiento y auditoria m2.1
+- 2026-10-03 · M2.2 · Implementación de AuditoriaService, AuditoriaRepository (insert-only con JdbcTemplate y SQL parametrizado), enums AccionAuditable y ResultadoAuditoria, y record inmutable EventoAuditoria (sin datos clínicos ni secretos, ADR-011). Pruebas unitarias de servicio y repositorio con 100% de éxito · mvn clean verify exitoso (8 unit tests verdes) · feat(audit): servicio de auditoria insert-only y repositorio m2.2
