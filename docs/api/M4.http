@@ -1,0 +1,357 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase M4: Disponibilidad y Citas)
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+### Cumplimiento estricto: HU-03, HU-04, HU-05, HU-06, ADR-002, ADR-003, ADR-005, ADR-006, ADR-007, ADR-011
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With
+@csrfValue = XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Autenticación y Credenciales de Prueba
+### ----------------------------------------------------------------------------
+
+### 2.1 Login como Administrador (ROLE_ADMINISTRADOR)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### 2.2 Registro de Paciente 1 (Carlos Pérez)
+# @name registrarPaciente1
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765432",
+  "nombres": "Carlos",
+  "apellidos": "Perez Gomez",
+  "fechaNacimiento": "1992-08-15",
+  "telefono": "3109876543",
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.3 Login Paciente 1 (Carlos Pérez)
+# @name loginPaciente1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.4 Registro de Paciente 2 (Ana Gómez)
+# @name registrarPaciente2
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765499",
+  "nombres": "Ana",
+  "apellidos": "Gomez Diaz",
+  "fechaNacimiento": "1995-05-20",
+  "telefono": "3119876500",
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.5 Login Paciente 2 (Ana Gómez)
+# @name loginPaciente2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.6 Login Médico / Profesional Asistencial (Dr. Carlos Mendoza - Medicina General)
+# Nota: Si se cargaron las semillas dev sin cambio de clave previo, la contraseña es Temporal12345*
+# @name loginMedico
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+### Si requiere el password inicial de semilla dev:
+# POST {{baseUrl}}/auth/login
+# Content-Type: application/json
+# Accept: application/json
+# {{csrfHeader}}: {{csrfValue}}
+# 
+# {
+#   "email": "carlos.mendoza@meditriaje.com",
+#   "password": "Temporal12345*"
+# }
+
+### ----------------------------------------------------------------------------
+### 3. Consulta de Disponibilidad de Citas (HU-03, ADR-005, ADR-006)
+### Requiere autenticación (cualquier usuario autenticado)
+### ----------------------------------------------------------------------------
+
+### 3.1 Consulta general de disponibilidad futura (sin filtros, paginado default 0..10)
+# @name disponibilidadGeneral
+GET {{baseUrl}}/availability
+Accept: application/json
+
+### 3.2 Consulta filtrada por especialidad médica
+# @name disponibilidadPorEspecialidad
+GET {{baseUrl}}/availability?especialidad=esp-medicina-general-001
+Accept: application/json
+
+### 3.3 Consulta filtrada por fecha específica (America/Bogota)
+# @name disponibilidadPorFecha
+GET {{baseUrl}}/availability?fecha=2026-10-15
+Accept: application/json
+
+### 3.4 Consulta filtrada por sede asistencial
+# @name disponibilidadPorSede
+GET {{baseUrl}}/availability?sede=sede-centro-valledupar-001
+Accept: application/json
+
+### 3.5 Consulta filtrada por modalidad de atención
+# @name disponibilidadPorModalidad
+GET {{baseUrl}}/availability?modalidad=PRESENCIAL
+Accept: application/json
+
+### 3.6 Consulta combinada: especialidad + sede + modalidad + fecha + paginación
+# @name disponibilidadCombinada
+GET {{baseUrl}}/availability?especialidad=esp-medicina-general-001&sede=sede-centro-valledupar-001&modalidad=PRESENCIAL&fecha=2026-10-15&page=0&size=5
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 4. Reserva y Agendamiento Transaccional de Citas (HU-04, ADR-006)
+### ----------------------------------------------------------------------------
+
+### 4.1 Autenticarse como Paciente 1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 4.2 Paciente 1 reserva un slot disponible -> DEBE RETORNAR 201 CREATED con Location header
+# Sustituir 'slotPublicId' por el UUID público de un slot en estado LIBRE obtenido en el paso 3.
+# @name reservarCitaExitosa
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "slotPublicId": "slot-00000000-0000-0000-0000-000000000001"
+}
+
+### 4.3 Intento de doble reserva sobre el MISMO slot (Concurrencia / Conflicto) -> DEBE RETORNAR 409 CONFLICT
+# Intento inmediato de reservar el mismo slot (ya ocupado) -> CitaNoDisponibleException
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "slotPublicId": "slot-00000000-0000-0000-0000-000000000001"
+}
+
+### 4.4 Aislamiento de Reserva: Profesional intenta agendar cita -> DEBE RETORNAR 403 FORBIDDEN
+# Autenticamos como profesional
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+# Profesional intenta reservar cita asistencial -> 403 FORBIDDEN
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "slotPublicId": "slot-00000000-0000-0000-0000-000000000002"
+}
+
+### ----------------------------------------------------------------------------
+### 5. Agenda del Profesional Asistencial (HU-06, ADR-007)
+### ----------------------------------------------------------------------------
+
+### 5.1 Login como Médico (Dr. Carlos Mendoza)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+### 5.2 Consulta de agenda completa del médico autenticado -> 200 OK con citas asociadas a sus slots
+# @name agendaMedico
+GET {{baseUrl}}/professionals/me/agenda?page=0&size=10
+Accept: application/json
+
+### 5.3 Consulta de agenda filtrada por fecha específica (America/Bogota)
+GET {{baseUrl}}/professionals/me/agenda?fecha=2026-10-15
+Accept: application/json
+
+### 5.4 Consulta de agenda filtrada por estado de cita
+GET {{baseUrl}}/professionals/me/agenda?estado=PROGRAMADA
+Accept: application/json
+
+### 5.5 Aislamiento de Agenda: Paciente intenta consultar agenda asistencial -> DEBE RETORNAR 403 FORBIDDEN
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+GET {{baseUrl}}/professionals/me/agenda
+Accept: application/json
+
+### 5.6 Aislamiento de Agenda: Administrador intenta consultar agenda asistencial -> DEBE RETORNAR 403 FORBIDDEN
+# El administrador gestiona infraestructura pero NO tiene acceso a agendas médicas ni datos clínicos (ADR-007)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+GET {{baseUrl}}/professionals/me/agenda
+Accept: application/json
+
+### 5.7 Consulta sin autenticación -> DEBE RETORNAR 401 UNAUTHORIZED
+POST {{baseUrl}}/auth/logout
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+GET {{baseUrl}}/professionals/me/agenda
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 6. Cancelación de Cita y Máquina de Estados (HU-05, ADR-006)
+### ----------------------------------------------------------------------------
+
+### 6.1 Autenticarse como Paciente 1 (dueño de la cita agendada en 4.2)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 6.2 Aislamiento de Cancelación: Paciente 2 intenta cancelar la cita de Paciente 1 -> DEBE RETORNAR 403 FORBIDDEN
+# Iniciar sesión como Paciente 2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+# Paciente 2 intenta cancelar la cita que pertenece a Paciente 1 (sustituir por el UUID retornado en 4.2)
+PATCH {{baseUrl}}/appointments/cita-00000000-0000-0000-0000-000000000001/cancel
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "motivo": "Intento no autorizado de cancelacion ajena"
+}
+
+### 6.3 Paciente 1 cancela exitosamente su propia cita (> 2 horas antes) -> DEBE RETORNAR 200 OK
+# Volver a iniciar sesión con Paciente 1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+# Cancelar la cita propia (el slot queda liberado y la cita pasa a CANCELADA)
+PATCH {{baseUrl}}/appointments/cita-00000000-0000-0000-0000-000000000001/cancel
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "motivo": "Cruce de horario laboral con cita medica"
+}
+
+### 6.4 Transición inválida en Máquina de Estados: Intentar cancelar una cita ya CANCELADA -> DEBE RETORNAR 400 BAD REQUEST
+PATCH {{baseUrl}}/appointments/cita-00000000-0000-0000-0000-000000000001/cancel
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "motivo": "Reintento sobre cita ya cancelada"
+}
+
+### 6.5 Regla de 2 Horas: Intento de cancelación tardía (< 2 horas de anticipación) -> DEBE RETORNAR 400 BAD REQUEST
+# Cuando la cita inicia en menos de 2 horas desde el instante actual, la cancelación por paciente es denegada
+# (Aplica validación de horario límite: slot.inicio - 2 horas)
+PATCH {{baseUrl}}/appointments/cita-con-menos-de-dos-horas-001/cancel
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "motivo": "Cancelacion de ultima hora"
+}

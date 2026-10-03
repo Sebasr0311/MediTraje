@@ -22,6 +22,7 @@ import com.meditriaje.repository.DisponibilidadSlotRepository;
 import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.UsuarioRepository;
+import com.meditriaje.dto.common.PaginatedResponse;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
@@ -29,8 +30,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -41,6 +47,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class AppointmentService {
+
+    public static final ZoneId ZONE_BOGOTA = ZoneId.of("America/Bogota");
 
     private final UsuarioRepository usuarioRepository;
     private final PacienteRepository pacienteRepository;
@@ -264,5 +272,76 @@ public class AppointmentService {
         // 9. Retornar CitaResponse actualizado
         return citaRepository.buscarPorPublicId(cita.publicId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada tras cancelacion."));
+    }
+
+    /**
+     * Consulta la agenda asistencial del profesional autenticado con filtros opcionales de fecha y estado (HU-06, ADR-007).
+     *
+     * @param usuarioAutenticadoPublicId UUID público del usuario profesional en sesión.
+     * @param fecha                      Fecha específica en zona horaria America/Bogota (opcional).
+     * @param estado                     Filtro por estado de cita (opcional).
+     * @param page                       Número de página (0-indexed).
+     * @param size                       Tamaño de página (1 a 100).
+     * @return {@link PaginatedResponse} conteniendo la lista de citas {@link CitaResponse}.
+     */
+    @Transactional(readOnly = true)
+    public PaginatedResponse<CitaResponse> obtenerMiAgenda(
+            String usuarioAutenticadoPublicId,
+            LocalDate fecha,
+            String estado,
+            int page,
+            int size
+    ) {
+        Objects.requireNonNull(usuarioAutenticadoPublicId, "El usuario público no puede ser nulo");
+
+        if (page < 0) {
+            throw new DatosInvalidosException("El número de página no puede ser menor a 0.");
+        }
+        if (size < 1 || size > 100) {
+            throw new DatosInvalidosException("El tamaño de página debe estar entre 1 y 100.");
+        }
+
+        String estadoFiltro = null;
+        if (estado != null && !estado.isBlank()) {
+            estadoFiltro = estado.trim().toUpperCase(Locale.ROOT);
+            try {
+                EstadoCita.valueOf(estadoFiltro);
+            } catch (IllegalArgumentException ex) {
+                throw new DatosInvalidosException("Estado de cita no válido: " + estado);
+            }
+        }
+
+        Usuario usuario = usuarioRepository.buscarPorPublicId(usuarioAutenticadoPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado."));
+
+        Profesional profesional = profesionalRepository.buscarPorUsuarioId(usuario.id())
+                .orElseThrow(() -> new AccesoNoAutorizadoException("Solo profesionales registrados pueden consultar su agenda."));
+
+        Instant fechaDesde = null;
+        Instant fechaHasta = null;
+
+        if (fecha != null) {
+            ZonedDateTime startOfDay = fecha.atStartOfDay(ZONE_BOGOTA);
+            ZonedDateTime endOfDay = fecha.atTime(23, 59, 59, 999_999_999).atZone(ZONE_BOGOTA);
+            fechaDesde = startOfDay.toInstant();
+            fechaHasta = endOfDay.toInstant();
+        }
+
+        List<CitaResponse> citas = citaRepository.listarAgendaProfesional(
+                profesional.id(),
+                fechaDesde,
+                fechaHasta,
+                estadoFiltro,
+                page,
+                size
+        );
+        int total = citaRepository.contarAgendaProfesional(
+                profesional.id(),
+                fechaDesde,
+                fechaHasta,
+                estadoFiltro
+        );
+
+        return PaginatedResponse.of(citas, page, size, (long) total);
     }
 }

@@ -158,4 +158,63 @@ class CitaRepositoryTest {
 
         assertThat(existe).isFalse();
     }
+
+    @Test
+    void listarAgendaProfesional_sinFiltros_construyeSqlYRetornaCitas() {
+        CitaResponse mockResponse = new CitaResponse(
+                "cita-uuid-1", "slot-uuid-1", "pac-uuid-1", "Juan Perez",
+                "prof-uuid-1", "Dr. House", "esp-uuid-1", "Medicina General",
+                "sede-uuid-1", "Sede Norte", "Calle 100",
+                Instant.now(), Instant.now().plusSeconds(1200),
+                "PRESENCIAL", "PROGRAMADA", null, null, Instant.now()
+        );
+
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of(mockResponse));
+
+        List<CitaResponse> resultado = repository.listarAgendaProfesional(
+                5L, null, null, null, 0, 10
+        );
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).publicId()).isEqualTo("cita-uuid-1");
+    }
+
+    @Test
+    void listarAgendaProfesional_conFiltrosFechaYEstado_construyeSqlYRetornaCitas() {
+        Instant desde = Instant.now();
+        Instant hasta = desde.plusSeconds(3600);
+
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+
+        List<CitaResponse> resultado = repository.listarAgendaProfesional(
+                5L, desde, hasta, "PROGRAMADA", 1, 20
+        );
+
+        assertThat(resultado).isEmpty();
+    }
+
+    @Test
+    void contarAgendaProfesional_conFiltros_retornaTotal() {
+        Instant desde = Instant.now();
+        Instant hasta = desde.plusSeconds(3600);
+
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(Object[].class)))
+                .thenReturn(3);
+
+        int total = repository.contarAgendaProfesional(5L, desde, hasta, "PROGRAMADA");
+
+        assertThat(total).isEqualTo(3);
+    }
+
+    @Test
+    void contarAgendaProfesional_retornaCeroCuandoNull() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), any(Object[].class)))
+                .thenReturn(null);
+
+        int total = repository.contarAgendaProfesional(5L, null, null, null);
+
+        assertThat(total).isZero();
+    }
 }

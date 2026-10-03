@@ -3,6 +3,7 @@ package com.meditriaje.service;
 import com.meditriaje.dto.appointment.CancelarCitaRequest;
 import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.dto.appointment.ReservarCitaRequest;
+import com.meditriaje.dto.common.PaginatedResponse;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
 import com.meditriaje.exception.CitaNoDisponibleException;
 import com.meditriaje.exception.DatosInvalidosException;
@@ -715,5 +716,125 @@ class AppointmentServiceTest {
         ))
                 .isInstanceOf(AccesoNoAutorizadoException.class)
                 .hasMessage("El profesional no tiene autorizacion para cancelar citas de otro colega.");
+    }
+
+    // =========================================================================
+    // AGENDA DEL PROFESIONAL ASISTENCIAL (HU-06, ADR-007)
+    // =========================================================================
+
+    @Test
+    void obtenerMiAgenda_conProfesionalValido_retornaPaginaCitas() {
+        Usuario usrProf = new Usuario(2L, "prof-usr-uuid", "dr.mendoza@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+        Profesional prof = new Profesional(5L, 2L, "prof-uuid-5", 1L, "RM-123", "Carlos", "Mendoza", NOW, null);
+        CitaResponse citaResp = new CitaResponse(
+                "cita-1", "slot-1", "pac-1", "Ana Gomez",
+                "prof-uuid-5", "Carlos Mendoza", "esp-1", "Medicina General",
+                "sede-1", "Sede Centro", "Calle 10", NOW.plusSeconds(3600), NOW.plusSeconds(4800),
+                "PRESENCIAL", "PROGRAMADA", null, null, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-uuid")).thenReturn(Optional.of(usrProf));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(prof));
+        when(citaRepository.listarAgendaProfesional(5L, null, null, null, 0, 10))
+                .thenReturn(List.of(citaResp));
+        when(citaRepository.contarAgendaProfesional(5L, null, null, null)).thenReturn(1);
+
+        PaginatedResponse<CitaResponse> resultado = appointmentService.obtenerMiAgenda(
+                "prof-usr-uuid", null, null, 0, 10
+        );
+
+        assertThat(resultado.content()).hasSize(1);
+        assertThat(resultado.totalElements()).isEqualTo(1L);
+        assertThat(resultado.content().get(0).publicId()).isEqualTo("cita-1");
+        assertThat(resultado.content().get(0).profesionalNombre()).isEqualTo("Carlos Mendoza");
+    }
+
+    @Test
+    void obtenerMiAgenda_conFiltroFechaYEstado_convierteInstantesBogotaYFiltra() {
+        Usuario usrProf = new Usuario(2L, "prof-usr-uuid", "dr.mendoza@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+        Profesional prof = new Profesional(5L, 2L, "prof-uuid-5", 1L, "RM-123", "Carlos", "Mendoza", NOW, null);
+        LocalDate fecha = LocalDate.of(2026, 10, 15);
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-uuid")).thenReturn(Optional.of(usrProf));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(prof));
+
+        ArgumentCaptor<Instant> desdeCaptor = ArgumentCaptor.forClass(Instant.class);
+        ArgumentCaptor<Instant> hastaCaptor = ArgumentCaptor.forClass(Instant.class);
+
+        when(citaRepository.listarAgendaProfesional(eq(5L), desdeCaptor.capture(), hastaCaptor.capture(), eq("PROGRAMADA"), eq(0), eq(10)))
+                .thenReturn(List.of());
+        when(citaRepository.contarAgendaProfesional(eq(5L), any(Instant.class), any(Instant.class), eq("PROGRAMADA")))
+                .thenReturn(0);
+
+        PaginatedResponse<CitaResponse> resultado = appointmentService.obtenerMiAgenda(
+                "prof-usr-uuid", fecha, "programada", 0, 10
+        );
+
+        assertThat(resultado.content()).isEmpty();
+        assertThat(resultado.totalElements()).isZero();
+
+        // En America/Bogota (UTC-5), el 2026-10-15 00:00:00 equivale a 2026-10-15T05:00:00Z
+        assertThat(desdeCaptor.getValue()).isEqualTo(Instant.parse("2026-10-15T05:00:00Z"));
+        // Y 2026-10-15 23:59:59.999999999 equivale a 2026-10-16T04:59:59.999999999Z
+        assertThat(hastaCaptor.getValue()).isEqualTo(Instant.parse("2026-10-16T04:59:59.999999999Z"));
+    }
+
+    @Test
+    void obtenerMiAgenda_cuandoUsuarioNoExiste_lanzaRecursoNoEncontrado() {
+        when(usuarioRepository.buscarPorPublicId("usuario-fantasma")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.obtenerMiAgenda("usuario-fantasma", null, null, 0, 10))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining("Usuario no encontrado.");
+    }
+
+    @Test
+    void obtenerMiAgenda_cuandoUsuarioNoEsProfesional_lanzaAccesoNoAutorizado() {
+        Usuario usr = new Usuario(10L, "usr-paciente", "paciente@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+        when(usuarioRepository.buscarPorPublicId("usr-paciente")).thenReturn(Optional.of(usr));
+        when(profesionalRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.obtenerMiAgenda("usr-paciente", null, null, 0, 10))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessage("Solo profesionales registrados pueden consultar su agenda.");
+    }
+
+    @Test
+    void obtenerMiAgenda_cuandoPaginacionInvalida_lanzaDatosInvalidos() {
+        assertThatThrownBy(() -> appointmentService.obtenerMiAgenda("prof-usr", null, null, -1, 10))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("El número de página no puede ser menor a 0.");
+
+        assertThatThrownBy(() -> appointmentService.obtenerMiAgenda("prof-usr", null, null, 0, 0))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("El tamaño de página debe estar entre 1 y 100.");
+
+        assertThatThrownBy(() -> appointmentService.obtenerMiAgenda("prof-usr", null, null, 0, 101))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("El tamaño de página debe estar entre 1 y 100.");
+    }
+
+    @Test
+    void obtenerMiAgenda_cuandoEstadoInvalido_lanzaDatosInvalidos() {
+        assertThatThrownBy(() -> appointmentService.obtenerMiAgenda("prof-usr", null, "ESTADO_INEXISTENTE", 0, 10))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("Estado de cita no válido: ESTADO_INEXISTENTE");
+    }
+
+    @Test
+    void obtenerMiAgenda_aislamiento_medicoSoloVeSusCitas() {
+        Usuario usrProfA = new Usuario(2L, "prof-usr-A", "dr.a@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+        Profesional profA = new Profesional(5L, 2L, "prof-A", 1L, "RM-101", "Dr", "A", NOW, null);
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-A")).thenReturn(Optional.of(usrProfA));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(profA));
+        when(citaRepository.listarAgendaProfesional(5L, null, null, null, 0, 10)).thenReturn(List.of());
+        when(citaRepository.contarAgendaProfesional(5L, null, null, null)).thenReturn(0);
+
+        appointmentService.obtenerMiAgenda("prof-usr-A", null, null, 0, 10);
+
+        // Se verifica que la consulta se hace estrictamente con el id del profesional autenticado (5L)
+        verify(citaRepository).listarAgendaProfesional(eq(5L), eq(null), eq(null), eq(null), eq(0), eq(10));
+        verify(citaRepository).contarAgendaProfesional(eq(5L), eq(null), eq(null), eq(null));
     }
 }

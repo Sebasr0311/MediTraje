@@ -8,6 +8,31 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Agenda del Profesional Asistencial y Colección de Pruebas HTTP M4 (M4.6, HU-06, ADR-003, ADR-005, ADR-006, ADR-007, ADR-011)**:
+  - Repositorio `CitaRepository`:
+    - `listarAgendaProfesional(Long profesionalId, Instant fechaDesde, Instant fechaHasta, String estado, int page, int size)` con SQL 100% parametrizado, JOINs asistenciales completos, filtro de propiedad estricta del profesional (`s.PROFESIONAL_ID = ?`), ordenación `ORDER BY s.FECHA_HORA_INICIO ASC, c.ID ASC` y paginación ANSI SQL/Oracle (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`).
+    - `contarAgendaProfesional(Long profesionalId, Instant fechaDesde, Instant fechaHasta, String estado)` para cálculo exacto del total de citas según filtros.
+  - Lógica de negocio en `AppointmentService.obtenerMiAgenda(...)`:
+    - Validación rigurosa de paginación (`page >= 0`, `1 <= size <= 100`) y validación de enum `EstadoCita`.
+    - Aislamiento de acceso por rol (ADR-007): resolución de `profesionalRepository.buscarPorUsuarioId(usuario.id())` asegurando que solo profesionales registrados acceden a su agenda.
+    - Conversión de `LocalDate` a rango de instantes en zona horaria `America/Bogota` (ADR-005) cubriendo el inicio (00:00:00) y fin de día (23:59:59.999999999).
+    - Retorno estructurado como `PaginatedResponse<CitaResponse>`.
+  - Controlador REST `ProfessionalAgendaController` en `backend/src/main/java/com/meditriaje/controller/ProfessionalAgendaController.java`:
+    - Mapeo en `GET /api/v1/professionals/me/agenda`.
+    - Autorización estricta `@PreAuthorize("hasAuthority('ROLE_PROFESIONAL')")` (rechaza pacientes y administradores con 403 Forbidden y anónimos con 401 Unauthorized).
+    - Parámetros `@RequestParam` opcionales: `fecha` (`@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)`), `estado`, `page` (default 0), `size` (default 10).
+  - Colección de pruebas HTTP `docs/api/M4.http`:
+    - 6 secciones con escenarios integrales para la puerta de salida de Fase M4:
+      - 1. Ping / Healthcheck.
+      - 2. Autenticación y credenciales de prueba (Admin, Paciente 1, Paciente 2, Médico).
+      - 3. Consulta de disponibilidad con filtros (general, especialidad, fecha, sede, modalidad, combinada).
+      - 4. Reserva transaccional (201 Created), conflicto de doble reserva (409 Conflict) y aislamiento de rol (403 con profesional).
+      - 5. Agenda del profesional (200 OK), filtros por fecha y estado, y aislamiento de agenda (403 paciente, 403 admin, 401 anónimo).
+      - 6. Cancelación de cita (200 OK con liberación de slot), aislamiento de cancelación entre pacientes (403), máquina de estados (400) y regla de las 2 horas (400).
+  - Pruebas automatizadas (16 pruebas nuevas, suite consolidada en 297 pruebas al 100%):
+    - `CitaRepositoryTest` (4 pruebas nuevas): validación de consultas paginadas con y sin filtros de fecha y estado, y conteos agregados.
+    - `AppointmentServiceTest` (7 pruebas nuevas): consulta exitosa de agenda, conversión de instantes Bogota (UTC-5), aislamiento estricto (médico A solo consulta sus citas), rechazo ante usuario inexistente (404), rechazo si no es profesional (403), validación de parámetros de paginación (400) y validación de estado inválido (400).
+    - `ProfessionalAgendaControllerTest` (5 pruebas nuevas): 200 OK para profesional con deserialización paginada, 403 Forbidden para paciente, 403 Forbidden para administrador, 401 Unauthorized sin sesión, y propagación correcta de filtros de fecha y estado.
 - **Máquina de Estados y Cancelación de Citas Médicas (M4.5, HU-05, ADR-002, ADR-003, ADR-006, ADR-011)**:
   - Enum de dominio `EstadoCita` en `com.meditriaje.model`: modelado de los 6 estados del ciclo de vida (`PROGRAMADA`, `CONFIRMADA`, `ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`).
   - Máquina de estados `CitaStateMachine` en `com.meditriaje.model`:
