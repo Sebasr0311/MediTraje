@@ -1,0 +1,125 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase M2)
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+
+@baseUrl = http://localhost:8080/api/v1
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Registro de Paciente (HU-01, ADR-002, ADR-013)
+### ----------------------------------------------------------------------------
+# @name registrarPacienteExitoso
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765432",
+  "nombres": "Carlos",
+  "apellidos": "Perez Gomez",
+  "fechaNacimiento": "1992-08-15",
+  "telefono": "3109876543",
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### Registro fallido por contraseña corta (<10 caracteres)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765433",
+  "nombres": "Ana",
+  "apellidos": "Lopez",
+  "fechaNacimiento": "1995-03-20",
+  "telefono": "3112223344",
+  "email": "ana.lopez@example.com",
+  "password": "corta",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### Registro fallido por rechazo de consentimiento informado
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765434",
+  "nombres": "Pedro",
+  "apellidos": "Ramirez",
+  "fechaNacimiento": "1988-11-10",
+  "email": "pedro.ramirez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": false
+}
+
+### ----------------------------------------------------------------------------
+### 3. Inicio de Sesión (HU-01, ADR-002)
+### Retorna cookies HttpOnly 'access_token' y 'refresh_token'
+### ----------------------------------------------------------------------------
+# @name loginExitoso
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### Login con credenciales inválidas (respuesta genérica anti-enumeración)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordErronea123*"
+}
+
+### ----------------------------------------------------------------------------
+### 4. Consulta de Perfil del Paciente Autenticado (HU-09, M2.5)
+### El cliente debe enviar la cookie HttpOnly 'access_token' o 'Authorization: Bearer <token>'
+### ----------------------------------------------------------------------------
+# @name obtenerMiPerfil
+GET {{baseUrl}}/patients/me
+Accept: application/json
+
+### Consulta sin autenticación (debe retornar 401 NO_AUTENTICADO)
+GET {{baseUrl}}/patients/me
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 5. Rotación de Refresh Token (ADR-002)
+### Requiere cookie 'refresh_token' y cabecera personalizada de protección CSRF
+### ----------------------------------------------------------------------------
+# @name refrescarSesion
+POST {{baseUrl}}/auth/refresh
+X-Requested-With: XMLHttpRequest
+Accept: application/json
+
+### Refresh rechazado por falta de cabecera CSRF (debe retornar 403 CSRF_REQUERIDO)
+POST {{baseUrl}}/auth/refresh
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 6. Cierre de Sesión (Logout) (ADR-002, HU-01)
+### Invalida el refresh token en base de datos y expira las cookies (Max-Age=0)
+### ----------------------------------------------------------------------------
+# @name logout
+POST {{baseUrl}}/auth/logout
+X-Requested-With: XMLHttpRequest
+Accept: application/json

@@ -29,6 +29,30 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        log.warn("Ruta o recurso no encontrado: {}", ex.getResourcePath());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiError.of("RECURSO_NO_ENCONTRADO", "El recurso solicitado no fue encontrado.", null));
+    }
+
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    public ResponseEntity<ApiError> handleCredencialesInvalidas(CredencialesInvalidasException ex) {
+        log.warn("Autenticacion fallida: codigo={}", ex.getCodigo());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(TokenInvalidoException.class)
+    public ResponseEntity<ApiError> handleTokenInvalido(TokenInvalidoException ex) {
+        log.warn("Token invalido: codigo={}", ex.getCodigo());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));
+    }
+
     @ExceptionHandler(DatosInvalidosException.class)
     public ResponseEntity<ApiError> handleDatosInvalidos(DatosInvalidosException ex) {
         log.warn("Datos invalidos: codigo={}", ex.getCodigo());
@@ -43,6 +67,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleSpringAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        log.warn("Acceso denegado por seguridad: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiError.of("ACCESO_DENEGADO", "No tiene permisos para acceder a este recurso.", null));
+    }
+
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ApiError> handleSpringAuthentication(org.springframework.security.core.AuthenticationException ex) {
+        log.warn("Autenticacion requerida por seguridad: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiError.of("NO_AUTENTICADO", "Debe iniciar sesion para acceder a este recurso.", null));
     }
 
     @ExceptionHandler(CitaNoDisponibleException.class)

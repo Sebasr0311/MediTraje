@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M1 — ✅ COMPLETA (puerta de salida M1 cumplida)
-- **Tarea actual:** M2.1 (pendiente aprobación de Juan para avanzar a M2)
+- **Fase actual:** M2 — Seguridad base (Completa, pendiente aprobación de Juan)
+- **Tarea actual:** Puerta de salida M2 (Revisión de informe, merge a develop y etiqueta v0.2)
 - **Última etiqueta:** v0.1 (M1 completa)
-- **Rama de trabajo:** feature/m1-base-oracle
+- **Rama de trabajo:** feature/m2-seguridad
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -28,12 +28,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M1.5 Pruebas y CI
 
 ### M2 — Seguridad base
-- [ ] M2.1 Migración de seguridad
-- [ ] M2.2 Servicio de auditoría
-- [ ] M2.3 Registro de paciente
-- [ ] M2.4 Login, refresh y logout
-- [ ] M2.5 Spring Security y roles
-- [ ] M2.6 Revisión de seguridad
+- [x] M2.1 Migración de seguridad
+- [x] M2.2 Servicio de auditoría
+- [x] M2.3 Registro de paciente
+- [x] M2.4 Login, refresh y logout
+- [x] M2.5 Spring Security y roles
+- [x] M2.6 Revisión de seguridad
 
 ### M3 — Administración y catálogos
 - [ ] M3.1 Migraciones de oferta
@@ -102,3 +102,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-01 · M1.3 · Configuración de migraciones Flyway empaquetadas en classpath y vía plugin Maven, creación de migración inicial V001__baseline.sql con tabla CONTROL_SISTEMA y GRANTs a MEDITRIAJE_APP según ADR-012, y documentación de comandos en DATABASE.md · mvn clean verify exitoso con empaquetado de recursos de migración · feat(flyway): configurar migraciones flyway con linea base v001 y grants m1.3
 - 2026-10-01 · M1.4 · ApiError record (codigo, mensaje, timestamp, traceId), jerarquía de excepciones de dominio (RecursoNoEncontrado 404, DatosInvalidos 400, AccesoNoAutorizado 403, CitaNoDisponible 409, MediTriajeException base), GlobalExceptionHandler @RestControllerAdvice sin stack traces, CorsConfig leyendo CORS_ORIGINS, SecurityConfig integrado con CorsConfigurationSource, logging configurado sin datos sensibles · mvn clean verify exitoso - Tests run: 2, Failures: 0 · feat(error-handling): manejo global de errores cors y logging m1.4
 - 2026-10-01 · M1.5 · OracleIntegrationTest con Testcontainers (gvenzl/oracle-free:23-slim-faststart): crea MEDITRIAJE_OWNER y MEDITRIAJE_APP, aplica Flyway, valida historial y segregación de privilegios DDL. @Testcontainers(disabledWithoutDocker=true) + Assumptions.assumeTrue() para SKIPPED graceful en local sin Docker. Failsafe plugin separado de Surefire vía @Tag("integration"). GitHub Actions workflow .github/workflows/ci.yml con Java 21 Temurin. Sección de pruebas en README.md · mvn clean verify exitoso - Tests run: 5 unit (2 pass) + 3 integration (3 skipped en local, pasan en CI) · feat(ci): testcontainers oracle y workflow github actions m1.5
+- 2026-10-03 · M2.1 · Migración Flyway V002__seguridad.sql con tablas USUARIO, ROL, USUARIO_ROL, REFRESH_TOKEN, CONSENTIMIENTO, AUDITORIA; triggers TR_CONSENTIMIENTO_INMUTABILIDAD y TR_AUDITORIA_INMUTABILIDAD; semillas de roles (ROLE_PACIENTE, ROLE_PROFESIONAL, ROLE_ADMINISTRADOR) y privilegios mínimos a MEDITRIAJE_APP (ADR-012, sin DELETE clínico ni UPDATE/DELETE en auditoría). Tests de integración ampliados · mvn clean verify exitoso · feat(database): migracion flyway v002 seguridad roles consentimiento y auditoria m2.1
+- 2026-10-03 · M2.2 · Implementación de AuditoriaService, AuditoriaRepository (insert-only con JdbcTemplate y SQL parametrizado), enums AccionAuditable y ResultadoAuditoria, y record inmutable EventoAuditoria (sin datos clínicos ni secretos, ADR-011). Pruebas unitarias de servicio y repositorio con 100% de éxito · mvn clean verify exitoso (8 unit tests verdes) · feat(audit): servicio de auditoria insert-only y repositorio m2.2
+- 2026-10-03 · M2.3 · Migración Flyway V003__paciente.sql (tabla PACIENTE con constraints y grants); AuthService y AuthController implementando POST /api/v1/auth/register con transacción atómica (USUARIO + PACIENTE + CONSENTIMIENTO + ROLE_PACIENTE), hashing Argon2id (OWASP v5.8), validación estricta de documentos, correo y contraseña (≥10), auditoría REGISTRO_PACIENTE (éxito/fallo) y DTOs sin datos sensibles (ADR-003). Tests unitarios y web MVC al 100% · mvn clean verify exitoso (15 unit tests verdes) · feat(auth): registro de paciente atomico con argon2id y migracion v003 m2.3
+- 2026-10-03 · M2.4 · Implementación de login, rotación de refresh tokens y logout según ADR-002 y HU-01. Access JWT (15 min) firmado HMAC-SHA256 con claims (sub=publicId, email, roles). Refresh token opaco guardado hasheado (SHA-256) en REFRESH_TOKEN con rotación obligatoria y detección de reuso (revocación masiva de sesiones ante tokens ya revocados). Ambos tokens transmitidos exclusivamente en cookies HttpOnly; Secure; SameSite=Strict (nada en body ni localStorage). Bloqueo temporal de cuenta tras 5 intentos fallidos (15 min) con mensaje genérico ("Credenciales invalidas.") que no revela si el correo existe. Auditoría automática de LOGIN_EXITOSO, LOGIN_FALLIDO (fallo/bloqueado) y LOGOUT. Repositorios UsuarioRepository y RefreshTokenRepository, JwtService, TokenHashUtil, AuthController y AuthService. Pruebas unitarias al 100% (31 tests verdes) · mvn clean verify exitoso · feat(auth): login con bloqueo temporal refresh token rotativo y cookies httponly m2.4
+- 2026-10-03 · M2.5 · Configuración de Spring Security con autorización declarativa por roles (@EnableMethodSecurity, @PreAuthorize), filtro JwtAuthenticationFilter (extracción de cookie HttpOnly access_token y fallback Bearer), filtro CsrfHeaderFilter exigiendo cabecera personalizada (X-Requested-With o X-CSRF-Protection) en operaciones mutantes según ADR-002, manejadores de error 401 (CustomAuthenticationEntryPoint) y 403 (CustomAccessDeniedHandler y Spring AccessDeniedException en GlobalExceptionHandler) retornando ApiError estructurado. Endpoint GET /api/v1/patients/me implementado en PacienteController, PacienteService y PacienteRepository (búsqueda por UUID expuesto publicId sin exponer IDs internos, ADR-003). 48 pruebas unitarias y de seguridad al 100% · mvn clean verify exitoso · feat(security): spring security roles jwt csrf y endpoint paciente me m2.5
+- 2026-10-03 · M2.6 · Auditoría exhaustiva de seguridad de la fase M2 (cero secretos en repositorio, ausencia de datos clínicos o sensibles en logs, SQL 100% parametrizado, tokens exclusivamente en cookies HttpOnly SameSite=Strict, CSRF mitigado, triggers de inmutabilidad en BD). Elaboración del informe docs/security/REVISION_M2.md y creación de la colección docs/api/M2.http. 48 pruebas unitarias y de seguridad pasando al 100% · mvn clean verify exitoso · docs(security): revision de seguridad m2 y coleccion de pruebas http m2.6

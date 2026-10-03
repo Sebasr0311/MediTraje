@@ -109,13 +109,13 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV1() {
+    void flyway_schema_history_tieneAlMenosV3() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(1);
+        assertThat(count).isGreaterThanOrEqualTo(3);
     }
 
     @Test
@@ -124,6 +124,28 @@ class OracleIntegrationTest {
         JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
         Integer count = appTemplate.queryForObject(
                 "SELECT COUNT(*) FROM " + OWNER_USER + ".CONTROL_SISTEMA",
+                Integer.class
+        );
+        assertThat(count).isNotNull();
+    }
+
+    @Test
+    void app_puedeConsultarRolesSembrados() {
+        // MEDITRIAJE_APP puede consultar el catálogo de roles (semillas de V002)
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        Integer count = appTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".ROL",
+                Integer.class
+        );
+        assertThat(count).isEqualTo(3);
+    }
+
+    @Test
+    void app_puedeConsultarPacientes() {
+        // MEDITRIAJE_APP puede consultar la tabla PACIENTE (V003)
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        Integer count = appTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".PACIENTE",
                 Integer.class
         );
         assertThat(count).isNotNull();
@@ -140,5 +162,18 @@ class OracleIntegrationTest {
             tuvoError = true;
         }
         assertThat(tuvoError).as("MEDITRIAJE_APP no debe poder hacer DROP TABLE").isTrue();
+    }
+
+    @Test
+    void app_noPuedeHacerUpdateAuditoria() {
+        // AUDITORIA es insert-only para MEDITRIAJE_APP (sin GRANT UPDATE ni DELETE)
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        boolean tuvoError = false;
+        try {
+            appTemplate.execute("UPDATE " + OWNER_USER + ".AUDITORIA SET ACCION = 'MODIFICADA'");
+        } catch (Exception e) {
+            tuvoError = true;
+        }
+        assertThat(tuvoError).as("MEDITRIAJE_APP no debe poder hacer UPDATE sobre AUDITORIA").isTrue();
     }
 }
