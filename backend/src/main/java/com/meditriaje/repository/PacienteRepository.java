@@ -1,5 +1,6 @@
 package com.meditriaje.repository;
 
+import com.meditriaje.dto.PacientePerfilResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -8,7 +9,9 @@ import org.springframework.stereotype.Repository;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Repositorio para la entidad {@code PACIENTE}.
@@ -62,5 +65,29 @@ public class PacienteRepository {
             throw new IllegalStateException("No se pudo obtener el ID autogenerado para el paciente.");
         }
         return key.longValue();
+    }
+
+    public Optional<PacientePerfilResponse> buscarPerfilPorUsuarioPublicId(String usuarioPublicId) {
+        final String sql = """
+            SELECT p.PUBLIC_ID, p.TIPO_DOCUMENTO, p.NUMERO_DOCUMENTO, p.NOMBRES, p.APELLIDOS,
+                   p.FECHA_NACIMIENTO, p.TELEFONO, u.EMAIL
+            FROM PACIENTE p
+            JOIN USUARIO u ON u.ID = p.USUARIO_ID
+            WHERE u.PUBLIC_ID = ?
+            """;
+        List<PacientePerfilResponse> resultados = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Date fNac = rs.getDate("FECHA_NACIMIENTO");
+            return new PacientePerfilResponse(
+                    rs.getString("PUBLIC_ID"),
+                    rs.getString("TIPO_DOCUMENTO"),
+                    rs.getString("NUMERO_DOCUMENTO"),
+                    rs.getString("NOMBRES"),
+                    rs.getString("APELLIDOS"),
+                    fNac != null ? fNac.toLocalDate() : null,
+                    rs.getString("TELEFONO"),
+                    rs.getString("EMAIL")
+            );
+        }, usuarioPublicId);
+        return resultados.stream().findFirst();
     }
 }

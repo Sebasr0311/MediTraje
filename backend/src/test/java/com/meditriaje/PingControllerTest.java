@@ -25,6 +25,9 @@ class PingControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.meditriaje.security.JwtService jwtService;
+
     @Test
     @DisplayName("GET /api/v1/ping debe retornar status UP en formato JSON")
     void shouldReturnUpStatusOnPing() throws Exception {

@@ -69,6 +69,22 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleSpringAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        log.warn("Acceso denegado por seguridad: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiError.of("ACCESO_DENEGADO", "No tiene permisos para acceder a este recurso.", null));
+    }
+
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ApiError> handleSpringAuthentication(org.springframework.security.core.AuthenticationException ex) {
+        log.warn("Autenticacion requerida por seguridad: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiError.of("NO_AUTENTICADO", "Debe iniciar sesion para acceder a este recurso.", null));
+    }
+
     @ExceptionHandler(CitaNoDisponibleException.class)
     public ResponseEntity<ApiError> handleCitaNoDisponible(CitaNoDisponibleException ex) {
         log.warn("Cita no disponible: codigo={}", ex.getCodigo());

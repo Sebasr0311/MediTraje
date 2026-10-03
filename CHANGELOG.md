@@ -42,6 +42,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - `AuthController`: Endpoints `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh` y `POST /api/v1/auth/logout` con cookies `HttpOnly; Secure; SameSite=Strict` (tokens nunca en el body según ADR-002).
   - Manejadores de `CredencialesInvalidasException` y `TokenInvalidoException` en `GlobalExceptionHandler` mapeados a HTTP 401.
   - 31 pruebas unitarias pasando al 100% (cobertura completa de casos de uso y edge cases).
+- **Spring Security, Autorización por Rol y Endpoint /me (M2.5)**:
+  - `SecurityConfig`: Configuración declarativa con `@EnableMethodSecurity(prePostEnabled = true)`. Rutas públicas (`/api/v1/ping`, `/api/v1/auth/**`), resto autenticado.
+  - `JwtAuthenticationFilter`: Extracción de token de cookie HttpOnly `access_token` (o header `Authorization: Bearer`), validación y poblado de `SecurityContextHolder`.
+  - `CsrfHeaderFilter`: Defensa en profundidad contra CSRF (ADR-002) exigiendo cabecera personalizada `X-Requested-With` o `X-CSRF-Protection` en operaciones mutantes (`POST`, `PUT`, `DELETE`, `PATCH`).
+  - `CustomAuthenticationEntryPoint` y `CustomAccessDeniedHandler`: Retornan JSON estructurado con `ApiError` para 401 y 403 respectivamente sin stack traces.
+  - Manejo de `AccessDeniedException` y `AuthenticationException` de Spring Security en `GlobalExceptionHandler`.
+  - `CorsConfig`: Permitidas las cabeceras `X-Requested-With` y `X-CSRF-Protection` en preflights CORS.
+  - `PacienteController` y `PacienteService`: Endpoint `GET /api/v1/patients/me` protegido para rol `ROLE_PACIENTE`.
+  - `PacienteRepository`: Consulta de perfil demográfico y contacto por UUID expuesto `publicId` (ADR-003, sin exponer IDs internos).
+  - 48 pruebas unitarias y de controladores pasando al 100%.
 
 ## [0.1.0] - 2026-10-01
 

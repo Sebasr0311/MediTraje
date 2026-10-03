@@ -10,6 +10,11 @@ import com.meditriaje.dto.RegistroPacienteRequest;
 import com.meditriaje.dto.RegistroPacienteResponse;
 import com.meditriaje.exception.CredencialesInvalidasException;
 import com.meditriaje.exception.GlobalExceptionHandler;
+import com.meditriaje.security.CsrfHeaderFilter;
+import com.meditriaje.security.CustomAccessDeniedHandler;
+import com.meditriaje.security.CustomAuthenticationEntryPoint;
+import com.meditriaje.security.JwtAuthenticationFilter;
+import com.meditriaje.security.JwtService;
 import com.meditriaje.service.AuthService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
@@ -48,6 +53,9 @@ class AuthControllerTest {
 
     @MockBean
     private AuthService authService;
+
+    @MockBean
+    private com.meditriaje.security.JwtService jwtService;
 
     @Test
     void register_conPayloadValido_retorna201Created() throws Exception {
@@ -194,12 +202,21 @@ class AuthControllerTest {
         when(authService.refresh(anyString(), anyString())).thenReturn(tokens);
 
         mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header("X-Requested-With", "XMLHttpRequest")
                         .cookie(new Cookie("refresh_token", "existing-refresh-token")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.publicId").value("f81d4fae-7dec-11d0-a765-00a0c91e6bf6"))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("access_token=new.jwt.token")))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Strict")));
+    }
+
+    @Test
+    void refresh_sinCabeceraCsrf_retorna403Forbidden() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(new Cookie("refresh_token", "existing-refresh-token")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("CSRF_REQUERIDO"));
     }
 
     // -------------------------------------------------------------------------
@@ -211,6 +228,7 @@ class AuthControllerTest {
         doNothing().when(authService).logout(any(), anyString());
 
         mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("X-Requested-With", "XMLHttpRequest")
                         .cookie(new Cookie("refresh_token", "existing-refresh-token")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mensaje").value("Sesion cerrada exitosamente."))
