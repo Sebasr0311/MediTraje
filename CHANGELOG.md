@@ -46,6 +46,24 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
     - Configuración en `SecurityConfig` delimitando endpoints públicos e integrando autenticación para el cambio de credenciales.
   - Pruebas unitarias y de integración:
     - `AdminProfessionalServiceTest` (16 pruebas), `AdminProfessionalControllerTest` (11 pruebas), pruebas de cambio de contraseña en `AuthServiceTest` y `AuthControllerTest`, pruebas de repositorio en `ProfesionalRepositoryTest` y `UsuarioRepositoryTest` (147 pruebas en total pasando exitosamente).
+- **Generador de Slots de Disponibilidad (M3.4, HU-10, ADR-002, ADR-003, ADR-005, ADR-006, ADR-011, ADR-012)**:
+  - Manejo temporal centralizado con zona horaria `America/Bogota` (ADR-005) y persistencia en `TIMESTAMP WITH TIME ZONE` (`Instant`).
+  - Modelo de dominio inmutable en `com.meditriaje.model`: `DisponibilidadSlot` (id, publicId, profesionalId, sedeId, especialidadId, fechaHoraInicio, fechaHoraFin, modalidad, estado).
+  - DTOs en `com.meditriaje.dto.admin`: `GenerarSlotsRequest`, `GenerarSlotsResponse`, `SlotResponse`.
+  - Repositorio JDBC `DisponibilidadSlotRepository` con SQL 100% parametrizado:
+    - Inserción unitaria y por lotes (`guardarLote` con `BatchPreparedStatementSetter`).
+    - Búsqueda por `publicId` (con JOINs a `PROFESIONAL`, `SEDE` y `ESPECIALIDAD`), por `id` y por entidad.
+    - Detección de solapes de agenda mediante consulta relacional de intervalos: `FECHA_HORA_INICIO < fin AND FECHA_HORA_FIN > inicio`.
+    - Transición de estados (`cambiarEstado`) y borrado físico condicional (`eliminar` solo en estado `LIBRE`).
+    - Consulta paginada dinámica con filtros (`profesionalPublicId`, `sedePublicId`, `especialidadPublicId`, `fechaDesde`, `fechaHasta`, `estado`) y conteo total.
+  - Servicio de negocio `SlotGeneratorService`:
+    - Validaciones estrictas: profesional existente con usuario activo, sede activa, coherencia de rango de fechas (máx. 90 días, no anterior a hoy en Bogotá), hora fin > hora inicio, duración de turno (5-120 min, default de especialidad o 20 min) y modalidad (`PRESENCIAL` o `TELEMEDICINA`).
+    - Algoritmo generador de turnos: iteración por fechas, filtrado opcional por días de la semana (`diasSemana`), generación de intervalos sin superar la ventana diaria y verificación transaccional de colisiones contra agenda previa del profesional (`DatosInvalidosException`).
+    - Gestión de turnos: bloqueo de slots (`LIBRE` -> `BLOQUEADO`), desbloqueo (`BLOQUEADO` -> `LIBRE`), eliminación física condicionada y auditoría inmutable obligatoria (`CAMBIO_ADMINISTRATIVO`) vía `AuditoriaService`.
+  - Controlador REST `AdminSlotController` en `/api/v1/admin/slots` protegido con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`:
+    - `POST /generate` (201 Created), `GET` paginado (200 OK), `GET /{publicId}` (200 OK), `PATCH /{publicId}/block` (200 OK), `PATCH /{publicId}/unblock` (200 OK), `DELETE /{publicId}` (204 No Content).
+  - Pruebas unitarias y de integración exhaustivas:
+    - `DisponibilidadSlotRepositoryTest` (8 pruebas), `SlotGeneratorServiceTest` (21 pruebas), `AdminSlotControllerTest` (14 pruebas) con verificación de permisos, CSRF (`X-Requested-With`), casos de borde y 190 pruebas en total pasando exitosamente.
 
 ## [0.2.0] - 2026-10-03
 
