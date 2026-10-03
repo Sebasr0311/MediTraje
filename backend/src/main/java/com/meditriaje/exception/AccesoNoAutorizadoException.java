@@ -10,6 +10,10 @@ package com.meditriaje.exception;
 public class AccesoNoAutorizadoException extends MediTriajeException {
 
     public AccesoNoAutorizadoException() {
-        super("ACCESO_NO_AUTORIZADO", "No tiene permisos para realizar esta operacion.");
+        this("No tiene permisos para realizar esta operacion.");
+    }
+
+    public AccesoNoAutorizadoException(String mensaje) {
+        super("ACCESO_NO_AUTORIZADO", mensaje);
     }
 }

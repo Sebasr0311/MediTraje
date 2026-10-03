@@ -1,6 +1,7 @@
 package com.meditriaje.repository;
 
 import com.meditriaje.dto.admin.SlotResponse;
+import com.meditriaje.dto.availability.DisponibilidadSlotResponse;
 import com.meditriaje.model.DisponibilidadSlot;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,6 +14,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -27,6 +29,32 @@ import java.util.Optional;
 public class DisponibilidadSlotRepository {
 
     private final JdbcTemplate jdbcTemplate;
+
+    private final RowMapper<DisponibilidadSlotResponse> disponibilidadSlotResponseRowMapper = (rs, rowNum) -> {
+        Timestamp tsInicio = rs.getTimestamp("FECHA_HORA_INICIO");
+        Timestamp tsFin = rs.getTimestamp("FECHA_HORA_FIN");
+        Instant inicio = tsInicio != null ? tsInicio.toInstant() : null;
+        Instant fin = tsFin != null ? tsFin.toInstant() : null;
+        int duracion = (inicio != null && fin != null)
+                ? (int) ChronoUnit.MINUTES.between(inicio, fin)
+                : 0;
+
+        return new DisponibilidadSlotResponse(
+                rs.getString("SLOT_PUBLIC_ID"),
+                rs.getString("PROFESIONAL_PUBLIC_ID"),
+                rs.getString("PROFESIONAL_NOMBRE"),
+                rs.getString("ESPECIALIDAD_PUBLIC_ID"),
+                rs.getString("ESPECIALIDAD_NOMBRE"),
+                rs.getString("SEDE_PUBLIC_ID"),
+                rs.getString("SEDE_NOMBRE"),
+                rs.getString("SEDE_DIRECCION"),
+                rs.getString("SEDE_CIUDAD"),
+                inicio,
+                fin,
+                rs.getString("MODALIDAD"),
+                duracion
+        );
+    };
 
     private final RowMapper<SlotResponse> slotResponseRowMapper = (rs, rowNum) -> {
         Timestamp tsInicio = rs.getTimestamp("FECHA_HORA_INICIO");
@@ -318,5 +346,149 @@ public class DisponibilidadSlotRepository {
 
         Integer count = jdbcTemplate.queryForObject(sql.toString(), Integer.class, params.toArray());
         return count != null ? count : 0;
+    }
+
+    /**
+     * Consulta slots disponibles (LIBRE) para asignación de citas asistenciales (HU-03).
+     * Aplica filtros estrictos de estado: solo profesionales activos, sedes activas y especialidades activas.
+     */
+    public List<DisponibilidadSlotResponse> consultarDisponibles(
+            String especialidadPublicId,
+            String sedePublicId,
+            String modalidad,
+            Instant fechaDesde,
+            Instant fechaHasta,
+            int page,
+            int size
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT s.PUBLIC_ID AS SLOT_PUBLIC_ID,
+                   p.PUBLIC_ID AS PROFESIONAL_PUBLIC_ID,
+                   p.NOMBRES || ' ' || p.APELLIDOS AS PROFESIONAL_NOMBRE,
+                   e.PUBLIC_ID AS ESPECIALIDAD_PUBLIC_ID,
+                   e.NOMBRE AS ESPECIALIDAD_NOMBRE,
+                   sd.PUBLIC_ID AS SEDE_PUBLIC_ID,
+                   sd.NOMBRE AS SEDE_NOMBRE,
+                   sd.DIRECCION AS SEDE_DIRECCION,
+                   sd.CIUDAD AS SEDE_CIUDAD,
+                   s.FECHA_HORA_INICIO,
+                   s.FECHA_HORA_FIN,
+                   s.MODALIDAD
+            FROM DISPONIBILIDAD_SLOT s
+            JOIN PROFESIONAL p ON s.PROFESIONAL_ID = p.ID
+            JOIN USUARIO u ON p.USUARIO_ID = u.ID
+            JOIN SEDE sd ON s.SEDE_ID = sd.ID
+            JOIN ESPECIALIDAD e ON s.ESPECIALIDAD_ID = e.ID
+            WHERE s.ESTADO = 'LIBRE'
+              AND u.ESTADO = 'ACTIVO'
+              AND sd.ESTADO = 'ACTIVO'
+              AND e.ESTADO = 'ACTIVO'
+            """);
+
+        List<Object> params = new ArrayList<>();
+
+        if (especialidadPublicId != null && !especialidadPublicId.isBlank()) {
+            sql.append(" AND e.PUBLIC_ID = ?");
+            params.add(especialidadPublicId.trim());
+        }
+
+        if (sedePublicId != null && !sedePublicId.isBlank()) {
+            sql.append(" AND sd.PUBLIC_ID = ?");
+            params.add(sedePublicId.trim());
+        }
+
+        if (modalidad != null && !modalidad.isBlank()) {
+            sql.append(" AND s.MODALIDAD = ?");
+            params.add(modalidad.trim().toUpperCase(Locale.ROOT));
+        }
+
+        if (fechaDesde != null) {
+            sql.append(" AND s.FECHA_HORA_INICIO >= ?");
+            params.add(Timestamp.from(fechaDesde));
+        }
+
+        if (fechaHasta != null) {
+            sql.append(" AND s.FECHA_HORA_INICIO <= ?");
+            params.add(Timestamp.from(fechaHasta));
+        }
+
+        sql.append(" ORDER BY s.FECHA_HORA_INICIO ASC, s.ID ASC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
+        int offset = Math.max(0, page) * Math.max(1, size);
+        int limit = Math.max(1, size);
+        params.add(offset);
+        params.add(limit);
+
+        return jdbcTemplate.query(sql.toString(), disponibilidadSlotResponseRowMapper, params.toArray());
+    }
+
+    /**
+     * Cuenta el total de slots disponibles (LIBRE) para los filtros asistenciales dados.
+     */
+    public int contarDisponibles(
+            String especialidadPublicId,
+            String sedePublicId,
+            String modalidad,
+            Instant fechaDesde,
+            Instant fechaHasta
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*)
+            FROM DISPONIBILIDAD_SLOT s
+            JOIN PROFESIONAL p ON s.PROFESIONAL_ID = p.ID
+            JOIN USUARIO u ON p.USUARIO_ID = u.ID
+            JOIN SEDE sd ON s.SEDE_ID = sd.ID
+            JOIN ESPECIALIDAD e ON s.ESPECIALIDAD_ID = e.ID
+            WHERE s.ESTADO = 'LIBRE'
+              AND u.ESTADO = 'ACTIVO'
+              AND sd.ESTADO = 'ACTIVO'
+              AND e.ESTADO = 'ACTIVO'
+            """);
+
+        List<Object> params = new ArrayList<>();
+
+        if (especialidadPublicId != null && !especialidadPublicId.isBlank()) {
+            sql.append(" AND e.PUBLIC_ID = ?");
+            params.add(especialidadPublicId.trim());
+        }
+
+        if (sedePublicId != null && !sedePublicId.isBlank()) {
+            sql.append(" AND sd.PUBLIC_ID = ?");
+            params.add(sedePublicId.trim());
+        }
+
+        if (modalidad != null && !modalidad.isBlank()) {
+            sql.append(" AND s.MODALIDAD = ?");
+            params.add(modalidad.trim().toUpperCase(Locale.ROOT));
+        }
+
+        if (fechaDesde != null) {
+            sql.append(" AND s.FECHA_HORA_INICIO >= ?");
+            params.add(Timestamp.from(fechaDesde));
+        }
+
+        if (fechaHasta != null) {
+            sql.append(" AND s.FECHA_HORA_INICIO <= ?");
+            params.add(Timestamp.from(fechaHasta));
+        }
+
+        Integer count = jdbcTemplate.queryForObject(sql.toString(), Integer.class, params.toArray());
+        return count != null ? count : 0;
+    }
+
+    /**
+     * Intenta reservar atómicamente un slot libre cambiándolo a OCUPADO.
+     * Retorna 1 si se reservó exitosamente, o 0 si el slot ya no estaba LIBRE (ADR-006, HU-04).
+     */
+    public int reservarSlot(Long slotId) {
+        final String sql = "UPDATE DISPONIBILIDAD_SLOT SET ESTADO = 'OCUPADO' WHERE ID = ? AND ESTADO = 'LIBRE'";
+        return jdbcTemplate.update(sql, slotId);
+    }
+
+    /**
+     * Libera un slot previamente ocupado cambiándolo de regreso a LIBRE (ADR-006).
+     */
+    public int liberarSlot(Long slotId) {
+        final String sql = "UPDATE DISPONIBILIDAD_SLOT SET ESTADO = 'LIBRE' WHERE ID = ? AND ESTADO = 'OCUPADO'";
+        return jdbcTemplate.update(sql, slotId);
     }
 }

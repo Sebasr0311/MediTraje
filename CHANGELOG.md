@@ -7,6 +7,90 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-03
+
+### Added
+- **Agenda del Profesional Asistencial y Colección de Pruebas HTTP M4 (M4.6, HU-06, ADR-003, ADR-005, ADR-006, ADR-007, ADR-011)**:
+  - Repositorio `CitaRepository`:
+    - `listarAgendaProfesional(Long profesionalId, Instant fechaDesde, Instant fechaHasta, String estado, int page, int size)` con SQL 100% parametrizado, JOINs asistenciales completos, filtro de propiedad estricta del profesional (`s.PROFESIONAL_ID = ?`), ordenación `ORDER BY s.FECHA_HORA_INICIO ASC, c.ID ASC` y paginación ANSI SQL/Oracle (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`).
+    - `contarAgendaProfesional(Long profesionalId, Instant fechaDesde, Instant fechaHasta, String estado)` para cálculo exacto del total de citas según filtros.
+  - Lógica de negocio en `AppointmentService.obtenerMiAgenda(...)`:
+    - Validación rigurosa de paginación (`page >= 0`, `1 <= size <= 100`) y validación de enum `EstadoCita`.
+    - Aislamiento de acceso por rol (ADR-007): resolución de `profesionalRepository.buscarPorUsuarioId(usuario.id())` asegurando que solo profesionales registrados acceden a su agenda.
+    - Conversión de `LocalDate` a rango de instantes en zona horaria `America/Bogota` (ADR-005) cubriendo el inicio (00:00:00) y fin de día (23:59:59.999999999).
+    - Retorno estructurado como `PaginatedResponse<CitaResponse>`.
+  - Controlador REST `ProfessionalAgendaController` en `backend/src/main/java/com/meditriaje/controller/ProfessionalAgendaController.java`:
+    - Mapeo en `GET /api/v1/professionals/me/agenda`.
+    - Autorización estricta `@PreAuthorize("hasAuthority('ROLE_PROFESIONAL')")` (rechaza pacientes y administradores con 403 Forbidden y anónimos con 401 Unauthorized).
+    - Parámetros `@RequestParam` opcionales: `fecha` (`@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)`), `estado`, `page` (default 0), `size` (default 10).
+  - Colección de pruebas HTTP `docs/api/M4.http`:
+    - 6 secciones con escenarios integrales para la puerta de salida de Fase M4:
+      - 1. Ping / Healthcheck.
+      - 2. Autenticación y credenciales de prueba (Admin, Paciente 1, Paciente 2, Médico).
+      - 3. Consulta de disponibilidad con filtros (general, especialidad, fecha, sede, modalidad, combinada).
+      - 4. Reserva transaccional (201 Created), conflicto de doble reserva (409 Conflict) y aislamiento de rol (403 con profesional).
+      - 5. Agenda del profesional (200 OK), filtros por fecha y estado, y aislamiento de agenda (403 paciente, 403 admin, 401 anónimo).
+      - 6. Cancelación de cita (200 OK con liberación de slot), aislamiento de cancelación entre pacientes (403), máquina de estados (400) y regla de las 2 horas (400).
+  - Pruebas automatizadas (16 pruebas nuevas, suite consolidada en 297 pruebas al 100%):
+    - `CitaRepositoryTest` (4 pruebas nuevas): validación de consultas paginadas con y sin filtros de fecha y estado, y conteos agregados.
+    - `AppointmentServiceTest` (7 pruebas nuevas): consulta exitosa de agenda, conversión de instantes Bogota (UTC-5), aislamiento estricto (médico A solo consulta sus citas), rechazo ante usuario inexistente (404), rechazo si no es profesional (403), validación de parámetros de paginación (400) y validación de estado inválido (400).
+    - `ProfessionalAgendaControllerTest` (5 pruebas nuevas): 200 OK para profesional con deserialización paginada, 403 Forbidden para paciente, 403 Forbidden para administrador, 401 Unauthorized sin sesión, y propagación correcta de filtros de fecha y estado.
+- **Máquina de Estados y Cancelación de Citas Médicas (M4.5, HU-05, ADR-002, ADR-003, ADR-006, ADR-011)**:
+  - Enum de dominio `EstadoCita` en `com.meditriaje.model`: modelado de los 6 estados del ciclo de vida (`PROGRAMADA`, `CONFIRMADA`, `ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`).
+  - Máquina de estados `CitaStateMachine` en `com.meditriaje.model`:
+    - Transiciones controladas desde `PROGRAMADA` (`CONFIRMADA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`) y desde `CONFIRMADA` (`ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`).
+    - Inmutabilidad terminal en estados finales (`ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`) sin transiciones salientes permitidas.
+    - Métodos deterministas: `esTransicionValida(origen, destino)`, `validarTransicion(origen, destino)` (lanza `DatosInvalidosException`), y `esEstadoFinal(estado)`.
+  - DTO `CancelarCitaRequest` en `com.meditriaje.dto.appointment` con validación `@Size(max = 255)` para motivo y soporte de cuerpo vacío o nulo.
+  - Lógica de negocio transaccional `AppointmentService.cancelarCita(...)`:
+    - Verificación rigurosa de transición válida según `CitaStateMachine`.
+    - Reglas de autorización y anticipación según rol (ADR-002, ADR-006):
+      - Paciente: valida pertenencia de la cita y anticipación de al menos 2 horas (`Instant.now(clock).isAfter(slot.fechaHoraInicio().minus(2, ChronoUnit.HOURS))`).
+      - Profesional: valida asignación del slot al profesional autenticado sin restricción horaria.
+      - Administrador: autorización irrestricta sobre cualquier cita activa sin restricción horaria.
+    - Actualización de estado a `CANCELADA` y motivo en `CitaRepository.actualizarEstado`.
+    - Liberación atómica del slot asociado cambiándolo a estado `LIBRE` mediante `DisponibilidadSlotRepository.liberarSlot`.
+    - Registro inmutable en bitácora de auditoría (`CANCELACION_CITA`) sin datos clínicos (ADR-011).
+  - Controlador `AppointmentController`: endpoint `PATCH /api/v1/appointments/{publicId}/cancel` protegido con `@PreAuthorize("isAuthenticated()")`, afinando `@PreAuthorize("hasAnyAuthority('ROLE_PACIENTE', 'ROLE_ADMINISTRADOR')")` en el método `POST /api/v1/appointments`.
+  - Pruebas automatizadas (40 pruebas nuevas, 281 totales en suite):
+    - `CitaStateMachineTest` (18 pruebas): validación exhaustiva de estados terminales, transiciones permitidas e inválidas, y validación de mensajes de error.
+    - `AppointmentServiceTest` (13 pruebas nuevas): cancelación exitosa por paciente (> 2h), rechazo por cancelación tardía (< 2h o pasada), rechazo por cita ajena (403), rechazo por transición inválida desde estados terminales (400), cancelación por profesional (slot propio vs ajeno 403), cancelación por admin, ausencia de recursos (404) y cuerpo nulo.
+    - `AppointmentControllerTest` (9 pruebas nuevas): 200 OK para paciente, profesional y admin; 403 Forbidden para cita ajena; 400 Bad Request ante cancelación tardía, transición inválida y motivo > 255 caracteres; 401 Unauthorized sin autenticación.
+- **Prueba Determinista de Concurrencia Multihilo en Reserva de Citas (M4.4, HU-04, ADR-006)**:
+  - Creación de suite determinista `AppointmentConcurrencyTest` en `com.meditriaje.service`:
+    - Simulación multihilo con 12 hilos concurrentes compitiendo en el mismo instante (`CountDownLatch` + `ExecutorService`) sobre el mismo slot de disponibilidad.
+    - Modelado atómico exacto del `UPDATE ... WHERE ESTADO = 'LIBRE'` mediante `AtomicReference.compareAndSet` y del índice único `UQ_CITA_SLOT_ACTIVA` mediante `ConcurrentHashMap.newKeySet`.
+    - Validación empírica determinista: exactamente 1 hilo logra la reserva (201 / `CitaResponse`) y los 11 hilos restantes son rechazados con `CitaNoDisponibleException` (409 Conflict), con el slot pasando a `OCUPADO` y registrándose una sola cita activa.
+    - Repetición determinista (`@RepeatedTest(5)`) sin ningún indicio de *flakiness*, apto para ejecución continua en CI y sin dependencias externas.
+  - Actualización de `OracleIntegrationTest.java`: adición de prueba de integración `db_concurrenciaMultihilo_diezHilosMismoSlot_exactamenteUnoGana()` ejecutando 10 hilos concurrentes reales contra Oracle en Testcontainers, validando que el motor de base de datos impone la exclusión mutua atómica a nivel de fila e índice relacional.
+- **Reserva y Agendamiento Transaccional de Citas Médicas (M4.3, HU-04, ADR-002, ADR-003, ADR-006, ADR-011)**:
+  - Enum `AccionAuditable`: agregado valor `RESERVA_CITA` para trazabilidad inmutable de agendamientos asistenciales.
+  - Modelo de dominio `Cita`: record inmutable en `com.meditriaje.model.Cita` alineado a la tabla relacional `CITA`.
+  - Modelo de dominio `Paciente`: record inmutable en `com.meditriaje.model.Paciente` y método `buscarPorUsuarioId` en `PacienteRepository`.
+  - DTOs en `com.meditriaje.dto.appointment`:
+    - `ReservarCitaRequest`: validación `@NotBlank` sobre `slotPublicId` y soporte para `triajePublicId` opcional.
+    - `CitaResponse`: respuesta consolidada con claves públicas UUID, nombres de profesional, paciente, especialidad, sede, dirección, horarios, modalidad, estado y trazabilidad.
+  - Excepciones de dominio: constructores sobrecargados con mensaje personalizado en `CitaNoDisponibleException` y `AccesoNoAutorizadoException`.
+  - Repositorio `DisponibilidadSlotRepository`: actualización atómica `reservarSlot(Long slotId)` (`UPDATE DISPONIBILIDAD_SLOT SET ESTADO = 'OCUPADO' WHERE ID = ? AND ESTADO = 'LIBRE'`) y método `liberarSlot(Long slotId)`.
+  - Repositorio `CitaRepository`: persistencia 100% parametrizada con `JdbcTemplate` (`crear`, `buscarPorPublicId` con JOINs asistenciales y cita origen, `buscarEntidadPorPublicId`, `buscarEntidadPorId`, `actualizarEstado`, `existeCitaActivaEnSlot`).
+  - Servicio de negocio `AppointmentService`: método transaccional `@Transactional CitaResponse reservarCita(...)` con validación estricta de paciente autenticado (`autenticado != autorizado`), slot no expirado en el pasado, concordancia profesional-especialidad, reserva atómica de slot, control de concurrencia y captura de `DataIntegrityViolationException` (índice único `UQ_CITA_SLOT_ACTIVA`), registro inmutable en auditoría (`RESERVA_CITA`) y retorno de la vista de cita.
+  - Controlador REST `AppointmentController`: endpoint `POST /api/v1/appointments` protegido con `@PreAuthorize("hasAnyAuthority('ROLE_PACIENTE', 'ROLE_ADMINISTRADOR')")`, extracción segura de IP cliente con `IpUtil` y retorno HTTP 201 Created con cabecera `Location`.
+  - Pruebas automatizadas: `CitaRepositoryTest` (7 pruebas), `AppointmentServiceTest` (8 pruebas), `AppointmentControllerTest` (5 pruebas), `PacienteRepositoryTest` (3 pruebas) y actualización de `DisponibilidadSlotRepositoryTest` (11 pruebas), totalizando 235 pruebas pasando al 100%.
+- **Consulta de Disponibilidad de Citas (M4.2, HU-03, ADR-002, ADR-003, ADR-005, ADR-006)**:
+  - DTO `DisponibilidadSlotResponse` en `com.meditriaje.dto.availability` con claves públicas UUID, nombres de profesional/especialidad/sede, dirección, ciudad, inicio, fin, modalidad y cálculo de duración en minutos.
+  - Repositorio `DisponibilidadSlotRepository`: métodos `consultarDisponibles` y `contarDisponibles` con filtros dinámicos asistenciales, ordenación `ORDER BY s.FECHA_HORA_INICIO ASC, s.ID ASC`, paginación ANSI SQL/Oracle (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y filtros estrictos de estado activo en profesionales (`USUARIO.ESTADO = 'ACTIVO'`), sedes y especialidades.
+  - Servicio de negocio `AvailabilityService`: manejo temporal en `America/Bogota`, cálculo estricto de rangos futuros (`FECHA_HORA_INICIO > Instant.now()`), retorno inmediato de lista vacía ante días pasados, y validaciones de modalidad (`PRESENCIAL`/`TELEMEDICINA`), página (>= 0) y tamaño (1-100).
+  - Controlador REST `AvailabilityController` en `GET /api/v1/availability` protegido con `@PreAuthorize("isAuthenticated()")` para cualquier usuario autenticado (pacientes, profesionales y administradores), con soporte y resolución inteligente de parámetros redundantes (`especialidad`/`especialidadPublicId`, `sede`/`sedePublicId`).
+  - Pruebas unitarias y de integración MockMvc: `AvailabilityServiceTest` (9 pruebas), `AvailabilityControllerTest` (10 pruebas) y actualización de `DisponibilidadSlotRepositoryTest` (9 pruebas), alcanzando 210 pruebas totales pasando al 100%.
+- **Migración V006 (`database/migrations/V006__citas.sql`) e Índice Funcional de Concurrencia (M4.1, HU-03, HU-04, ADR-003, ADR-006, ADR-012)**:
+  - Tabla `CITA`: clave pública UUID expuesta en API (`PUBLIC_ID`), relaciones FK con `DISPONIBILIDAD_SLOT`, `PACIENTE` y recursiva opcional `CITA_ORIGEN_ID` para trazabilidad de reprogramaciones.
+  - Columna `TRIAJE_ID` desacoplada temporalmente (se vinculará mediante constraint `FK_CITA_TRIAJE_PACIENTE` en M5.1 al crearse la tabla `TRIAJE`).
+  - Restricción de estados válidos (`CHECK ESTADO IN ('PROGRAMADA', 'CONFIRMADA', 'ATENDIDA', 'CANCELADA', 'NO_ASISTIO', 'REPROGRAMADA')`).
+  - Índice funcional único `UQ_CITA_SLOT_ACTIVA` sobre `CASE WHEN ESTADO IN ('PROGRAMADA', 'CONFIRMADA') THEN SLOT_ID END`: garantiza a nivel del motor Oracle que dos citas activas jamás puedan reservar el mismo slot simultáneamente, mitigando carreras concurrentes y permitiendo múltiples registros históricos inactivos o cancelados.
+  - Índices secundarios de rendimiento: `IX_CITA_PACIENTE`, `IX_CITA_SLOT`, `IX_CITA_ORIGEN`.
+  - Privilegios mínimos a `MEDITRIAJE_APP` (ADR-012): `SELECT, INSERT, UPDATE` (sin `DELETE`).
+  - Pruebas de integración en `OracleIntegrationTest.java`: verificación de versión Flyway (>= V6), validación de acceso de `MEDITRIAJE_APP` a la tabla `CITA` y prueba empírica `db_rechazaDobleCitaActivaEnMismoSlot()` comprobando el rechazo por `DataIntegrityViolationException` de dos reservas activas sobre un mismo slot y la posterior liberación tras cancelación.
+
 ## [0.3.0] - 2026-10-03
 
 ### Added

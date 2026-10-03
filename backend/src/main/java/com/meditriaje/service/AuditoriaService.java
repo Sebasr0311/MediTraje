@@ -74,4 +74,14 @@ public class AuditoriaService {
     ) {
         registrarEvento(null, accion, tipoRecurso, recursoPublicId, resultado, ipOrigen);
     }
+
+    /**
+     * Registra un evento de auditoría encapsulado en el record inmutable {@link EventoAuditoria} (ADR-011).
+     */
+    public void auditar(EventoAuditoria evento) {
+        Objects.requireNonNull(evento, "El evento de auditoria no puede ser nulo");
+        auditoriaRepository.registrar(evento);
+        log.info("Evento auditado: accion={}, tipoRecurso={}, resultado={}",
+                evento.accion(), evento.tipoRecurso(), evento.resultado());
+    }
 }
