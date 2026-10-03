@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** M3 — Administración y catálogos
-- **Tarea actual:** M3.1 — Migraciones de oferta
+- **Tarea actual:** M3.2 — CRUD especialidades, instituciones, sedes
 - **Última etiqueta:** v0.2 (M2 completa)
 - **Rama de trabajo:** feature/m3-administracion
 
@@ -36,8 +36,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M2.6 Revisión de seguridad
 
 ### M3 — Administración y catálogos
-- [~] M3.1 Migraciones de oferta
-- [ ] M3.2 CRUD especialidades, instituciones, sedes
+- [x] M3.1 Migraciones de oferta
+- [~] M3.2 CRUD especialidades, instituciones, sedes
 - [ ] M3.3 Alta de profesionales
 - [ ] M3.4 Generador de slots
 - [ ] M3.5 Seeds ficticios
@@ -108,3 +108,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · M2.4 · Implementación de login, rotación de refresh tokens y logout según ADR-002 y HU-01. Access JWT (15 min) firmado HMAC-SHA256 con claims (sub=publicId, email, roles). Refresh token opaco guardado hasheado (SHA-256) en REFRESH_TOKEN con rotación obligatoria y detección de reuso (revocación masiva de sesiones ante tokens ya revocados). Ambos tokens transmitidos exclusivamente en cookies HttpOnly; Secure; SameSite=Strict (nada en body ni localStorage). Bloqueo temporal de cuenta tras 5 intentos fallidos (15 min) con mensaje genérico ("Credenciales invalidas.") que no revela si el correo existe. Auditoría automática de LOGIN_EXITOSO, LOGIN_FALLIDO (fallo/bloqueado) y LOGOUT. Repositorios UsuarioRepository y RefreshTokenRepository, JwtService, TokenHashUtil, AuthController y AuthService. Pruebas unitarias al 100% (31 tests verdes) · mvn clean verify exitoso · feat(auth): login con bloqueo temporal refresh token rotativo y cookies httponly m2.4
 - 2026-10-03 · M2.5 · Configuración de Spring Security con autorización declarativa por roles (@EnableMethodSecurity, @PreAuthorize), filtro JwtAuthenticationFilter (extracción de cookie HttpOnly access_token y fallback Bearer), filtro CsrfHeaderFilter exigiendo cabecera personalizada (X-Requested-With o X-CSRF-Protection) en operaciones mutantes según ADR-002, manejadores de error 401 (CustomAuthenticationEntryPoint) y 403 (CustomAccessDeniedHandler y Spring AccessDeniedException en GlobalExceptionHandler) retornando ApiError estructurado. Endpoint GET /api/v1/patients/me implementado en PacienteController, PacienteService y PacienteRepository (búsqueda por UUID expuesto publicId sin exponer IDs internos, ADR-003). 48 pruebas unitarias y de seguridad al 100% · mvn clean verify exitoso · feat(security): spring security roles jwt csrf y endpoint paciente me m2.5
 - 2026-10-03 · M2.6 · Auditoría exhaustiva de seguridad de la fase M2 (cero secretos en repositorio, ausencia de datos clínicos o sensibles en logs, SQL 100% parametrizado, tokens exclusivamente en cookies HttpOnly SameSite=Strict, CSRF mitigado, triggers de inmutabilidad en BD). Elaboración del informe docs/security/REVISION_M2.md y creación de la colección docs/api/M2.http. 48 pruebas unitarias y de seguridad pasando al 100% · mvn clean verify exitoso · docs(security): revision de seguridad m2 y coleccion de pruebas http m2.6
+- 2026-10-03 · M3.1 · Migración Flyway V004__oferta_administracion.sql con tablas INSTITUCION, SEDE, ESPECIALIDAD, PROFESIONAL y DISPONIBILIDAD_SLOT; constraints de unicidad, claves foráneas, validación horaria (inicio < fin), checks de modalidad/estados e índices optimizados; privilegios mínimos a MEDITRIAJE_APP (ADR-012) y pruebas de integración ampliadas en OracleIntegrationTest. mvn clean test exitoso (48 tests verdes) · feat(database): migracion flyway v004 oferta asistencial y administracion m3.1

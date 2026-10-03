@@ -8,6 +8,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Migración V004 (`database/migrations/V004__oferta_administracion.sql`) (M3.1)**:
+  - Tablas: `INSTITUCION`, `SEDE`, `ESPECIALIDAD`, `PROFESIONAL`, `DISPONIBILIDAD_SLOT`.
+  - Restricciones relacionales: FKs, checks de estados (`ACTIVO`/`INACTIVO`, `LIBRE`/`OCUPADO`/`BLOQUEADO`), modalidades (`PRESENCIAL`/`TELEMEDICINA`), coherencia horaria (`FECHA_HORA_FIN > FECHA_HORA_INICIO`) y unicidad (`UQ_SLOT_PROFESIONAL_INICIO`).
+  - Índices de rendimiento: `IX_SEDE_INSTITUCION`, `IX_PROFESIONAL_ESPECIALIDAD`, `IX_SLOT_BUSQUEDA` e `IX_SLOT_SEDE`.
+  - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (ADR-012): `SELECT`, `INSERT`, `UPDATE` en instituciones, sedes, especialidades y profesionales; y `SELECT`, `INSERT`, `UPDATE`, `DELETE` en slots de disponibilidad.
+  - Actualización de pruebas de integración en `OracleIntegrationTest.java` para verificar V004 y acceso de `MEDITRIAJE_APP` a las 5 tablas de oferta.
+
+## [0.2.0] - 2026-10-03
+
+### Added
 - **Migración V002 (`database/migrations/V002__seguridad.sql`) (M2.1)**:
   - Tablas: `USUARIO`, `ROL`, `USUARIO_ROL`, `REFRESH_TOKEN`, `CONSENTIMIENTO`, `AUDITORIA`.
   - Triggers de inmutabilidad: `TR_CONSENTIMIENTO_INMUTABILIDAD` (restringe updates y bloquea delete) y `TR_AUDITORIA_INMUTABILIDAD` (insert-only estricto).
