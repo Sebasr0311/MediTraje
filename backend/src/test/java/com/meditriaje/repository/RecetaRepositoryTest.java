@@ -251,4 +251,58 @@ class RecetaRepositoryTest {
                 .thenReturn(0);
         assertThat(repository.existePorAtencionId(10L)).isFalse();
     }
+
+    @Test
+    @DisplayName("listarPorPacienteId - Retorna lista vacía si pacienteId es nulo")
+    void listarPorPacienteId_nulo_retornaVacio() {
+        List<RecetaResponse> resp = repository.listarPorPacienteId(null, 0, 10);
+        assertThat(resp).isEmpty();
+        verifyNoInteractions(jdbcTemplate);
+    }
+
+    @Test
+    @DisplayName("listarPorPacienteId - Consulta paginada con JOINs y detalles")
+    void listarPorPacienteId_exito() throws SQLException {
+        ResultSet rs = mock(ResultSet.class);
+        when(rs.getLong("RECETA_ID")).thenReturn(555L);
+        when(rs.getString("RECETA_PUBLIC_ID")).thenReturn("receta-uuid-1");
+        when(rs.getString("ATENCION_PUBLIC_ID")).thenReturn("atencion-uuid-1");
+        when(rs.getString("PACIENTE_PUBLIC_ID")).thenReturn("pac-uuid-1");
+        when(rs.getString("PACIENTE_NOMBRE")).thenReturn("Juan Perez");
+        when(rs.getString("PROFESIONAL_PUBLIC_ID")).thenReturn("prof-uuid-1");
+        when(rs.getString("PROFESIONAL_NOMBRE")).thenReturn("Carlos Gomez");
+        when(rs.getString("ESPECIALIDAD_NOMBRE")).thenReturn("Medicina General");
+        when(rs.getInt("VIGENCIA_DIAS")).thenReturn(30);
+        when(rs.getTimestamp("CREATED_AT")).thenReturn(Timestamp.from(Instant.now()));
+
+        doAnswer(invocation -> {
+            RowMapper<RecetaResponse> mapper = invocation.getArgument(1);
+            RecetaResponse res = mapper.mapRow(rs, 1);
+            return List.of(res);
+        }).when(jdbcTemplate).query(anyString(), any(RowMapper.class), eq(20L), eq(0), eq(10));
+
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(555L)))
+                .thenReturn(List.of(new RecetaDetalleResponse(
+                        "med-uuid-1", "MED-ACE-500", "Acetaminofen", "Acetaminofen", "Tableta", "500 mg",
+                        "500 mg", "Cada 8 horas", 5, 15, "Tomar con agua"
+                )));
+
+        List<RecetaResponse> resultado = repository.listarPorPacienteId(20L, 0, 10);
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).publicId()).isEqualTo("receta-uuid-1");
+        assertThat(resultado.get(0).detalles()).hasSize(1);
+        assertThat(resultado.get(0).detalles().get(0).nombreComercial()).isEqualTo("Acetaminofen");
+    }
+
+    @Test
+    @DisplayName("contarPorPacienteId - Retorna 0 si pacienteId es nulo o conteo desde BD")
+    void contarPorPacienteId_pruebas() {
+        assertThat(repository.contarPorPacienteId(null)).isEqualTo(0);
+
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(20L)))
+                .thenReturn(5);
+
+        assertThat(repository.contarPorPacienteId(20L)).isEqualTo(5);
+    }
 }

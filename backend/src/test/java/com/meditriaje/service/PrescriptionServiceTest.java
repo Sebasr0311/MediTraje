@@ -406,4 +406,69 @@ class PrescriptionServiceTest {
         assertThat(resp.totalElements()).isEqualTo(1L);
         assertThat(resp.page()).isZero();
     }
+
+    @Test
+    @DisplayName("obtenerMisRecetas - Paciente autenticado consulta sus recetas exitosamente y audita CONSULTA_HISTORIA")
+    void obtenerMisRecetas_exito() {
+        Usuario usuario = new Usuario(2L, USUARIO_PACIENTE_UUID, "paciente@test.com", "hash", "ACTIVO", 0, null, Instant.now());
+        Paciente paciente = new Paciente(PACIENTE_ID, 2L, "pac-uuid-propio", "CC", "12345", "Juan", "Perez", LocalDate.of(1990, 1, 1), null);
+
+        RecetaResponse recetaResponse = new RecetaResponse(
+                "receta-uuid-1", "atencion-uuid", "pac-uuid-propio", "Juan Perez", "prof-uuid", "Carlos Gomez", "General", 30, Instant.now(), List.of()
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PACIENTE_UUID)).thenReturn(Optional.of(usuario));
+        when(pacienteRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(paciente));
+        when(recetaRepository.listarPorPacienteId(PACIENTE_ID, 0, 10)).thenReturn(List.of(recetaResponse));
+        when(recetaRepository.contarPorPacienteId(PACIENTE_ID)).thenReturn(1);
+
+        PaginatedResponse<RecetaResponse> resp = service.obtenerMisRecetas(USUARIO_PACIENTE_UUID, 0, 10, "192.168.1.50");
+
+        assertThat(resp).isNotNull();
+        assertThat(resp.content()).hasSize(1);
+        assertThat(resp.totalElements()).isEqualTo(1L);
+        assertThat(resp.content().get(0).publicId()).isEqualTo("receta-uuid-1");
+
+        ArgumentCaptor<EventoAuditoria> captor = ArgumentCaptor.forClass(EventoAuditoria.class);
+        verify(auditoriaService).auditar(captor.capture());
+        EventoAuditoria evento = captor.getValue();
+        assertThat(evento.accion()).isEqualTo(AccionAuditable.CONSULTA_HISTORIA);
+        assertThat(evento.tipoRecurso()).isEqualTo("RECETA");
+        assertThat(evento.recursoPublicId()).isEqualTo("pac-uuid-propio");
+        assertThat(evento.ipOrigen()).isEqualTo("192.168.1.50");
+    }
+
+    @Test
+    @DisplayName("obtenerMisRecetas - Falla si usuario autenticado no existe")
+    void obtenerMisRecetas_rechazaSiUsuarioNoExiste() {
+        when(usuarioRepository.buscarPorPublicId("uuid-inexistente")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.obtenerMisRecetas("uuid-inexistente", 0, 10, "127.0.0.1"))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining("Usuario autenticado no encontrado");
+    }
+
+    @Test
+    @DisplayName("obtenerMisRecetas - Falla si usuario no está registrado como paciente")
+    void obtenerMisRecetas_rechazaSiUsuarioNoEsPaciente() {
+        Usuario usuario = new Usuario(10L, "uuid-no-paciente", "otro@test.com", "hash", "ACTIVO", 0, null, Instant.now());
+        when(usuarioRepository.buscarPorPublicId("uuid-no-paciente")).thenReturn(Optional.of(usuario));
+        when(pacienteRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.obtenerMisRecetas("uuid-no-paciente", 0, 10, "127.0.0.1"))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("Usuario no registrado como paciente");
+    }
+
+    @Test
+    @DisplayName("obtenerMisRecetas - Falla si usuarioAutenticadoPublicId es nulo o blanco")
+    void obtenerMisRecetas_rechazaSiUsuarioNuloOBlanco() {
+        assertThatThrownBy(() -> service.obtenerMisRecetas(null, 0, 10, "127.0.0.1"))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("Usuario no autenticado");
+
+        assertThatThrownBy(() -> service.obtenerMisRecetas("   ", 0, 10, "127.0.0.1"))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("Usuario no autenticado");
+    }
 }

@@ -8,6 +8,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Consulta de Recetas Médicas del Paciente y Colección M7.http (M7.3, HU-08, HU-09, ADR-007, ADR-008, ADR-011)**:
+  - Repositorio `RecetaRepository`: métodos `listarPorPacienteId` (con JOINs relacionales a ATENCION, PACIENTE, PROFESIONAL, CITA, DISPONIBILIDAD_SLOT y ESPECIALIDAD, recuperación de detalles con snapshots históricos inmutables, orden cronológico descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y `contarPorPacienteId`.
+  - Servicio `PrescriptionService.obtenerMisRecetas`:
+    - Identificación del paciente autenticado a partir de su identidad (`UsuarioRepository` y `PacienteRepository`).
+    - Paginación segura con saneamiento de parámetros (0-indexed, tamaño acotado entre 1 y 100).
+    - Auditoría inmutable obligatoria `CONSULTA_HISTORIA` (`recurso = "RECETA"`, `recursoPublicId = paciente.publicId()`) sin nombres de fármacos, dosis ni datos clínicos en bitácora ni logs (ADR-011).
+    - Cero exposición de identificadores numéricos autonuméricos de base de datos (ADR-003).
+  - Controlador REST `PacienteController`: endpoint `GET /api/v1/patients/me/prescriptions` blindado exclusivamente para pacientes (`@PreAuthorize("hasAuthority('ROLE_PACIENTE')")`). Administradores y profesionales reciben 403 Forbidden.
+  - Colección de pruebas HTTP `docs/api/M7.http`: 7 secciones exhaustivas con 19 escenarios para la puerta de salida de la Fase M7 (healthcheck, login de roles, catálogo maestro de medicamentos, agendamiento previo y atención médica, emisión de receta con snapshot inmutable, consulta individual con control de relación asistencial y consulta del historial de recetas del paciente).
+  - Pruebas automatizadas (11 pruebas nuevas, suite consolidada en 489 pruebas al 100% de éxito):
+    - `RecetaRepositoryTest` (3 pruebas): listado paginado por paciente con snapshots inmutables, manejo de paciente nulo y conteo.
+    - `PrescriptionServiceTest` (4 pruebas): consulta exitosa con auditoría CONSULTA_HISTORIA, usuario inexistente (404), usuario no paciente (403) y usuario nulo/blanco (403).
+    - `PacienteControllerTest` (4 pruebas MockMvc): 200 OK para paciente con recetas paginadas, 403 Forbidden para profesional, 403 Forbidden para administrador y 401 Unauthorized sin autenticación.
 - **Creación de Receta Médica y Catálogo de Medicamentos (M7.2, HU-08, ADR-003, ADR-007, ADR-008, ADR-011)**:
   - Modelos de dominio inmutables en `com.meditriaje.model`:
     - `Medicamento`: record con id, publicId, codigo, nombreComercial, principioActivo, presentacion, concentracion y estado.

@@ -254,4 +254,80 @@ public class RecetaRepository {
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, atencionId);
         return count != null && count > 0;
     }
+
+    /**
+     * Consulta paginada de recetas médicas emitidas para un paciente específico (HU-08, HU-09).
+     *
+     * @param pacienteId Identificador interno del paciente
+     * @param page Número de página (0-indexed)
+     * @param size Cantidad de elementos por página
+     * @return Lista de recetas médicas del paciente con sus respectivos detalles
+     */
+    public List<RecetaResponse> listarPorPacienteId(Long pacienteId, int page, int size) {
+        if (pacienteId == null) {
+            return List.of();
+        }
+
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        int offset = safePage * safeSize;
+
+        String sql = """
+            SELECT r.ID AS RECETA_ID,
+                   r.PUBLIC_ID AS RECETA_PUBLIC_ID,
+                   a.PUBLIC_ID AS ATENCION_PUBLIC_ID,
+                   p.PUBLIC_ID AS PACIENTE_PUBLIC_ID,
+                   TRIM(p.NOMBRES || ' ' || p.APELLIDOS) AS PACIENTE_NOMBRE,
+                   pr.PUBLIC_ID AS PROFESIONAL_PUBLIC_ID,
+                   TRIM(pr.NOMBRES || ' ' || pr.APELLIDOS) AS PROFESIONAL_NOMBRE,
+                   e.NOMBRE AS ESPECIALIDAD_NOMBRE,
+                   r.VIGENCIA_DIAS,
+                   r.CREATED_AT
+            FROM RECETA r
+            JOIN ATENCION a ON r.ATENCION_ID = a.ID
+            JOIN PACIENTE p ON r.PACIENTE_ID = p.ID
+            JOIN PROFESIONAL pr ON r.PROFESIONAL_ID = pr.ID
+            JOIN CITA c ON a.CITA_ID = c.ID
+            JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
+            JOIN ESPECIALIDAD e ON s.ESPECIALIDAD_ID = e.ID
+            WHERE r.PACIENTE_ID = ?
+            ORDER BY r.CREATED_AT DESC, r.ID DESC
+            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+            """;
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Long recetaId = rs.getLong("RECETA_ID");
+            List<RecetaDetalleResponse> detalles = buscarDetallesPorRecetaId(recetaId);
+            Timestamp tsCreated = rs.getTimestamp("CREATED_AT");
+
+            return new RecetaResponse(
+                    rs.getString("RECETA_PUBLIC_ID"),
+                    rs.getString("ATENCION_PUBLIC_ID"),
+                    rs.getString("PACIENTE_PUBLIC_ID"),
+                    rs.getString("PACIENTE_NOMBRE"),
+                    rs.getString("PROFESIONAL_PUBLIC_ID"),
+                    rs.getString("PROFESIONAL_NOMBRE"),
+                    rs.getString("ESPECIALIDAD_NOMBRE"),
+                    rs.getInt("VIGENCIA_DIAS"),
+                    tsCreated != null ? tsCreated.toInstant() : null,
+                    detalles
+            );
+        }, pacienteId, offset, safeSize);
+    }
+
+    /**
+     * Cuenta el total de recetas emitidas para un paciente (HU-08, HU-09).
+     *
+     * @param pacienteId Identificador interno del paciente
+     * @return Total de recetas
+     */
+    public int contarPorPacienteId(Long pacienteId) {
+        if (pacienteId == null) {
+            return 0;
+        }
+
+        String sql = "SELECT COUNT(*) FROM RECETA WHERE PACIENTE_ID = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, pacienteId);
+        return count != null ? count : 0;
+    }
 }

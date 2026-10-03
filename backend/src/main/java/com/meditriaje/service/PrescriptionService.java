@@ -276,4 +276,48 @@ public class PrescriptionService {
 
         return PaginatedResponse.of(content, safePage, safeSize, total);
     }
+
+    /**
+     * Consulta paginada de las recetas médicas emitidas para el paciente actualmente autenticado (HU-08, HU-09).
+     * Solo lectura, sin exponer identificadores numéricos autonuméricos de base de datos.
+     *
+     * @param usuarioAutenticadoPublicId Identificador público UUID del usuario autenticado
+     * @param page Número de página (0-indexed)
+     * @param size Cantidad de elementos por página (1..100)
+     * @param ipOrigen Dirección IP del cliente para fines de auditoría inmutable
+     * @return PaginatedResponse con las recetas del paciente
+     */
+    public PaginatedResponse<RecetaResponse> obtenerMisRecetas(
+            String usuarioAutenticadoPublicId,
+            int page,
+            int size,
+            String ipOrigen
+    ) {
+        if (usuarioAutenticadoPublicId == null || usuarioAutenticadoPublicId.isBlank()) {
+            throw new AccesoNoAutorizadoException("Usuario no autenticado.");
+        }
+
+        Usuario usuario = usuarioRepository.buscarPorPublicId(usuarioAutenticadoPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario autenticado no encontrado."));
+        Paciente paciente = pacienteRepository.buscarPorUsuarioId(usuario.id())
+                .orElseThrow(() -> new AccesoNoAutorizadoException("Usuario no registrado como paciente."));
+
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+
+        List<RecetaResponse> content = recetaRepository.listarPorPacienteId(paciente.id(), safePage, safeSize);
+        int total = recetaRepository.contarPorPacienteId(paciente.id());
+
+        // Auditar consulta de recetas del paciente (ADR-011, sin datos clínicos ni fármacos)
+        auditoriaService.auditar(new EventoAuditoria(
+                usuario.id(),
+                AccionAuditable.CONSULTA_HISTORIA,
+                "RECETA",
+                paciente.publicId(),
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        ));
+
+        return PaginatedResponse.of(content, safePage, safeSize, total);
+    }
 }
