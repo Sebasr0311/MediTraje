@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -93,6 +94,15 @@ public class PharmacyDispensationController {
         RecetaDispensacionResponse response = dispensationService.consultarRecetaParaFarmacia(
                 publicId, authentication.getAuthorities()
         );
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Lista de sedes asistenciales activas para selección en ventanilla de farmacia.
+     */
+    @GetMapping("/sites")
+    public ResponseEntity<List<com.meditriaje.dto.admin.SedeResponse>> listarSedes() {
+        List<com.meditriaje.dto.admin.SedeResponse> response = dispensationService.listarSedesActivas();
         return ResponseEntity.ok(response);
     }
 }

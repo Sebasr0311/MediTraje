@@ -283,6 +283,23 @@ public class DispensationService {
                 .orElseThrow(() -> new RecursoNoEncontradoException("Dispensación no encontrada: " + dispensacionPublicId));
     }
 
+    /**
+     * Lista las sedes asistenciales activas disponibles para registrar dispensaciones.
+     */
+    public List<com.meditriaje.dto.admin.SedeResponse> listarSedesActivas() {
+        return sedeRepository.listar(0, 100, null, "ACTIVO").stream()
+                .map(s -> new com.meditriaje.dto.admin.SedeResponse(
+                        s.publicId(),
+                        null,
+                        null,
+                        s.nombre(),
+                        s.direccion(),
+                        s.ciudad(),
+                        s.estado()
+                ))
+                .toList();
+    }
+
     private void validarRolFarmaceutico(Collection<? extends GrantedAuthority> authorities) {
         if (authorities == null) {
             throw new AccesoNoAutorizadoException("Acceso restringido: credenciales de autorización ausentes.");

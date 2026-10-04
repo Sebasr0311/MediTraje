@@ -423,4 +423,17 @@ class DispensationServiceTest {
                 .isInstanceOf(AccesoNoAutorizadoException.class)
                 .hasMessageContaining("otro paciente");
     }
+
+    @Test
+    @DisplayName("listarSedesActivas - Retorna lista de sedes activas mapeadas")
+    void listarSedesActivas_retornaSedesDeRepository() {
+        Sede sede1 = new Sede(1L, 10L, "sede-1", "Sede Central", "Calle 10", "Bogotá", "ACTIVO");
+        when(sedeRepository.listar(0, 100, null, "ACTIVO")).thenReturn(List.of(sede1));
+
+        List<com.meditriaje.dto.admin.SedeResponse> result = service.listarSedesActivas();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).publicId()).isEqualTo("sede-1");
+        assertThat(result.get(0).nombre()).isEqualTo("Sede Central");
+    }
 }

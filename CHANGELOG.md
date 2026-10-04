@@ -8,6 +8,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Ventanilla de Farmacia y Seguimiento de Dispensación en Recetas del Paciente (F2.4.5, ADR-016)**:
+  - Nueva vista de farmacia `frontend/js/views/pharmacy-dispensation.js` (`#/pharmacy/dispensation`):
+    - Estación de trabajo para regente de farmacia (`ROLE_FARMACEUTICO`) con selección dinámica de sede de entrega.
+    - Buscador reactivo de prescripciones por código de reclamación alfanumérico o documento de identidad del paciente.
+    - Ficha de receta médica con alerta destacada de caducidad e inhabilitación ante recetas expiradas.
+    - Formulario de entrega controlada: validación de topes según saldo remanente, captura de lote INVIMA y fecha de vencimiento.
+    - Modal accesible de confirmación inmutable y generación inmediata de comprobante de entrega imprimible (`window.print()`).
+    - Consulta de historial cronológico de entregas farmacéuticas previas.
+  - Actualización de la vista del paciente `frontend/js/views/patient-prescriptions.js`:
+    - Visualización prominente del código de reclamación alfanumérico (`REC-XXXXXXXX`) con botón de copiado rápido al portapapeles.
+    - Panel interactivo de trazabilidad farmacéutica con badges de estado (`PENDIENTE`, `DISPENSADA_PARCIAL`, `DISPENSADA_TOTAL`).
+    - Desglose de saldos acumulados por medicamento prescrito e historial cronológico de recepciones en farmacia.
+  - Integración en cliente API (`frontend/js/api.js`), enrutador SPA (`frontend/js/router.js`), autenticación (`frontend/js/auth.js`) y navegación (`frontend/js/app.js`).
+  - Endpoint auxiliar `GET /api/v1/pharmacy/sites` en `PharmacyDispensationController` y `DispensationService` para listar sedes activas para farmacia con pruebas unitarias y de integración.
 - **Controladores REST para Farmacia y Portal del Paciente (F2.4.4, ADR-016)**:
   - Controlador `PharmacyDispensationController` en `/api/v1/pharmacy` (protegido con `@PreAuthorize("hasAuthority('ROLE_FARMACEUTICO')")`):
     - `POST /api/v1/pharmacy/dispensations`: registra dispensación con respuesta 201 Created y cabecera `Location`.

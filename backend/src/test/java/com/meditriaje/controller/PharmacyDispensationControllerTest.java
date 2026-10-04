@@ -260,4 +260,21 @@ class PharmacyDispensationControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("ACCESO_DENEGADO"));
     }
+
+    @Test
+    @DisplayName("GET /api/v1/pharmacy/sites - Farmacéutico recibe 200 OK con lista de sedes activas")
+    void listarSedes_farmaceutico_retorna200() throws Exception {
+        mockAuth(tokenFarmaceutico, "farm-uuid-1", "ROLE_FARMACEUTICO");
+
+        when(dispensationService.listarSedesActivas())
+                .thenReturn(List.of(new com.meditriaje.dto.admin.SedeResponse(
+                        "sede-uuid-1", null, null, "Sede Central", "Calle 10 # 20-30", "Bogotá", "ACTIVO"
+                )));
+
+        mockMvc.perform(get("/api/v1/pharmacy/sites")
+                        .cookie(new Cookie("access_token", tokenFarmaceutico)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].publicId").value("sede-uuid-1"))
+                .andExpect(jsonPath("$[0].nombre").value("Sede Central"));
+    }
 }
