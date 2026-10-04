@@ -28,6 +28,23 @@ public class DefaultEmailService implements EmailService {
     }
 
     @Override
+    public void enviarCorreoHtml(String destinatarioEmail, String asunto, String cuerpoHtml) {
+        Objects.requireNonNull(destinatarioEmail, "destinatarioEmail no puede ser nulo");
+        Objects.requireNonNull(asunto, "asunto no puede ser nulo");
+        Objects.requireNonNull(cuerpoHtml, "cuerpoHtml no puede ser nulo");
+
+        CorreoEnviado correo = new CorreoEnviado(destinatarioEmail, asunto, cuerpoHtml, Instant.now());
+        bufferCorreos.addFirst(correo);
+
+        // Mantener tamaño máximo del buffer en memoria (50 últimos correos)
+        while (bufferCorreos.size() > 50) {
+            bufferCorreos.removeLast();
+        }
+
+        log.info("Correo HTML despachado exitosamente hacia destinatario [{}], asunto: [{}]", destinatarioEmail, asunto);
+    }
+
+    @Override
     public void enviarCodigoRecuperacion(String destinatarioEmail, String destinatarioNombre, String codigo, int minutosExpiracion) {
         Objects.requireNonNull(destinatarioEmail, "destinatarioEmail no puede ser nulo");
         Objects.requireNonNull(codigo, "codigo no puede ser nulo");
@@ -43,15 +60,7 @@ public class DefaultEmailService implements EmailService {
         String cuerpoHtml = templateService.renderizar(PLANTILLA_RECUPERACION, variables);
         String asunto = "MediTriaje 2.0 — Código de recuperación de contraseña";
 
-        CorreoEnviado correo = new CorreoEnviado(destinatarioEmail, asunto, cuerpoHtml, Instant.now());
-        bufferCorreos.addFirst(correo);
-
-        // Mantener tamaño máximo del buffer en memoria (50 últimos correos)
-        while (bufferCorreos.size() > 50) {
-            bufferCorreos.removeLast();
-        }
-
-        log.info("Correo de recuperacion despachado exitosamente hacia destinatario [{}], expiracion {} min", destinatarioEmail, minutosExpiracion);
+        enviarCorreoHtml(destinatarioEmail, asunto, cuerpoHtml);
     }
 
     /**

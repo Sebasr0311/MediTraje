@@ -35,5 +35,9 @@ public enum AccionAuditable {
     /** Segundo factor completado exitosamente en autenticación (F2.1.4). */
     MFA_LOGIN_EXITOSO,
     /** Fallo en validación de segundo factor MFA (F2.1.4). */
-    MFA_LOGIN_FALLIDO
+    MFA_LOGIN_FALLIDO,
+    /** Prescripción de seguimiento post-atención médica (F2.2.3, ADR-015). */
+    CREACION_SEGUIMIENTO,
+    /** Reporte de evolución registrado por el paciente (F2.2.3, ADR-015, §5.16). */
+    REPORTE_EVOLUCION_SEGUIMIENTO
 }

@@ -8,6 +8,57 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Colección HTTP y Cierre de Seguimiento y Notificaciones (F2.2.5, ADR-015)**:
+  - Creación de la colección interactiva `docs/api/F2.2.http` con 7 secciones y 20 escenarios de prueba:
+    - Healthcheck técnico (`/ping`).
+    - Autenticación y roles (Administrador, Paciente 1, Paciente 2, Médico autor, Médico sin relación).
+    - Despacho de notificaciones por correo en reservas y cancelaciones de citas con registro en `RECORDATORIO_CITA`.
+    - Prescripción médica asistencial sobre atenciones cerradas con notificación al paciente y validaciones de autorización (403 para admin, paciente y médicos ajenos).
+    - Consulta y aislamiento estricto de tareas de seguimiento (personal administrativo y pacientes ajenos reciben 403 Forbidden).
+    - Portal del paciente: consulta, filtros por estado y reporte de evolución clínica sin diagnóstico automático (§5.16).
+    - Cancelación de tareas de seguimiento por profesionales autorizados.
+  - Verificación exitosa de la suite completa de pruebas de backend con 594 pruebas verdes al 100% (0 fallos, 0 errores).
+- **Pantallas de Seguimiento Post-Atención y Reporte del Paciente en Frontend (F2.2.4, ADR-015, §5.16)**:
+  - Nueva vista interactiva para el paciente `frontend/js/views/patient-follow-ups.js`:
+    - Listado reactivo de planes de seguimiento post-atención agrupados y filtrables por estado (`PENDIENTE`, `COMPLETADO`).
+    - Badges accesibles e informativos para cada tipo de tarea (`Control Médico`, `Evolución de Síntomas`, `Examen Pendiente`, `Adherencia a Tratamiento`).
+    - Modal accesible para el reporte de evolución clínica con advertencia explícita (§5.16) de que el reporte es un insumo médico confidencial y no genera diagnósticos automáticos ni sustituye urgencias.
+  - Integración en `frontend/js/views/patient-dashboard.js`:
+    - Tarjeta destacada de 'Seguimiento Post-Atención' con carga paralela de tareas activas e hipervínculos directos.
+  - Integración en `frontend/js/views/professional-attention.js`:
+    - Sección 'Plan de Seguimiento Post-Atención' en atenciones cerradas con formulario colapsable para prescribir nuevas tareas (tipo, fecha sugerida de control e indicaciones).
+    - Visualización destacada del reporte de evolución ingresado por el paciente con fecha y hora local de respuesta.
+    - Botón de cancelación de seguimientos pendientes con confirmación modal.
+  - Configuración y registro de la ruta protegida `#/patient/follow-ups` en `frontend/js/app.js`.
+- **Lógica de Dominio y Endpoints de Seguimiento Post-Atención (F2.2.3, ADR-015, §5.16)**:
+  - Enums de dominio `TipoSeguimiento` (`CONTROL_MEDICO`, `EVOLUCION_SINTOMAS`, `EXAMEN_PENDIENTE`, `ADHERENCIA_TRATAMIENTO`) y `EstadoSeguimiento` (`PENDIENTE`, `COMPLETADO`, `CANCELADO`).
+  - Modelo inmutable `SeguimientoPostAtencion.java` y DTOs `CrearSeguimientoRequest`, `ReportarEvolucionRequest` y `SeguimientoResponse` (sin exponer IDs numéricos autonuméricos internos).
+  - Repositorio `SeguimientoRepository.java` con JDBC 100% parametrizado, inserción con `KeyHolder`, actualización de reporte del paciente, cancelación y consultas paginadas ANSI SQL/Oracle.
+  - Servicio `FollowUpService.java`:
+    - Prescripción médica sobre atenciones cerradas con validación de relación asistencial activa o autor.
+    - Notificación por correo al paciente con plantilla HTML de resumen asistencial.
+    - Registro de evolución del paciente sin diagnóstico médico automático (§5.16).
+    - Aislamiento estricto de roles: personal administrativo bloqueado (403 Forbidden), pacientes restringidos a sus propios seguimientos.
+  - Nuevas acciones en `AccionAuditable`: `CREACION_SEGUIMIENTO` y `REPORTE_EVOLUCION_SEGUIMIENTO` (auditadas sin datos clínicos).
+  - Controladores REST:
+    - `FollowUpController.java` (`POST /api/v1/attentions/{id}/follow-ups`, `GET /api/v1/attentions/{id}/follow-ups`, `GET /api/v1/follow-ups/{id}`, `PATCH /api/v1/follow-ups/{id}/cancel`).
+    - `PacienteController.java` (`GET /api/v1/patients/me/follow-ups`, `POST /api/v1/patients/me/follow-ups/{id}/report`).
+  - Suite de 26 pruebas automatizadas nuevas en `SeguimientoRepositoryTest`, `FollowUpServiceTest`, `FollowUpControllerTest` y `PacienteControllerTest` elevando la suite a 594 pruebas al 100% de éxito.
+- **Plantillas HTML y Notificaciones de Citas y Atención (F2.2.2, ADR-015)**:
+  - Tres plantillas de correo HTML institucionales en `backend/src/main/resources/templates/email/`:
+    - `confirmacion-cita.html`: notificación inmediata tras reserva con fecha/hora local (Bogotá UTC-5), profesional, especialidad, sede, modalidad y código de reserva.
+    - `cancelacion-cita.html`: notificación tras cancelación de cita médica con motivo y recomendaciones.
+    - `resumen-atencion-seguimiento.html`: resumen asistencial posterior a la atención médica con recomendaciones de autocuidado y recordatorio de tareas de seguimiento.
+  - Modelo `RecordatorioCita.java` y repositorio `RecordatorioCitaRepository.java` con JDBC parametrizado para registrar historial de notificaciones enviadas y fallidas.
+  - Servicio `AppointmentNotificationService.java`: despacho asíncrono y tolerante a fallos SMTP (`despacharYRegistrar`), resolviendo el correo del paciente y registrando el intento en `RECORDATORIO_CITA`.
+  - Integración en `AppointmentService.java`: despacho automático en `reservarCita` y `cancelarCita` sin abortar las transacciones clínicas/asistenciales ante fallos de correo.
+  - Suite de 14 pruebas automatizadas nuevas en `AppointmentNotificationServiceTest`, `RecordatorioCitaRepositoryTest` y `EmailServiceTest` elevando la suite completa a 568 pruebas al 100% de éxito.
+- **Migración Flyway V011: Seguimiento Post-Atención y Recordatorios (F2.2.1, ADR-015)**:
+  - Archivo de migración `database/migrations/V011__seguimiento_post_atencion.sql` creando:
+    - Tabla `SEGUIMIENTO_POST_ATENCION` para registro de tareas de control, evolución de síntomas, exámenes pendientes y adherencia a tratamiento, con clave foránea a `ATENCION`, `PACIENTE` y `PROFESIONAL`, e inclusión de reporte del paciente (§5.16).
+    - Tabla `RECORDATORIO_CITA` para trazabilidad y auditoría de notificaciones de citas por correo electrónico (`CONFIRMACION_RESERVA`, `RECORDATORIO_PREVIO`, `CANCELACION`).
+    - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (`SELECT, INSERT, UPDATE`).
+  - Actualización de `OracleIntegrationTest.java` para validar migración V11 y permisos de lectura en las nuevas tablas.
 - **Colección HTTP y Verificación de MFA y Recuperación de Contraseña (F2.1.6, ADR-014)**:
   - Colección interactiva `docs/api/F2.1.http` con 4 secciones y 12 escenarios de prueba cubriendo: healthcheck (`/ping`), recuperación de contraseña por OTP (`/auth/forgot-password` con mitigación de enumeración y `/auth/reset-password` con validación de código de 6 dígitos y contraseña segura), enrolamiento MFA TOTP (`/auth/mfa/setup` y `/auth/mfa/verify` con emisión de 8 códigos de respaldo uniuso) y desafío de segundo factor en login (`/auth/login` con `mfaRequerido` y `/auth/mfa/authenticate` con código TOTP o de respaldo, detección de códigos consumidos y tokens inválidos).
   - Verificación de la suite Maven con 556 pruebas pasando limpiamente (100% de éxito, 0 regresiones).
