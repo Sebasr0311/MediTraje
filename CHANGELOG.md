@@ -5,9 +5,17 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0-mvp] - 2026-10-03
 
 ### Added
+- **Documentación Técnica Consolidada y Guion de Demostración del MVP (M8.6)**:
+  - Documento de arquitectura `docs/architecture/ARCHITECTURE.md` y `ARCHITECTURE.md` con especificación de capas, principios rectores (ADR-001 a ADR-013), diagrama C4 de contenedores en Mermaid, arquitectura de frontend y modelo de seguridad.
+  - Catálogo exhaustivo de API REST `docs/api/API.md` y `API.md` con especificación de los 17 controladores, endpoints, cookies `HttpOnly`, cabecera obligatoria CSRF (`X-Requested-With`), contratos DTO y colecciones interactivas `.http`.
+  - Actualización de `docs/database/DATABASE.md` y `DATABASE.md` con el inventario de las 9 migraciones Flyway (`V001` a `V009`), matriz de 24 tablas en 3FN, triggers PL/SQL de inmutabilidad clínica (`ORA-20000` a `ORA-20009`) y permisos de runtime de `MEDITRIAJE_APP`.
+  - Documento rector de seguridad `docs/security/SECURITY.md` y `SECURITY.md` con el modelo de amenazas, criptografía Argon2id, defensas CSRF/XSS, aislamiento asistencial y matriz de mitigación OWASP Top 10 (2021).
+  - Guion de demostración interactivo `docs/demo/GUION_DEMO.md` con datos 100% ficticios para reproducir los 7 pasos de la demo del MVP (§8 de `docs/MVP.md`): registro con consentimiento Ley 1581, triaje de baja prioridad y cita, corte de emergencia con síntoma de alarma, atención médica con signos vitales y CIE-10, receta con snapshot histórico, prueba de acceso cruzado denegado y auditoría inmutable.
+  - Actualización completa de `README.md` como presentación formal del proyecto con instrucciones de inicio rápido en local, perfiles y credenciales de prueba.
+  - Cumplimiento de la Puerta de Salida M8: checklist de `docs/MVP.md` §7 verificado al 100%, demo ejecutable y 501 pruebas automatizadas pasando exitosamente.
 - **Endurecimiento y Revisión Final de Seguridad (M8.5, ADR-002, ADR-007, ADR-011, ADR-012)**:
   - Informe exhaustivo de auditoría y hardening documentado en `docs/security/REVISION_FINAL.md`.
   - Configuración explícita de cabeceras HTTP de seguridad en `SecurityConfig.java`:

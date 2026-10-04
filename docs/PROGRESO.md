@@ -4,9 +4,9 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M8 — Frontend y cierre
-- **Tarea actual:** M8.6 — Documentación final y demo
-- **Última etiqueta:** v0.7 (M7 completa)
+- **Fase actual:** MVP COMPLETADO (v1.0-mvp)
+- **Tarea actual:** Todas las tareas de M0 a M8 completadas
+- **Última etiqueta:** v1.0-mvp (lista para etiquetar)
 - **Rama de trabajo:** feature/m8-frontend
 
 ## Tareas
@@ -77,7 +77,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M8.3 Pantallas de profesional
 - [x] M8.4 Pantallas de administración
 - [x] M8.5 Endurecimiento
-- [ ] M8.6 Documentación final y demo
+- [x] M8.6 Documentación final y demo
 
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
@@ -153,6 +153,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · M8.3 · Pantallas del profesional asistencial: agenda del día (filtros fecha/estado, hora 12h, badge de triaje e inicio directo de atención), formulario de atención médica (secciones colapsables, validación fisiológica de signos vitales sistólica > diastólica, motivo y evolución con contador de caracteres, búsqueda en vivo de diagnóstico CIE-10, cierre irreversible con modal de confirmación y registro de enmiendas append-only), emisión de receta médica (búsqueda en catálogo de fármacos, agregación dinámica hasta 20 ítems, vigencia configurable 1-365 días, confirmación y pantalla de éxito); sanitización XSS con esc(); rutas /professional/agenda, /professional/attention/:id, /professional/prescription/:atencionId blindadas con ROLE_PROFESIONAL; verificado con Playwright en 375, 768 y 1280 px con cero desbordamiento; backend 100% verde (500 pruebas). · feat(frontend): pantallas del profesional agenda atencion y recetas (M8.3)
 - 2026-10-03 · M8.4 · Pantallas de administración: panel unificado con navegación por pestañas sincronizadas (.admin-tabs: instituciones, sedes, especialidades, profesionales y slots); CRUD completo de instituciones (alta, edición, activación/desactivación), sedes vinculadas a instituciones activas, especialidades con duración configurable y profesionales con entrega visual de la contraseña temporal segura (Argon2id) en modal con copiado al portapapeles; generador masivo de slots en America/Bogota (ADR-005) con control de solapes, selector de días y modalidad, y gestión de turnos (bloqueo, desbloqueo, eliminación); cero exposición de contenido clínico (ADR-007); rutas /admin/dashboard, /admin/institutions, /admin/sites, /admin/specialties, /admin/professionals, /admin/slots protegidas con ROLE_ADMINISTRADOR; verificado con Playwright en 375, 768 y 1280 px sin desbordamiento horizontal; backend 100% verde (500 pruebas). · feat(frontend): pantallas de administracion y generador de slots (M8.4)
 - 2026-10-03 · M8.5 · Endurecimiento y revisión final de seguridad: informe exhaustivo de auditoría en docs/security/REVISION_FINAL.md; cabeceras HTTP de seguridad explícitas (CSP default-src 'self', Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy y FrameOptions deny) en SecurityConfig.java; forzado de security.cookie.secure: true y restricción de detalles en Actuator Health (show-details: when-authorized) en application-prod.yml; prueba de integración en PingControllerTest; backend 100% verde (501 pruebas) · feat(security): endurecimiento de cabeceras cookies y actuator (M8.5)
+- 2026-10-03 · M8.6 · Documentación técnica integral y guion interactivo de demo: creación y actualización de README.md, docs/architecture/ARCHITECTURE.md, docs/api/API.md, docs/database/DATABASE.md, docs/security/SECURITY.md y docs/demo/GUION_DEMO.md con el sistema real implementado (Java 21, Spring Boot 3.3.4, Oracle ATP, Flyway V1-V9, triggers PL/SQL, SPA ES Modules, 17 controladores, 24 tablas, matriz OWASP y guion paso a paso con datos ficticios); formalización de versión v1.0.0-mvp en CHANGELOG.md; suite completa de 501 pruebas unitarias y de integración pasando al 100% · docs: documentacion integral del sistema y guion de demo mvp (M8.6)
+- 2026-10-03 · Cierre M8 / MVP Final · Cumplimiento formal y pleno de la Puerta de Salida M8 (docs/MVP.md §7 y §8): checklist de historias HU-01 a HU-11 verificado, demo ejecutable de principio a fin, repositorio 100% libre de secretos y datos reales, 501 pruebas verdes, suite visual y responsiva con Playwright aprobada, consolidación de la versión 1.0.0-mvp y preparación para merge a develop y tag v1.0-mvp. · release: cierre exitoso de fase m8 y entrega final del mvp v1.0 (v1.0-mvp)
 
 
 
