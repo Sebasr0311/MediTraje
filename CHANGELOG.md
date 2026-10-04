@@ -8,6 +8,39 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Pantallas de Administración y Generador de Slots (M8.4, HU-10, ADR-002, ADR-003, ADR-005, ADR-007, ADR-011, ADR-012)**:
+  - Panel Centralizado de Administración `frontend/js/views/admin-views.js`:
+    - Interfaz estructurada en pestañas accesibles (`.admin-tabs`, `.admin-tab`) sincronizadas con la URL (`#/admin/institutions`, `#/admin/sites`, `#/admin/specialties`, `#/admin/professionals`, `#/admin/slots`).
+    - CERO exposición de contenido clínico: banner permanente y aislamiento estricto de roles que limita la visibilidad exclusivamente a la oferta asistencial, infraestructura y cuentas asistenciales (ADR-007).
+  - Pestaña de Instituciones:
+    - Listado paginado de instituciones de salud (`GET /api/v1/admin/institutions`) con filtros por estado y badges accesibles.
+    - Formulario colapsable para alta de instituciones (`POST /api/v1/admin/institutions`) con validación de NIT y razón social.
+    - Edición de razón social vía diálogo modal (`PUT /api/v1/admin/institutions/{id}`).
+    - Desactivación y activación con modal de confirmación (`PATCH /api/v1/admin/institutions/{id}/deactivate` / `activate`).
+  - Pestaña de Sedes:
+    - Listado paginado de sedes asistenciales (`GET /api/v1/admin/sites`) con filtros por institución activa y estado.
+    - Formulario colapsable para alta de sedes (`POST /api/v1/admin/sites`) asociadas a una institución activa preexistente.
+    - Edición de nombre, dirección y ciudad (`PUT /api/v1/admin/sites/{id}`).
+    - Activación y desactivación lógica sin borrado físico.
+  - Pestaña de Especialidades:
+    - Listado paginado de especialidades médicas (`GET /api/v1/admin/specialties`) con duración configurable de turno (minutos).
+    - Formulario para registro de especialidades (`POST /api/v1/admin/specialties`) con validación de rango (5 a 240 minutos).
+    - Edición de especialidad (`PUT /api/v1/admin/specialties/{id}`).
+    - Transición de estados ACTIVO/INACTIVO.
+  - Pestaña de Profesionales Asistenciales:
+    - Listado paginado de profesionales médicos (`GET /api/v1/admin/professionals`) con filtro dinámico por especialidad médica.
+    - Formulario de alta asistencial (`POST /api/v1/admin/professionals`) validando registro médico, correo institucional y especialidad activa.
+    - Modal de éxito prominente tras la creación que entrega al administrador la contraseña temporal segura generada por el backend (Argon2id), con advertencia de que no volverá a mostrarse y botón de copia al portapapeles (`navigator.clipboard`).
+    - Edición de datos del profesional (`PUT /api/v1/admin/professionals/{id}`).
+    - Desactivación y activación de cuentas asistenciales.
+  - Pestaña de Slots de Disponibilidad (Generador Masivo y Gestión de Turnos):
+    - Generador masivo de turnos (`POST /api/v1/admin/slots/generate`) calculando intervalos continuos en zona horaria `America/Bogota` (ADR-005) por rango de fechas, franja horaria diaria, selector de días de la semana (Lunes a Sábado) y modalidad (Presencial / Telemedicina), con prevención atómica de solapes.
+    - Buscador y gestión de turnos (`GET /api/v1/admin/slots`) con filtros por profesional, sede, estado (Libre, Bloqueado, Ocupado) y rango de fechas.
+    - Acciones directas sobre turnos: bloqueo de slots libres (`PATCH /api/v1/admin/slots/{id}/block`), desbloqueo (`PATCH /api/v1/admin/slots/{id}/unblock`) y eliminación física condicional de slots libres (`DELETE /api/v1/admin/slots/{id}`).
+  - Estilos y Verificación Visual con Playwright:
+    - Componente CSS `.admin-tabs` y `.admin-tab` con scroll horizontal táctil y soporte responsivo.
+    - Pruebas end-to-end de navegación entre todas las pestañas, validaciones, creación de instituciones, sedes, especialidades, alta de médico con modal de clave temporal, generación de turnos y bloqueo.
+    - Comprobación de cero desbordamiento horizontal en 375 px (móvil), 768 px (tablet) y 1280 px (desktop).
 - **Pantallas del Profesional Asistencial: Agenda, Atención Clínica y Recetas Médicas (M8.3, HU-06, HU-07, HU-08, ADR-007, ADR-008)**:
   - Módulo de Agenda del Profesional `frontend/js/views/professional-agenda.js`:
     - Listado cronológico de citas asignadas del día (`GET /api/v1/professionals/me/agenda`) en zona horaria `America/Bogota`.

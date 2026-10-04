@@ -16,6 +16,7 @@ import { patientPrescriptionsView } from './views/patient-prescriptions.js';
 import { professionalAgendaView } from './views/professional-agenda.js';
 import { professionalAttentionView } from './views/professional-attention.js';
 import { professionalPrescriptionView } from './views/professional-prescription.js';
+import { adminDashboardView } from './views/admin-views.js';
 
 // Inicialización de Tema Claro / Oscuro
 function initTheme() {
@@ -190,17 +191,14 @@ function setupRoutes() {
   router.addRoute('/professional/attention/:id', professionalAttentionView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
   router.addRoute('/professional/prescription/:atencionId', professionalPrescriptionView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
 
-  router.addRoute('/admin/dashboard', async (container) => {
-    container.innerHTML = `
-      <div class="sg-section">
-        <h1 class="text-2xl font-bold mb-2">Administración del Sistema</h1>
-        <p class="text-muted mb-6">Gestión de catálogos institucionales, profesionales y slots de disponibilidad</p>
-        <div class="card">
-          <p class="text-sm">Pantalla en construcción para M8.4.</p>
-        </div>
-      </div>
-    `;
-  }, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  // Rutas M8.4: Administración del Sistema (Oferta Asistencial, Infraestructura y Slots)
+  router.addRoute('/admin', adminDashboardView, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/dashboard', adminDashboardView, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/institutions', (c) => adminDashboardView(c, { tab: 'institutions' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/sites', (c) => adminDashboardView(c, { tab: 'sites' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/specialties', (c) => adminDashboardView(c, { tab: 'specialties' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/professionals', (c) => adminDashboardView(c, { tab: 'professionals' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/slots', (c) => adminDashboardView(c, { tab: 'slots' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
 
   // Manejador 404 No Encontrado
   router.notFound(async (container, { path }) => {

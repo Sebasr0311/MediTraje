@@ -75,7 +75,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M8.2b Paciente: triaje, disponibilidad, reserva
 - [x] M8.2c Paciente: citas, historia, recetas
 - [x] M8.3 Pantallas de profesional
-- [ ] M8.4 Pantallas de administración
+- [x] M8.4 Pantallas de administración
 - [ ] M8.5 Endurecimiento
 - [ ] M8.6 Documentación final y demo
 
@@ -151,4 +151,6 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 - 2026-10-03 · M8.2c · Pantallas del paciente: mis citas (filtros, cancelacion con regla de 2 horas), historia clinica (linea de tiempo, CIE-10, signos vitales, enmiendas) y recetas (vigencia, snapshots); estilos timeline/vitals/print; rutas /patient/appointments, /patient/history, /patient/prescriptions; verificado con Playwright en 375, 768 y 1280 px sin desbordamiento; backend sin cambios (500 pruebas verdes). · feat(frontend): mis citas historia clinica y recetas del paciente (M8.2c)
 - 2026-10-03 · M8.3 · Pantallas del profesional asistencial: agenda del día (filtros fecha/estado, hora 12h, badge de triaje e inicio directo de atención), formulario de atención médica (secciones colapsables, validación fisiológica de signos vitales sistólica > diastólica, motivo y evolución con contador de caracteres, búsqueda en vivo de diagnóstico CIE-10, cierre irreversible con modal de confirmación y registro de enmiendas append-only), emisión de receta médica (búsqueda en catálogo de fármacos, agregación dinámica hasta 20 ítems, vigencia configurable 1-365 días, confirmación y pantalla de éxito); sanitización XSS con esc(); rutas /professional/agenda, /professional/attention/:id, /professional/prescription/:atencionId blindadas con ROLE_PROFESIONAL; verificado con Playwright en 375, 768 y 1280 px con cero desbordamiento; backend 100% verde (500 pruebas). · feat(frontend): pantallas del profesional agenda atencion y recetas (M8.3)
+- 2026-10-03 · M8.4 · Pantallas de administración: panel unificado con navegación por pestañas sincronizadas (.admin-tabs: instituciones, sedes, especialidades, profesionales y slots); CRUD completo de instituciones (alta, edición, activación/desactivación), sedes vinculadas a instituciones activas, especialidades con duración configurable y profesionales con entrega visual de la contraseña temporal segura (Argon2id) en modal con copiado al portapapeles; generador masivo de slots en America/Bogota (ADR-005) con control de solapes, selector de días y modalidad, y gestión de turnos (bloqueo, desbloqueo, eliminación); cero exposición de contenido clínico (ADR-007); rutas /admin/dashboard, /admin/institutions, /admin/sites, /admin/specialties, /admin/professionals, /admin/slots protegidas con ROLE_ADMINISTRADOR; verificado con Playwright en 375, 768 y 1280 px sin desbordamiento horizontal; backend 100% verde (500 pruebas). · feat(frontend): pantallas de administracion y generador de slots (M8.4)
+
 
