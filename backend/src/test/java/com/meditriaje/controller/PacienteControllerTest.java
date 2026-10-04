@@ -3,11 +3,13 @@ package com.meditriaje.controller;
 import com.meditriaje.config.CorsConfig;
 import com.meditriaje.config.SecurityConfig;
 import com.meditriaje.dto.PacientePerfilResponse;
+import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.dto.clinical.AtencionResponse;
 import com.meditriaje.dto.common.PaginatedResponse;
 import com.meditriaje.dto.prescription.RecetaResponse;
 import com.meditriaje.exception.GlobalExceptionHandler;
 import com.meditriaje.security.JwtService;
+import com.meditriaje.service.AppointmentService;
 import com.meditriaje.service.ClinicalAttentionService;
 import com.meditriaje.service.PacienteService;
 import com.meditriaje.service.PrescriptionService;
@@ -49,6 +51,9 @@ class PacienteControllerTest {
 
     @MockBean
     private PrescriptionService prescriptionService;
+
+    @MockBean
+    private AppointmentService appointmentService;
 
     @MockBean
     private JwtService jwtService;
@@ -235,6 +240,69 @@ class PacienteControllerTest {
     @DisplayName("GET /api/v1/patients/me/prescriptions - Sin autenticación: 401 Unauthorized")
     void getMisRecetas_sinAuth_retorna401() throws Exception {
         mockMvc.perform(get("/api/v1/patients/me/prescriptions"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/patients/me/appointments - Paciente autenticado: 200 OK")
+    void getMisCitas_paciente_retorna200Ok() throws Exception {
+        String tokenPaciente = "valid.token.paciente";
+        when(jwtService.esValido(tokenPaciente)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenPaciente)).thenReturn("uuid-user-paciente");
+        when(jwtService.extraerRoles(tokenPaciente)).thenReturn(List.of("ROLE_PACIENTE"));
+
+        CitaResponse mockCita = new CitaResponse(
+                "cita-uuid-1", "slot-uuid-1", "paciente-uuid-1", "Carlos Perez",
+                "prof-uuid-1", "Dr. Gomez", "esp-uuid-1", "Medicina General",
+                "sede-uuid-1", "Sede Central", "Calle 100 # 15-20",
+                Instant.now().plusSeconds(3600), Instant.now().plusSeconds(4800),
+                "PRESENCIAL", "PROGRAMADA", null, null, Instant.now()
+        );
+        PaginatedResponse<CitaResponse> paginatedResponse = PaginatedResponse.of(List.of(mockCita), 0, 10, 1L);
+
+        when(appointmentService.obtenerMisCitas(eq("uuid-user-paciente"), eq(0), eq(10)))
+                .thenReturn(paginatedResponse);
+
+        mockMvc.perform(get("/api/v1/patients/me/appointments")
+                        .cookie(new Cookie("access_token", tokenPaciente)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].publicId").value("cita-uuid-1"))
+                .andExpect(jsonPath("$.content[0].estado").value("PROGRAMADA"))
+                .andExpect(jsonPath("$.content[0].especialidadNombre").value("Medicina General"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/patients/me/appointments - Profesional: 403 Forbidden")
+    void getMisCitas_profesional_retorna403() throws Exception {
+        String tokenProf = "valid.token.profesional";
+        when(jwtService.esValido(tokenProf)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenProf)).thenReturn("uuid-prof-1");
+        when(jwtService.extraerRoles(tokenProf)).thenReturn(List.of("ROLE_PROFESIONAL"));
+
+        mockMvc.perform(get("/api/v1/patients/me/appointments")
+                        .cookie(new Cookie("access_token", tokenProf)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/patients/me/appointments - Administrador: 403 Forbidden")
+    void getMisCitas_admin_retorna403() throws Exception {
+        String tokenAdmin = "valid.token.admin";
+        when(jwtService.esValido(tokenAdmin)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenAdmin)).thenReturn("uuid-admin-1");
+        when(jwtService.extraerRoles(tokenAdmin)).thenReturn(List.of("ROLE_ADMINISTRADOR"));
+
+        mockMvc.perform(get("/api/v1/patients/me/appointments")
+                        .cookie(new Cookie("access_token", tokenAdmin)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/patients/me/appointments - Sin autenticación: 401 Unauthorized")
+    void getMisCitas_sinAuth_retorna401() throws Exception {
+        mockMvc.perform(get("/api/v1/patients/me/appointments"))
                 .andExpect(status().isUnauthorized());
     }
 }

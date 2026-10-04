@@ -368,4 +368,40 @@ public class AppointmentService {
 
         return PaginatedResponse.of(citas, page, size, (long) total);
     }
+
+    /**
+     * Consulta paginada de las citas médicas del paciente autenticado (HU-09).
+     *
+     * @param usuarioAutenticadoPublicId UUID público del usuario paciente en sesión.
+     * @param page                       Número de página (0-indexed).
+     * @param size                       Tamaño de página (1 a 100).
+     * @return {@link PaginatedResponse} conteniendo la lista de citas {@link CitaResponse}.
+     */
+    @Transactional(readOnly = true)
+    public PaginatedResponse<CitaResponse> obtenerMisCitas(
+            String usuarioAutenticadoPublicId,
+            int page,
+            int size
+    ) {
+        Objects.requireNonNull(usuarioAutenticadoPublicId, "El usuario público no puede ser nulo");
+
+        if (page < 0) {
+            throw new DatosInvalidosException("El número de página no puede ser menor a 0.");
+        }
+        if (size < 1 || size > 100) {
+            throw new DatosInvalidosException("El tamaño de página debe estar entre 1 y 100.");
+        }
+
+        Usuario usuario = usuarioRepository.buscarPorPublicId(usuarioAutenticadoPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado."));
+
+        Paciente paciente = pacienteRepository.buscarPorUsuarioId(usuario.id())
+                .orElseThrow(() -> new AccesoNoAutorizadoException("Solo pacientes registrados pueden consultar sus citas."));
+
+        List<CitaResponse> citas = citaRepository.listarPorPacienteId(paciente.id(), page, size);
+        int total = citaRepository.contarPorPacienteId(paciente.id());
+
+        return PaginatedResponse.of(citas, page, size, (long) total);
+    }
 }
+

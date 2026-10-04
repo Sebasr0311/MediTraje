@@ -4,7 +4,13 @@
    Depende exclusivamente de variables definidas en tokens.css.
    ========================================================================== */
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 /* ---------- Enlace para saltar al contenido principal (A11y) ---------- */
+
 .skip-link {
   position: absolute;
   top: -100px;

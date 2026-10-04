@@ -112,10 +112,10 @@ export const ui = {
           </button>
         </header>
         <div class="modal-body">
-          <p>${message}</p>
+          ${typeof message === 'string' && message.trim().startsWith('<') ? message : `<p>${message}</p>`}
         </div>
         <footer class="modal-footer">
-          <button type="button" class="btn btn-secondary btn-cancel-modal">${cancelText}</button>
+          ${cancelText ? `<button type="button" class="btn btn-secondary btn-cancel-modal">${cancelText}</button>` : ''}
           <button type="button" class="btn ${isDanger ? 'btn-danger' : 'btn-primary'} btn-confirm-modal">${confirmText}</button>
         </footer>
       </div>
@@ -133,17 +133,17 @@ export const ui = {
       }
     };
 
-    backdrop.querySelector('.btn-close-modal').addEventListener('click', () => {
+    backdrop.querySelector('.btn-close-modal')?.addEventListener('click', () => {
       closeModal();
       onCancel();
     });
 
-    backdrop.querySelector('.btn-cancel-modal').addEventListener('click', () => {
+    backdrop.querySelector('.btn-cancel-modal')?.addEventListener('click', () => {
       closeModal();
       onCancel();
     });
 
-    backdrop.querySelector('.btn-confirm-modal').addEventListener('click', async () => {
+    backdrop.querySelector('.btn-confirm-modal')?.addEventListener('click', async () => {
       closeModal();
       await onConfirm();
     });

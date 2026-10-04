@@ -217,4 +217,43 @@ class CitaRepositoryTest {
 
         assertThat(total).isZero();
     }
+
+    @Test
+    void listarPorPacienteId_retornaListaDeCitas() {
+        CitaResponse mockResponse = new CitaResponse(
+                "cita-uuid-1", "slot-uuid-1", "pac-uuid-1", "Carlos Perez",
+                "prof-uuid-1", "Dr. Gomez", "esp-uuid-1", "Medicina General",
+                "sede-uuid-1", "Sede Norte", "Calle 100",
+                Instant.now(), Instant.now().plusSeconds(1200),
+                "PRESENCIAL", "PROGRAMADA", null, null, Instant.now()
+        );
+
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(10L), eq(0), eq(10)))
+                .thenReturn(List.of(mockResponse));
+
+        List<CitaResponse> resultado = repository.listarPorPacienteId(10L, 0, 10);
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).publicId()).isEqualTo("cita-uuid-1");
+    }
+
+    @Test
+    void contarPorPacienteId_retornaTotal() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(10L)))
+                .thenReturn(5);
+
+        int total = repository.contarPorPacienteId(10L);
+
+        assertThat(total).isEqualTo(5);
+    }
+
+    @Test
+    void contarPorPacienteId_retornaCeroCuandoNull() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(10L)))
+                .thenReturn(null);
+
+        int total = repository.contarPorPacienteId(10L);
+
+        assertThat(total).isZero();
+    }
 }

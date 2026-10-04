@@ -6,6 +6,8 @@
 import { auth } from './auth.js';
 import { router } from './router.js';
 import { ui } from './ui.js';
+import { loginView, registerView } from './views/auth-views.js';
+import { patientDashboardView } from './views/patient-dashboard.js';
 
 // Inicialización de Tema Claro / Oscuro
 function initTheme() {
@@ -60,12 +62,12 @@ function updateNavbar() {
     navContainer.innerHTML = `
       <a href="${dashboardLink}" class="nav-link">
         ${ui.icon('user', 'icon icon--sm')}
-        <span class="font-medium">${user.email}</span>
+        <span class="font-medium nav-user-email">${user.email}</span>
         <span class="badge ${roleBadgeClass}" style="margin-left: 4px;">${roleName}</span>
       </a>
-      <button type="button" id="btnLogout" class="btn btn-ghost btn--sm" title="Cerrar sesion activa">
+      <button type="button" id="btnLogout" class="btn btn-ghost btn--sm" title="Cerrar sesion activa" aria-label="Cerrar sesión">
         ${ui.icon('log-out', 'icon icon--sm')}
-        <span>Salir</span>
+        <span class="nav-logout-text">Salir</span>
       </button>
     `;
 
@@ -154,279 +156,15 @@ function setupRoutes() {
     `;
   });
 
-  // Ruta 2: Login
-  router.addRoute('/login', async (container, { queryParams }) => {
-    container.innerHTML = `
-      <div class="container-narrow" style="padding-top: var(--space-8);">
-        <div class="card" style="padding: var(--space-8);">
-          <div class="text-center mb-6">
-            <h1 class="text-2xl font-bold mb-2">Iniciar Sesión</h1>
-            <p class="text-sm text-muted">Ingresa tus credenciales para acceder a MediTriaje 2.0</p>
-          </div>
+  // Ruta 2: Login (M8.2a)
+  router.addRoute('/login', loginView, { guestOnly: true });
 
-          <form id="formLogin" novalidate>
-            <div id="loginAlertContainer"></div>
+  // Ruta 3: Registro de Paciente en 2 pasos (M8.2a)
+  router.addRoute('/register', registerView, { guestOnly: true });
 
-            <div class="form-group">
-              <label for="loginEmail" class="form-label">
-                Correo electrónico <span class="required" aria-hidden="true">*</span>
-              </label>
-              <input type="email" id="loginEmail" class="form-input" placeholder="usuario@correo.com" required autocomplete="username">
-            </div>
+  // Ruta 4: Dashboard del Paciente (M8.2a)
+  router.addRoute('/patient/dashboard', patientDashboardView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
 
-            <div class="form-group">
-              <label for="loginPassword" class="form-label">
-                Contraseña <span class="required" aria-hidden="true">*</span>
-              </label>
-              <input type="password" id="loginPassword" class="form-input" placeholder="••••••••••" required autocomplete="current-password">
-            </div>
-
-            <button type="submit" id="btnLoginSubmit" class="btn btn-primary w-full mt-4">
-              <span>Ingresar</span>
-            </button>
-          </form>
-
-          <div class="text-center mt-6 pt-4 border-top">
-            <span class="text-sm text-muted">¿Eres paciente nuevo?</span>
-            <a href="#/register" class="text-sm font-semibold text-primary" style="margin-left: 4px;">Regístrate aquí</a>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const form = document.getElementById('formLogin');
-    const btnSubmit = document.getElementById('btnLoginSubmit');
-    const alertBox = document.getElementById('loginAlertContainer');
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      alertBox.innerHTML = '';
-
-      const email = document.getElementById('loginEmail').value.trim();
-      const password = document.getElementById('loginPassword').value;
-
-      if (!email || !password) {
-        alertBox.innerHTML = `
-          <div class="alert alert--danger mb-4">
-            ${ui.icon('alert-circle', 'icon alert-icon')}
-            <div class="alert-content">Por favor ingresa tu correo y contraseña.</div>
-          </div>
-        `;
-        return;
-      }
-
-      ui.setButtonLoading(btnSubmit, true);
-
-      try {
-        await auth.login(email, password);
-        ui.showToast('Inicio de sesión exitoso.', 'success');
-
-        const redirect = queryParams.get('redirect');
-        if (redirect) {
-          router.navigate(decodeURIComponent(redirect));
-        } else {
-          router.redirectToHome();
-        }
-      } catch (err) {
-        alertBox.innerHTML = `
-          <div class="alert alert--danger mb-4">
-            ${ui.icon('alert-circle', 'icon alert-icon')}
-            <div class="alert-content">
-              <div class="alert-title">No fue posible ingresar</div>
-              <div>${err.message || 'Credenciales inválidas.'}</div>
-            </div>
-          </div>
-        `;
-      } finally {
-        ui.setButtonLoading(btnSubmit, false);
-      }
-    });
-  }, { guestOnly: true });
-
-  // Ruta 3: Registro de Paciente
-  router.addRoute('/register', async (container) => {
-    container.innerHTML = `
-      <div class="container-narrow" style="padding-top: var(--space-6);">
-        <div class="card" style="padding: var(--space-8);">
-          <div class="text-center mb-6">
-            <h1 class="text-2xl font-bold mb-2">Crear Cuenta de Paciente</h1>
-            <p class="text-sm text-muted">Regístrate para agendar citas y gestionar tu historia médica</p>
-          </div>
-
-          <form id="formRegister" novalidate>
-            <div id="registerAlertContainer"></div>
-
-            <div class="grid grid-cols-1 grid-cols-2-md gap-4">
-              <div class="form-group">
-                <label for="regTipoDoc" class="form-label">Tipo de Documento <span class="required">*</span></label>
-                <select id="regTipoDoc" class="form-select" required>
-                  <option value="CC" selected>Cédula de Ciudadanía (CC)</option>
-                  <option value="TI">Tarjeta de Identidad (TI)</option>
-                  <option value="CE">Cédula de Extranjería (CE)</option>
-                  <option value="PA">Pasaporte (PA)</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="regNumDoc" class="form-label">Número de Documento <span class="required">*</span></label>
-                <input type="text" id="regNumDoc" class="form-input" placeholder="Ej. 1098765432" required>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 grid-cols-2-md gap-4">
-              <div class="form-group">
-                <label for="regNombres" class="form-label">Nombres <span class="required">*</span></label>
-                <input type="text" id="regNombres" class="form-input" placeholder="Ej. Carlos" required autocomplete="given-name">
-              </div>
-
-              <div class="form-group">
-                <label for="regApellidos" class="form-label">Apellidos <span class="required">*</span></label>
-                <input type="text" id="regApellidos" class="form-input" placeholder="Ej. Pérez Gómez" required autocomplete="family-name">
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 grid-cols-2-md gap-4">
-              <div class="form-group">
-                <label for="regFechaNac" class="form-label">Fecha de Nacimiento <span class="required">*</span></label>
-                <input type="date" id="regFechaNac" class="form-input" required autocomplete="bday">
-              </div>
-
-              <div class="form-group">
-                <label for="regTelefono" class="form-label">Teléfono móvil</label>
-                <input type="tel" id="regTelefono" class="form-input" placeholder="3001234567" autocomplete="tel">
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="regEmail" class="form-label">Correo electrónico <span class="required">*</span></label>
-              <input type="email" id="regEmail" class="form-input" placeholder="ejemplo@correo.com" required autocomplete="email">
-            </div>
-
-            <div class="form-group">
-              <label for="regPassword" class="form-label">Contraseña <span class="required">*</span></label>
-              <input type="password" id="regPassword" class="form-input" placeholder="Mínimo 10 caracteres" required autocomplete="new-password">
-              <span class="form-help">Debe incluir al menos 10 caracteres y combinar mayúsculas, números o símbolos.</span>
-            </div>
-
-            <div class="form-check mt-3 mb-4">
-              <input type="checkbox" id="regConsentimiento" required>
-              <label for="regConsentimiento" class="form-check-label">
-                Acepto el tratamiento de datos de salud y los términos de uso asistencial bajo la Ley 1581 de 2012 (versión v1.0).
-              </label>
-            </div>
-
-            <button type="submit" id="btnRegisterSubmit" class="btn btn-primary w-full">
-              <span>Registrarme como paciente</span>
-            </button>
-          </form>
-
-          <div class="text-center mt-6 pt-4 border-top">
-            <span class="text-sm text-muted">¿Ya tienes una cuenta?</span>
-            <a href="#/login" class="text-sm font-semibold text-primary" style="margin-left: 4px;">Inicia sesión</a>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const form = document.getElementById('formRegister');
-    const btnSubmit = document.getElementById('btnRegisterSubmit');
-    const alertBox = document.getElementById('registerAlertContainer');
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      alertBox.innerHTML = '';
-
-      const tipoDocumento = document.getElementById('regTipoDoc').value;
-      const numeroDocumento = document.getElementById('regNumDoc').value.trim();
-      const nombres = document.getElementById('regNombres').value.trim();
-      const apellidos = document.getElementById('regApellidos').value.trim();
-      const fechaNacimiento = document.getElementById('regFechaNac').value;
-      const telefono = document.getElementById('regTelefono').value.trim();
-      const email = document.getElementById('regEmail').value.trim();
-      const password = document.getElementById('regPassword').value;
-      const aceptaConsentimiento = document.getElementById('regConsentimiento').checked;
-
-      if (!numeroDocumento || !nombres || !apellidos || !fechaNacimiento || !email || !password) {
-        alertBox.innerHTML = `
-          <div class="alert alert--danger mb-4">
-            ${ui.icon('alert-circle', 'icon alert-icon')}
-            <div class="alert-content">Por favor completa todos los campos requeridos (*).</div>
-          </div>
-        `;
-        return;
-      }
-
-      if (!aceptaConsentimiento) {
-        alertBox.innerHTML = `
-          <div class="alert alert--warning mb-4">
-            ${ui.icon('alert-triangle', 'icon alert-icon')}
-            <div class="alert-content">Debes aceptar el consentimiento de datos personales para continuar.</div>
-          </div>
-        `;
-        return;
-      }
-
-      ui.setButtonLoading(btnSubmit, true);
-
-      try {
-        await auth.register({
-          tipoDocumento,
-          numeroDocumento,
-          nombres,
-          apellidos,
-          fechaNacimiento,
-          telefono: telefono || null,
-          email,
-          password,
-          consentimientoTextoVersion: 'v1.0',
-          aceptaConsentimiento: true
-        });
-
-        ui.showToast('Cuenta de paciente creada exitosamente.', 'success');
-        router.navigate('/patient/dashboard');
-      } catch (err) {
-        alertBox.innerHTML = `
-          <div class="alert alert--danger mb-4">
-            ${ui.icon('alert-circle', 'icon alert-icon')}
-            <div class="alert-content">
-              <div class="alert-title">Error en el registro</div>
-              <div>${err.message || 'No fue posible registrar la cuenta.'}</div>
-            </div>
-          </div>
-        `;
-      } finally {
-        ui.setButtonLoading(btnSubmit, false);
-      }
-    });
-  }, { guestOnly: true });
-
-  // Rutas base para los paneles de cada rol (se desarrollarán completamente en M8.2..M8.4)
-  router.addRoute('/patient/dashboard', async (container) => {
-    container.innerHTML = `
-      <div class="sg-section">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h1 class="text-2xl font-bold">Panel del Paciente</h1>
-            <p class="text-muted">Bienvenido a tu portal asistencial personal</p>
-          </div>
-          <span class="badge badge--confirmed">Paciente activo</span>
-        </div>
-
-        <div class="card card--highlight mb-6">
-          <div class="card-header">
-            <h3 class="card-title">¿Necesitas atención médica hoy?</h3>
-          </div>
-          <div class="card-body">
-            <p class="text-sm mb-4">Inicia la valoración de triaje para determinar la prioridad asistencial y sugerirte la ruta adecuada.</p>
-            <button type="button" class="btn btn-primary" onclick="alert('El módulo de triaje y citas se habilitará en las siguientes tareas M8.2')">
-              ${ui.icon('activity')}
-              <span>Iniciar nuevo triaje</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
 
   router.addRoute('/professional/agenda', async (container) => {
     container.innerHTML = `

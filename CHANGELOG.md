@@ -8,6 +8,21 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Pantallas del Paciente: Registro, Login y Dashboard (M8.2a, HU-04, HU-08, HU-09)**:
+  - Backend asistencial:
+    - Repositorio `CitaRepository`: métodos `listarPorPacienteId` y `contarPorPacienteId` con SQL 100% parametrizado, JOINs a citas, slots, pacientes, profesionales, especialidades y sedes, orden cronológico descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`.
+    - Servicio `AppointmentService.obtenerMisCitas`: validación de paciente autenticado, saneamiento de parámetros de paginación (0..100) y mapeo inmutable a `CitaResponse`.
+    - Controlador REST `PacienteController`: endpoint `GET /api/v1/patients/me/appointments` protegido exclusivamente con `@PreAuthorize("hasAuthority('ROLE_PACIENTE')")` (403 para otros roles, 401 sin sesión).
+    - 11 pruebas automatizadas nuevas en `CitaRepositoryTest`, `AppointmentServiceTest` y `PacienteControllerTest` (suite consolidada en 500 pruebas verdes al 100%).
+  - Módulo de vistas de autenticación `frontend/js/views/auth-views.js`:
+    - Vista de Login con botón toggle para alternar visibilidad de contraseña, validación de campos en cliente accesible mediante `aria-describedby` y feedback visual ante credenciales erróneas (401) o bloqueo temporal por 15 minutos (423).
+    - Vista de Registro de paciente en 2 pasos visuales e interactivos: Paso 1 (tipo y número de documento, nombres, apellidos, fecha de nacimiento no futura y teléfono) con validación previa al avance; Paso 2 (correo, contraseña con toggle, confirmación y consentimiento informado explícito v1.0 bajo Ley 1581 de 2012 no premarcado) con modal accesible para lectura de términos completos.
+  - Módulo de Dashboard del Paciente `frontend/js/views/patient-dashboard.js`:
+    - Carga reactiva y en paralelo (`Promise.allSettled`) de perfil demográfico, citas, historial clínico y recetas médicas con estados de skeleton animados.
+    - Saludo personalizado con nombre completo y número de documento, tarjeta destacada para inicio de triaje clínico, tarjeta de próxima cita activa con gestión o estado vacío sugerente, lista de atenciones con diagnósticos CIE-10 y lista de fórmulas farmacológicas con medicamentos prescritos.
+  - Optimizaciones de accesibilidad y diseño responsive:
+    - Reglas compactas en `frontend/css/components.css` y `frontend/js/app.js` para la barra de navegación en pantallas móviles (< 640 px).
+    - Verificación visual con Playwright en resoluciones de 375 px (móvil), 768 px (tablet) y 1280 px (desktop) con cero desbordamiento horizontal.
 - **Base del Frontend y Arquitectura SPA (M8.1, ADR-002, ADR-003)**:
   - Cliente API centralizado `frontend/js/api.js` sobre `fetch` nativo con transmisión de cookies HttpOnly (`credentials: 'include'`), cabecera de protección CSRF (`X-Requested-With: XMLHttpRequest`), mapeo a excepción `ApiError` estructurada e interceptor de refresco de token ante 401 con cola de reintento automático.
   - Servicio de autenticación `frontend/js/auth.js` reactivo (`EventTarget`) con estado exclusivamente en memoria (sin tokens en `localStorage`, ADR-002) y métodos para login, registro, logout, cambio de contraseña y comprobación silenciosa de sesión.

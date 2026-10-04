@@ -796,8 +796,22 @@
   text-decoration: none;
   color: var(--text);
   font-weight: var(--weight-bold);
-  font-size: var(--text-lg);
 }
+
+@media (max-width: 640px) {
+  .navbar .container.navbar-inner {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+  .navbar-brand {
+    font-size: var(--text-base);
+    gap: var(--space-1);
+  }
+  .navbar-inner nav {
+    gap: var(--space-1);
+  }
+}
+
 
 .navbar-brand-badge {
   background-color: var(--primary-soft);
@@ -846,6 +860,23 @@
   color: var(--primary);
   background-color: var(--primary-soft);
   font-weight: var(--weight-semibold);
+}
+
+.nav-user-email {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+@media (max-width: 640px) {
+  .nav-user-email {
+    display: none;
+  }
+  .nav-logout-text {
+    display: none;
+  }
 }
 
 /* Barra Lateral (.sidebar - Desktop) */
