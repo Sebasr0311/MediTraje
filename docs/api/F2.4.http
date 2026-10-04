@@ -1,0 +1,574 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase F2.4)
+### Dispensación y Reclamación Farmacéutica de Recetas Médicas (ADR-016)
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+### Cumplimiento estricto: ADR-002, ADR-003, ADR-007, ADR-008, ADR-011, ADR-012, ADR-016
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With
+@csrfValue = XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Autenticación y Credenciales de Prueba
+### ----------------------------------------------------------------------------
+
+### 2.1 Login como Administrador (ROLE_ADMINISTRADOR)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### 2.2 Registro de Paciente 1 (Carlos Pérez)
+# @name registrarPaciente1
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765432",
+  "nombres": "Carlos",
+  "apellidos": "Perez Gomez",
+  "fechaNacimiento": "1992-08-15",
+  "telefono": "3109876543",
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.3 Login Paciente 1
+# @name loginPaciente1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.4 Registro de Paciente 2 (Ana Gómez)
+# @name registrarPaciente2
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1044556677",
+  "nombres": "Ana",
+  "apellidos": "Gomez Zapata",
+  "fechaNacimiento": "1995-03-22",
+  "telefono": "3144556677",
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.5 Login Paciente 2
+# @name loginPaciente2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.6 Login Médico 1 (Dr. Camilo Torres - Medicina General)
+# @name loginMedico1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "camilo.torres@meditriaje.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.7 Login Farmacéutico (Regente de Farmacia - ROLE_FARMACEUTICO)
+# @name loginFarmaceutico
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "farmacia@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### ----------------------------------------------------------------------------
+### 3. Flujo Previo Asistencial: Disponibilidad, Reserva, Atención y Emisión de Receta
+### ----------------------------------------------------------------------------
+
+### 3.1 Consulta de Catálogo de Medicamentos Activos
+# @name listarMedicamentos
+GET {{baseUrl}}/catalogs/medications?page=0&size=5
+Accept: application/json
+
+@medAmoxiId = {{listarMedicamentos.response.body.content[0].publicId}}
+@medParacId = {{listarMedicamentos.response.body.content[1].publicId}}
+
+### 3.2 Login con Paciente 1 para agendar cita
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 3.3 Consulta de Disponibilidad de Citas
+# @name consultarDisponibilidad
+GET {{baseUrl}}/availability?modalidad=PRESENCIAL&page=0&size=5
+Accept: application/json
+
+@slotPublicId = {{consultarDisponibilidad.response.body.content[0].slotPublicId}}
+
+### 3.4 Reserva de Cita Médica
+# @name reservarCita
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "slotPublicId": "{{slotPublicId}}"
+}
+
+@citaPublicId = {{reservarCita.response.body.publicId}}
+
+### 3.5 Login con Médico 1 para atender la cita
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "camilo.torres@meditriaje.com",
+  "password": "PasswordSegura123*"
+}
+
+### 3.6 Iniciar Atención Médica
+# @name iniciarAtencion
+POST {{baseUrl}}/attentions
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "citaPublicId": "{{citaPublicId}}"
+}
+
+@atencionPublicId = {{iniciarAtencion.response.body.publicId}}
+
+### 3.7 Registrar Signos Vitales
+POST {{baseUrl}}/attentions/{{atencionPublicId}}/vital-signs
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "presionSistolica": 120,
+  "presionDiastolica": 80,
+  "frecuenciaCardiaca": 75,
+  "frecuenciaRespiratoria": 16,
+  "temperatura": 36.6,
+  "saturacionOxigeno": 98
+}
+
+### 3.8 Cerrar Atención Médica (Diagnóstico CIE-10)
+# @name cerrarAtencion
+PATCH {{baseUrl}}/attentions/{{atencionPublicId}}/close
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "motivoConsulta": "Faringoamigdalitis aguda y cefalea moderada",
+  "enfermedadActual": "Paciente refiere cuadro de 3 dias de evolucion caracterizado por odinofagia y alzas termicas",
+  "diagnosticoCie10": "J029",
+  "diagnosticoDescripcion": "Faringitis aguda, no especificada",
+  "planManejo": "Tratamiento antibiotico oral y antipiretico segun prescripcion medica",
+  "evolucion": "Paciente orientado, hemodinamicamente estable con signos vitales dentro de limites normales"
+}
+
+### 3.9 Emitir Receta Médica con 2 Medicamentos (Vigencia 30 días)
+### -> DEBE RETORNAR 201 Created con cabecera Location
+# @name emitirReceta
+POST {{baseUrl}}/prescriptions
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "atencionPublicId": "{{atencionPublicId}}",
+  "vigenciaDias": 30,
+  "detalles": [
+    {
+      "medicamentoPublicId": "{{medAmoxiId}}",
+      "dosis": "500 mg",
+      "frecuencia": "Cada 8 horas",
+      "duracionDias": 7,
+      "cantidad": 21,
+      "indicaciones": "Tomar con abundante agua despues de las comidas."
+    },
+    {
+      "medicamentoPublicId": "{{medParacId}}",
+      "dosis": "500 mg",
+      "frecuencia": "Cada 6 horas en caso de dolor o fiebre",
+      "duracionDias": 5,
+      "cantidad": 10,
+      "indicaciones": "No exceder 4 gramos diarios."
+    }
+  ]
+}
+
+@recetaPublicId = {{emitirReceta.response.body.publicId}}
+
+### ----------------------------------------------------------------------------
+### 4. Ventanilla de Farmacia: Búsqueda y Consulta (ROLE_FARMACEUTICO)
+### ----------------------------------------------------------------------------
+
+### 4.1 Login con Farmacéutico
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "farmacia@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### 4.2 Listar Sedes Activas para Dispensación
+# @name listarSedesFarmacia
+GET {{baseUrl}}/pharmacy/sites
+Accept: application/json
+
+@sedePublicId = {{listarSedesFarmacia.response.body[0].publicId}}
+
+### 4.3 Búsqueda de Recetas Médicas por Documento del Paciente
+### -> DEBE RETORNAR 200 OK con la receta encontrada y su código de reclamación
+# @name buscarPorDocumento
+GET {{baseUrl}}/pharmacy/prescriptions?query=1098765432&page=0&size=10
+Accept: application/json
+
+@codigoReclamacion = {{buscarPorDocumento.response.body.content[0].codigoReclamacion}}
+
+### 4.4 Búsqueda de Recetas Médicas por Código de Reclamación
+### -> DEBE RETORNAR 200 OK con la receta exacta
+# @name buscarPorCodigoReclamacion
+GET {{baseUrl}}/pharmacy/prescriptions?query={{codigoReclamacion}}
+Accept: application/json
+
+### 4.5 Consulta Detallada de la Receta con Saldos Disponibles
+### -> DEBE RETORNAR 200 OK con estado PENDIENTE, saldos y cero entregas previas
+# @name consultarRecetaFarmacia
+GET {{baseUrl}}/pharmacy/prescriptions/{{recetaPublicId}}
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 5. Dispensación Parcial de Medicamentos (F2.4, ADR-016)
+### ----------------------------------------------------------------------------
+
+### 5.1 Registrar Entrega Parcial: 10 de Amoxicilina (de 21) y 5 de Paracetamol (de 10)
+### -> DEBE RETORNAR 201 Created con cabecera Location y detalle de lote INVIMA
+# @name dispensacionParcial
+POST {{baseUrl}}/pharmacy/dispensations
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "recetaPublicId": "{{recetaPublicId}}",
+  "sedePublicId": "{{sedePublicId}}",
+  "observaciones": "Primera entrega parcial. Faltan 11 amoxicilina y 5 paracetamol.",
+  "detalles": [
+    {
+      "medicamentoPublicId": "{{medAmoxiId}}",
+      "cantidadEntregada": 10,
+      "lote": "INV-AMX-2026-01",
+      "fechaVencimientoLote": "2027-12-31"
+    },
+    {
+      "medicamentoPublicId": "{{medParacId}}",
+      "cantidadEntregada": 5,
+      "lote": "INV-PCT-2026-03",
+      "fechaVencimientoLote": "2028-06-30"
+    }
+  ]
+}
+
+@dispensacion1Id = {{dispensacionParcial.response.body.publicId}}
+
+### 5.2 Consultar Comprobante de la Primera Dispensación
+# @name consultarComprobante1
+GET {{baseUrl}}/pharmacy/dispensations/{{dispensacion1Id}}
+Accept: application/json
+
+### 5.3 Verificar Saldos Actualizados en la Receta
+### -> DEBE RETORNAR 200 OK con estado DISPENSADA_PARCIAL, Amoxi saldo=11, Parac saldo=5
+# @name verificarSaldosParciales
+GET {{baseUrl}}/pharmacy/prescriptions/{{recetaPublicId}}
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 6. Control Matemático de Saldos y Validaciones Sanitarias (400 Bad Request)
+### ----------------------------------------------------------------------------
+
+### 6.1 Intento de Sobredispensación (Solicitar 15 de Amoxicilina cuando el saldo es 11)
+### -> DEBE RETORNAR 400 Bad Request con código DATOS_INVALIDOS
+POST {{baseUrl}}/pharmacy/dispensations
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "recetaPublicId": "{{recetaPublicId}}",
+  "sedePublicId": "{{sedePublicId}}",
+  "detalles": [
+    {
+      "medicamentoPublicId": "{{medAmoxiId}}",
+      "cantidadEntregada": 15,
+      "lote": "LOTE-SOBRE-01"
+    }
+  ]
+}
+
+### 6.2 Intento de Dispensación sin Detalles de Medicamentos
+### -> DEBE RETORNAR 400 Bad Request con código VALIDACION_FALLIDA
+POST {{baseUrl}}/pharmacy/dispensations
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "recetaPublicId": "{{recetaPublicId}}",
+  "sedePublicId": "{{sedePublicId}}",
+  "detalles": []
+}
+
+### 6.3 Intento de Dispensación con Medicamento Duplicado en la Misma Solicitud
+### -> DEBE RETORNAR 400 Bad Request con código DATOS_INVALIDOS
+POST {{baseUrl}}/pharmacy/dispensations
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "recetaPublicId": "{{recetaPublicId}}",
+  "sedePublicId": "{{sedePublicId}}",
+  "detalles": [
+    {
+      "medicamentoPublicId": "{{medAmoxiId}}",
+      "cantidadEntregada": 2,
+      "lote": "LOTE-1"
+    },
+    {
+      "medicamentoPublicId": "{{medAmoxiId}}",
+      "cantidadEntregada": 3,
+      "lote": "LOTE-2"
+    }
+  ]
+}
+
+### 6.4 Intento de Dispensación con Sede Inexistente
+### -> DEBE RETORNAR 404 Not Found con código RECURSO_NO_ENCONTRADO
+POST {{baseUrl}}/pharmacy/dispensations
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "recetaPublicId": "{{recetaPublicId}}",
+  "sedePublicId": "00000000-0000-0000-0000-000000000000",
+  "detalles": [
+    {
+      "medicamentoPublicId": "{{medAmoxiId}}",
+      "cantidadEntregada": 1
+    }
+  ]
+}
+
+### ----------------------------------------------------------------------------
+### 7. Dispensación Total del Saldo Restante y Cierre de la Receta
+### ----------------------------------------------------------------------------
+
+### 7.1 Registrar Segunda Entrega por el Saldo Restante (11 Amoxi y 5 Parac)
+### -> DEBE RETORNAR 201 Created
+# @name dispensacionFinal
+POST {{baseUrl}}/pharmacy/dispensations
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "recetaPublicId": "{{recetaPublicId}}",
+  "sedePublicId": "{{sedePublicId}}",
+  "observaciones": "Entrega final completando la totalidad de la fórmula medica.",
+  "detalles": [
+    {
+      "medicamentoPublicId": "{{medAmoxiId}}",
+      "cantidadEntregada": 11,
+      "lote": "INV-AMX-2026-02",
+      "fechaVencimientoLote": "2027-12-31"
+    },
+    {
+      "medicamentoPublicId": "{{medParacId}}",
+      "cantidadEntregada": 5,
+      "lote": "INV-PCT-2026-04",
+      "fechaVencimientoLote": "2028-06-30"
+    }
+  ]
+}
+
+@dispensacion2Id = {{dispensacionFinal.response.body.publicId}}
+
+### 7.2 Verificar Estado Final DISPENSADA_TOTAL y Saldo 0 en Ambos Medicamentos
+# @name verificarSaldosFinales
+GET {{baseUrl}}/pharmacy/prescriptions/{{recetaPublicId}}
+Accept: application/json
+
+### 7.3 Intento de Entregar Nuevamente sobre una Receta con Saldo Agotado
+### -> DEBE RETORNAR 400 Bad Request indicando que ya ha sido dispensado en su totalidad
+POST {{baseUrl}}/pharmacy/dispensations
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "recetaPublicId": "{{recetaPublicId}}",
+  "sedePublicId": "{{sedePublicId}}",
+  "detalles": [
+    {
+      "medicamentoPublicId": "{{medAmoxiId}}",
+      "cantidadEntregada": 1
+    }
+  ]
+}
+
+### ----------------------------------------------------------------------------
+### 8. Portal del Paciente: Consulta de Receta y Trazabilidad de Entregas
+### ----------------------------------------------------------------------------
+
+### 8.1 Login con Paciente 1 (Titular de la Receta)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 8.2 Paciente Consulta el Estado de Dispensación de su Propia Receta
+### -> DEBE RETORNAR 200 OK con código de reclamación, saldos e historial de las 2 entregas
+# @name pacienteConsultaDispensacion
+GET {{baseUrl}}/patients/me/prescriptions/{{recetaPublicId}}/dispensation
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 9. Aislamiento Estricto de Seguridad y Autorización (401 y 403)
+### ----------------------------------------------------------------------------
+
+### 9.1 Login con Paciente 2 (Ana Gómez)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 9.2 Paciente 2 Intenta Consultar Dispensación de Receta de Paciente 1
+### -> DEBE RETORNAR 403 Forbidden (Aislamiento entre pacientes)
+GET {{baseUrl}}/patients/me/prescriptions/{{recetaPublicId}}/dispensation
+Accept: application/json
+
+### 9.3 Paciente Intenta Acceder a la Búsqueda en Ventanilla de Farmacia
+### -> DEBE RETORNAR 403 Forbidden (Solo ROLE_FARMACEUTICO)
+GET {{baseUrl}}/pharmacy/prescriptions?query=1098765432
+Accept: application/json
+
+### 9.4 Paciente Intenta Registrar una Dispensación en Farmacia
+### -> DEBE RETORNAR 403 Forbidden (Solo ROLE_FARMACEUTICO)
+POST {{baseUrl}}/pharmacy/dispensations
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "recetaPublicId": "{{recetaPublicId}}",
+  "sedePublicId": "{{sedePublicId}}",
+  "detalles": [
+    {
+      "medicamentoPublicId": "{{medAmoxiId}}",
+      "cantidadEntregada": 1
+    }
+  ]
+}
+
+### 9.5 Administrador Intenta Acceder a Ventanilla de Farmacia
+### -> DEBE RETORNAR 403 Forbidden (Segregación de funciones clínicas/farmacéuticas)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+GET {{baseUrl}}/pharmacy/prescriptions
+Accept: application/json
+
+### 9.6 Profesional Médico Intenta Acceder a Ventanilla de Farmacia
+### -> DEBE RETORNAR 403 Forbidden (Médico prescribe, no dispensa)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "camilo.torres@meditriaje.com",
+  "password": "PasswordSegura123*"
+}
+
+GET {{baseUrl}}/pharmacy/prescriptions
+Accept: application/json
+
+### 9.7 Solicitud Anónima sin Autenticación
+### -> DEBE RETORNAR 401 Unauthorized
+POST {{baseUrl}}/auth/logout
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+GET {{baseUrl}}/pharmacy/prescriptions
+Accept: application/json

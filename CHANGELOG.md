@@ -8,6 +8,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Colección HTTP y Cierre de Dispensación Farmacéutica (F2.4.6, ADR-016)**:
+  - Creación de `docs/api/F2.4.http` con 9 secciones y 23 escenarios de prueba exhaustivos:
+    - Autenticación multirol (Administrador, Paciente 1, Paciente 2, Médico, Farmacéutico).
+    - Ciclo asistencial previo: catálogo, disponibilidad, cita, atención cerrada y emisión de receta médica con 2 fármacos.
+    - Ventanilla de farmacia: búsqueda por cédula y código de reclamación, consulta de receta con saldos y listado de sedes.
+    - Entrega parcial con registro de lote INVIMA y fecha de vencimiento (`POST /api/v1/pharmacy/dispensations`).
+    - Control de saldos: validación matemática de disponibilidad y rechazo de sobredispensación (400 `DatosInvalidosException`).
+    - Segunda entrega completando el saldo total y verificación de estado `DISPENSADA_TOTAL` (saldo 0).
+    - Portal del paciente: consulta del código de reclamación y trazabilidad de entregas previas (`GET /api/v1/patients/me/prescriptions/{id}/dispensation`).
+    - Aislamiento de seguridad: 403 Forbidden para pacientes, médicos y administradores en `/api/v1/pharmacy/**`; 403 entre pacientes distintos; 401 Unauthorized sin sesión.
+  - Script de semillas ficticias para ambiente dev: `database/seeds/dev_seeds_f2_4.sql` habilitando usuario farmacéutico con `ROLE_FARMACEUTICO`.
+  - Verificación global con suite completa de 665 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores).
 - **Ventanilla de Farmacia y Seguimiento de Dispensación en Recetas del Paciente (F2.4.5, ADR-016)**:
   - Nueva vista de farmacia `frontend/js/views/pharmacy-dispensation.js` (`#/pharmacy/dispensation`):
     - Estación de trabajo para regente de farmacia (`ROLE_FARMACEUTICO`) con selección dinámica de sede de entrega.
