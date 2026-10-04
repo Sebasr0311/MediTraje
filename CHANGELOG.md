@@ -7,6 +7,21 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Added
+- **Sistema de Diseño y Componentes Base (M8.0, ADR-002, docs/DISENO_UI_UX.md)**:
+  - Creación de 26 iconos SVG inline estilo Lucide en `frontend/assets/icons/` (check, alert-triangle, alert-circle, info, calendar, clock, file-text, pill, activity, phone, hospital, shield, user, etc.).
+  - Hoja de estilos base `frontend/css/base.css` con enlace de salto accesible (`.skip-link`), contenedores (`.container`, `.container-narrow`), utilidades semánticas flex/grid, tipografía, utilidades de espaciado y soporte para `prefers-reduced-motion`.
+  - Hoja de componentes `frontend/css/components.css` estructurada 100% sobre `tokens.css`:
+    - Botones (`.btn`): primario (teal), secundario, terciario/ghost, peligro y emergencia (Llamar al 123), tamaños pequeño y grande, y estado de carga animado (`.btn--loading`) con objetivo táctil mínimo de 44 px.
+    - Campos de formulario: etiquetas siempre visibles, textos de ayuda, estados de error con icono y descripción vinculados con `aria-describedby`, inputs de 16 px (prevención de zoom en iOS) y casillas/radios accesibles.
+    - Tarjetas (`.card`): contenedor base, variante destacada (`.card--highlight`) con `--primary-soft` e interactivas.
+    - Badges de estado: citas (PROGRAMADA, CONFIRMADA, ATENDIDA, CANCELADA, REPROGRAMADA) y niveles de triaje I al V cumpliendo la regla de no depender exclusivamente del color (icono + texto explícito).
+    - Alertas (`.alert`): informativas, de éxito, advertencia, peligro y banner crítico de emergencia para triaje I.
+    - Feedback y diálogos: toasts interactivos (`role="status"`), modal de confirmación con backdrop accesible y trampa de teclado (Esc y click fuera), skeletons de carga con animación shimmer y estados vacíos (`.empty-state`) con siguiente acción sugerida.
+    - Navegación: barra superior (`.navbar`), barra lateral (`.sidebar`) y barra inferior móvil (`.bottom-nav`) con indicadores activos.
+    - Tablas de datos responsivas con scroll horizontal y soporte para apilamiento en pantallas pequeñas.
+  - Catálogo interactivo `frontend/styleguide.html` con demostración de todos los componentes, variantes y estados interactivos, con alternancia de tema claro/oscuro persistente en `localStorage` y verificado en 375, 768 y 1280 px sin desbordamiento horizontal.
+
 ## [0.7.0] - 2026-10-03
 
 ### Added
