@@ -6,8 +6,8 @@
 
 import { api } from '../api.js';
 import { router } from '../router.js';
-import { ui, esc } from '../ui.js';
 import { showMfaModal } from './mfa-setup-modal.js';
+import { showBreakGlassModal } from './break-glass-modal.js';
 
 const ESTADOS = [
   { value: '', label: 'Todos los estados' },
@@ -59,10 +59,16 @@ export async function professionalAgendaView(container) {
           <h1 class="text-2xl font-bold mb-1">Agenda del día</h1>
           <p class="text-sm text-muted m-0">Tus citas asignadas en orden cronológico</p>
         </div>
-        <button type="button" id="btnConfigurarMfa" class="btn btn-secondary btn--sm">
-          ${ui.icon('shield', 'icon icon--sm')}
-          <span>Seguridad MFA</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btnBreakGlass" class="btn btn-secondary btn--sm" title="Activar acceso clínico de emergencia ante urgencias vitales (ADR-017)">
+            ${ui.icon('alert-triangle', 'icon icon--sm text-danger')}
+            <span>Acceso Emergencia</span>
+          </button>
+          <button type="button" id="btnConfigurarMfa" class="btn btn-secondary btn--sm">
+            ${ui.icon('shield', 'icon icon--sm')}
+            <span>Seguridad MFA</span>
+          </button>
+        </div>
       </div>
 
       <div class="card mb-6">
@@ -146,10 +152,15 @@ export async function professionalAgendaView(container) {
                     </div>
                   </div>
                 </div>
-                ${canStart ? `
-                  <button type="button" class="btn btn-primary btn-start" data-cita="${esc(c.publicId)}">
-                    ${ui.icon('activity')}<span>Iniciar atención</span>
-                  </button>` : ''}
+                <div class="flex items-center gap-2">
+                  <a href="#/professional/patient-history/${esc(c.pacientePublicId)}" class="btn btn-secondary btn--sm" title="Consultar historia clínica del paciente">
+                    ${ui.icon('file-text', 'icon icon--sm')}<span>Historial</span>
+                  </a>
+                  ${canStart ? `
+                    <button type="button" class="btn btn-primary btn-start" data-cita="${esc(c.publicId)}">
+                      ${ui.icon('activity')}<span>Iniciar atención</span>
+                    </button>` : ''}
+                </div>
               </div>
             </div>`;
         }).join('')}
@@ -179,6 +190,9 @@ export async function professionalAgendaView(container) {
   container.querySelector('#btnToday').addEventListener('click', () => {
     dateEl.value = state.fecha = todayBogota();
     load();
+  });
+  container.querySelector('#btnBreakGlass')?.addEventListener('click', () => {
+    showBreakGlassModal();
   });
   container.querySelector('#btnConfigurarMfa')?.addEventListener('click', () => {
     showMfaModal();

@@ -90,7 +90,13 @@ function header(atencion, badge) {
         </div>
         <p class="text-sm text-muted m-0">Paciente: <strong>${esc(atencion.pacienteNombre)}</strong> · ${esc(atencion.especialidadNombre || '')}</p>
       </div>
-      ${badge}
+      <div class="flex items-center gap-2">
+        <a href="#/professional/patient-history/${esc(atencion.pacientePublicId)}" class="btn btn-secondary btn--sm" title="Consultar historia clínica y antecedentes previos del paciente">
+          ${ui.icon('file-text', 'icon icon--sm')}
+          <span>Historial previo</span>
+        </a>
+        ${badge}
+      </div>
     </div>`;
 }
 

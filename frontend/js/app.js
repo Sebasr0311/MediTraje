@@ -19,6 +19,7 @@ import { emergencySummaryView } from './views/emergency-summary-view.js';
 import { professionalAgendaView } from './views/professional-agenda.js';
 import { professionalAttentionView } from './views/professional-attention.js';
 import { professionalPrescriptionView } from './views/professional-prescription.js';
+import { professionalPatientHistoryView } from './views/professional-patient-history.js';
 import { adminDashboardView } from './views/admin-views.js';
 import { pharmacyDispensationView } from './views/pharmacy-dispensation.js';
 
@@ -206,6 +207,7 @@ function setupRoutes() {
   router.addRoute('/professional/agenda', professionalAgendaView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
   router.addRoute('/professional/attention/:id', professionalAttentionView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
   router.addRoute('/professional/prescription/:atencionId', professionalPrescriptionView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
+  router.addRoute('/professional/patient-history/:patientPublicId', professionalPatientHistoryView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
 
   // Rutas M8.4: Administración del Sistema (Oferta Asistencial, Infraestructura y Slots)
   router.addRoute('/admin', adminDashboardView, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
