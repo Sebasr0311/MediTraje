@@ -8,6 +8,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Base del Frontend y Arquitectura SPA (M8.1, ADR-002, ADR-003)**:
+  - Cliente API centralizado `frontend/js/api.js` sobre `fetch` nativo con transmisión de cookies HttpOnly (`credentials: 'include'`), cabecera de protección CSRF (`X-Requested-With: XMLHttpRequest`), mapeo a excepción `ApiError` estructurada e interceptor de refresco de token ante 401 con cola de reintento automático.
+  - Servicio de autenticación `frontend/js/auth.js` reactivo (`EventTarget`) con estado exclusivamente en memoria (sin tokens en `localStorage`, ADR-002) y métodos para login, registro, logout, cambio de contraseña y comprobación silenciosa de sesión.
+  - Módulo UI `frontend/js/ui.js` con gestor de notificaciones toast accesibles, modal de confirmación con captura de foco y soporte de tecla Escape, skeletons de carga, vistas de estado vacío y alertas de error con acción de reintento.
+  - Enrutador SPA `frontend/js/router.js` hash-based sin dependencias externas, con soporte de rutas dinámicas con parámetros, query strings y guardias de navegación para rutas privadas, invitadas y roles específicos.
+  - Punto de entrada `frontend/js/app.js` y página principal `frontend/index.html` con estructura semántica, barra superior dinámica según sesión, barra inferior móvil para pacientes, enlace skip-link accesible y vistas base probadas con Playwright.
 - **Sistema de Diseño y Componentes Base (M8.0, ADR-002, docs/DISENO_UI_UX.md)**:
   - Creación de 26 iconos SVG inline estilo Lucide en `frontend/assets/icons/` (check, alert-triangle, alert-circle, info, calendar, clock, file-text, pill, activity, phone, hospital, shield, user, etc.).
   - Hoja de estilos base `frontend/css/base.css` con enlace de salto accesible (`.skip-link`), contenedores (`.container`, `.container-narrow`), utilidades semánticas flex/grid, tipografía, utilidades de espaciado y soporte para `prefers-reduced-motion`.
