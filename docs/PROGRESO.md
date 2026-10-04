@@ -74,7 +74,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M8.2a Paciente: registro, login, dashboard
 - [x] M8.2b Paciente: triaje, disponibilidad, reserva
 - [x] M8.2c Paciente: citas, historia, recetas
-- [ ] M8.3 Pantallas de profesional
+- [x] M8.3 Pantallas de profesional
 - [ ] M8.4 Pantallas de administración
 - [ ] M8.5 Endurecimiento
 - [ ] M8.6 Documentación final y demo
@@ -150,3 +150,5 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 
 - 2026-10-03 · M8.2c · Pantallas del paciente: mis citas (filtros, cancelacion con regla de 2 horas), historia clinica (linea de tiempo, CIE-10, signos vitales, enmiendas) y recetas (vigencia, snapshots); estilos timeline/vitals/print; rutas /patient/appointments, /patient/history, /patient/prescriptions; verificado con Playwright en 375, 768 y 1280 px sin desbordamiento; backend sin cambios (500 pruebas verdes). · feat(frontend): mis citas historia clinica y recetas del paciente (M8.2c)
+- 2026-10-03 · M8.3 · Pantallas del profesional asistencial: agenda del día (filtros fecha/estado, hora 12h, badge de triaje e inicio directo de atención), formulario de atención médica (secciones colapsables, validación fisiológica de signos vitales sistólica > diastólica, motivo y evolución con contador de caracteres, búsqueda en vivo de diagnóstico CIE-10, cierre irreversible con modal de confirmación y registro de enmiendas append-only), emisión de receta médica (búsqueda en catálogo de fármacos, agregación dinámica hasta 20 ítems, vigencia configurable 1-365 días, confirmación y pantalla de éxito); sanitización XSS con esc(); rutas /professional/agenda, /professional/attention/:id, /professional/prescription/:atencionId blindadas con ROLE_PROFESIONAL; verificado con Playwright en 375, 768 y 1280 px con cero desbordamiento; backend 100% verde (500 pruebas). · feat(frontend): pantallas del profesional agenda atencion y recetas (M8.3)
+

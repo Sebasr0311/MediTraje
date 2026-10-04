@@ -8,6 +8,34 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Pantallas del Profesional Asistencial: Agenda, Atención Clínica y Recetas Médicas (M8.3, HU-06, HU-07, HU-08, ADR-007, ADR-008)**:
+  - Módulo de Agenda del Profesional `frontend/js/views/professional-agenda.js`:
+    - Listado cronológico de citas asignadas del día (`GET /api/v1/professionals/me/agenda`) en zona horaria `America/Bogota`.
+    - Filtros reactivos por fecha y estado (Todas, Programada, Confirmada, Atendida, Cancelada, No asistió) y botón de acceso rápido "Hoy".
+    - Tarjeta de cita con hora en formato 12h, sede o telemedicina, paciente, badges accesibles de estado y presencia de triaje clínico.
+    - Acción directa "Iniciar atención" que crea la atención médica en estado `ABIERTA` (`POST /api/v1/attentions`) y navega directamente a la consulta.
+  - Módulo de Atención Clínica `frontend/js/views/professional-attention.js`:
+    - Vista dual (Atención ABIERTA editable vs. Atención CERRADA solo lectura e inmutable).
+    - Secciones colapsables mediante `<details>` accesibles: signos vitales opcionales con validación fisiológica (presión sistólica > diastólica y rangos biológicos para FC, FR, temperatura, SaO2, peso y talla), motivo de consulta, evolución clínica con contador en vivo (0/4000 caracteres), buscador dinámico con debounce de códigos diagnósticos CIE-10 (`GET /api/v1/catalogs/icd10`) e indicaciones médicas.
+    - Cierre irreversible de atención médica con diálogo modal accesible de confirmación (`ui.showModal`) advirtiendo la inmutabilidad del registro y la transición de la cita a `ATENDIDA` (`POST /api/v1/attentions/{id}/close`).
+    - Vista cerrada inmutable con presentación de diagnóstico CIE-10, motivo, evolución, indicaciones y cuadrícula de signos vitales registrados.
+    - Registro de aclaraciones y enmiendas clínicas append-only (`POST /api/v1/attentions/{id}/amendments`) con profesional autor, motivo y timestamp en Bogotá.
+  - Módulo de Emisión de Recetas Médicas `frontend/js/views/professional-prescription.js`:
+    - Emisión farmacológica exclusiva del profesional de la salud asociada a la atención médica.
+    - Búsqueda en catálogo maestro de medicamentos (`GET /api/v1/catalogs/medications`) por nombre comercial, principio activo o código con debounce de 250 ms.
+    - Agregación dinámica de fármacos a la receta (máximo 20) con inputs individuales de dosis, frecuencia, duración en días, cantidad e indicaciones.
+    - Configuración de vigencia de la receta (1 a 365 días, por defecto 30).
+    - Confirmación modal accesible antes de la emisión atómica (`POST /api/v1/prescriptions`).
+    - Pantalla de éxito con código de receta, resumen de medicamentos, vigencia y botones de retorno a la atención o a la agenda.
+  - Sanitización XSS y Seguridad:
+    - Función utilitaria `esc(value)` en `frontend/js/ui.js` para escapar caracteres HTML peligrosos (`&`, `<`, `>`, `"`, `'`) en datos renderizados dinámicamente.
+    - Autorización estricta en frontend (`requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL'`) respaldada por autorización en backend (403 para pacientes y administradores).
+  - Verificación visual y funcional con Playwright:
+    - Pruebas end-to-end de agenda con citas, filtros y acción de inicio.
+    - Pruebas de atención con validación de signos vitales, selección CIE-10 y modal de cierre irreversible.
+    - Pruebas de registro de enmiendas append-only en atención cerrada.
+    - Pruebas de prescripción con catálogo de fármacos, agregación de ítems, vigencia y emisión atómica.
+    - Verificación responsive a 375 px (móvil), 768 px (tablet) y 1280 px (desktop) con cero desbordamiento horizontal (`scrollWidth <= innerWidth`).
 - **Mis Citas, Historia Clínica y Recetas Médicas del Paciente (M8.2c, HU-04, HU-05, HU-08, HU-09, ADR-006, ADR-007, ADR-008)**:
   - Módulo de Mis Citas `frontend/js/views/patient-appointments.js`:
     - Listado paginado de citas (`GET /api/v1/patients/me/appointments`) con filtros rápidos por estado (Todas, Próximas y Activas, Finalizadas y Canceladas).

@@ -7,7 +7,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { router } from '../router.js';
-import { ui } from '../ui.js';
+import { ui, esc } from '../ui.js';
 
 let historyState = {
   atenciones: [],
@@ -179,14 +179,14 @@ function renderTimeline(container) {
                 <div>
                   <span class="text-xs text-muted font-bold uppercase tracking-wider block mb-1">Motivo de Consulta:</span>
                   <p class="text-sm m-0" style="color: var(--text);">
-                    ${atencion.motivoConsulta || 'Consulta médica programada.'}
+                    ${esc(atencion.motivoConsulta) || 'Consulta médica programada.'}
                   </p>
                 </div>
 
                 <div>
                   <span class="text-xs text-muted font-bold uppercase tracking-wider block mb-1">Evolución Clínica:</span>
                   <p class="text-sm m-0" style="color: var(--text);">
-                    ${atencion.evolucion || 'Paciente valorado en consulta externa.'}
+                    ${esc(atencion.evolucion) || 'Paciente valorado en consulta externa.'}
                   </p>
                 </div>
               </div>
@@ -255,7 +255,7 @@ function renderTimeline(container) {
                     Indicaciones Terapéuticas:
                   </strong>
                   <p class="text-sm m-0" style="color: var(--text); line-height: var(--leading-relaxed);">
-                    ${atencion.indicaciones}
+                    ${esc(atencion.indicaciones)}
                   </p>
                 </div>
               ` : ''}
@@ -275,11 +275,11 @@ function renderTimeline(container) {
                       <div class="p-3" style="background-color: var(--warning-bg); border-left: 3px solid var(--warning); border-radius: var(--radius-sm); font-size: var(--text-xs);">
                         <div class="flex justify-between items-center mb-1">
                           <strong style="color: var(--on-warning-bg);">${enm.profesionalNombre || 'Médico Autor'}</strong>
-                          <span class="text-muted">${formatClinicalDate(enm.createdAt)}</span>
+                          <span class="text-muted">${formatClinicalDate(enm.fechaEnmienda)}</span>
                         </div>
-                        <p class="m-0 mb-1" style="color: var(--on-warning-bg);">${enm.contenido}</p>
+                        <p class="m-0 mb-1" style="color: var(--on-warning-bg);">${esc(enm.contenido)}</p>
                         ${enm.motivo ? `
-                          <span class="block text-muted italic">Motivo de aclaración: ${enm.motivo}</span>
+                          <span class="block text-muted italic">Motivo de aclaración: ${esc(enm.motivo)}</span>
                         ` : ''}
                       </div>
                     `).join('')}

@@ -7,7 +7,7 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { router } from '../router.js';
-import { ui } from '../ui.js';
+import { ui, esc } from '../ui.js';
 
 let prescriptionsState = {
   recetas: [],
@@ -239,15 +239,15 @@ function renderPrescriptionsList(container) {
                           <span class="text-xs block text-muted mt-1">${item.presentacion}</span>
                         </td>
                         <td>
-                          <strong>${item.dosis}</strong>
-                          <span class="text-xs block text-muted">${item.frecuencia}</span>
+                          <strong>${esc(item.dosis)}</strong>
+                          <span class="text-xs block text-muted">${esc(item.frecuencia)}</span>
                         </td>
                         <td>
                           <span class="font-medium">${item.duracionDias} días</span>
                           <span class="text-xs block text-muted">${item.cantidad} unidad(es)</span>
                         </td>
                         <td class="text-xs" style="max-width: 200px;">
-                          ${item.indicaciones || 'Tomar según indicación médica.'}
+                          ${esc(item.indicaciones) || 'Tomar según indicación médica.'}
                         </td>
                       </tr>
                     `).join('')}

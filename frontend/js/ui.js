@@ -29,6 +29,18 @@ const ICONS = {
   plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'
 };
 
+/**
+ * Escapa texto de usuario antes de insertarlo en innerHTML (previene XSS almacenado).
+ */
+export function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export const ui = {
   /**
    * Retorna una etiqueta SVG con el icono solicitado.

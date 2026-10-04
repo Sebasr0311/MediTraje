@@ -13,6 +13,9 @@ import { patientBookingView } from './views/patient-booking.js';
 import { patientAppointmentsView } from './views/patient-appointments.js';
 import { patientHistoryView } from './views/patient-history.js';
 import { patientPrescriptionsView } from './views/patient-prescriptions.js';
+import { professionalAgendaView } from './views/professional-agenda.js';
+import { professionalAttentionView } from './views/professional-attention.js';
+import { professionalPrescriptionView } from './views/professional-prescription.js';
 
 // Inicialización de Tema Claro / Oscuro
 function initTheme() {
@@ -182,17 +185,10 @@ function setupRoutes() {
   router.addRoute('/patient/prescriptions', patientPrescriptionsView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
 
 
-  router.addRoute('/professional/agenda', async (container) => {
-    container.innerHTML = `
-      <div class="sg-section">
-        <h1 class="text-2xl font-bold mb-2">Agenda Asistencial del Profesional</h1>
-        <p class="text-muted mb-6">Visualización de citas asignadas del día y atención médica</p>
-        <div class="card">
-          <p class="text-sm">Pantalla en construcción para M8.3.</p>
-        </div>
-      </div>
-    `;
-  }, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
+  // Rutas M8.3: Agenda, Atención Clínica y Recetas del Profesional Asistencial
+  router.addRoute('/professional/agenda', professionalAgendaView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
+  router.addRoute('/professional/attention/:id', professionalAttentionView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
+  router.addRoute('/professional/prescription/:atencionId', professionalPrescriptionView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
 
   router.addRoute('/admin/dashboard', async (container) => {
     container.innerHTML = `
