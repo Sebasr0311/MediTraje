@@ -8,6 +8,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Colección HTTP y Cierre de Resumen QR de Emergencia (F2.3.6, ADR-010, §5.17, §5.18)**:
+  - Creación de `docs/api/F2.3.http` con 7 secciones y 17 escenarios de prueba completos:
+    - Healthcheck y autenticación de roles (Admin, Paciente 1, Paciente 2).
+    - Generación de código QR de emergencia sin PIN (acceso libre con alcance clínico total).
+    - Generación de código QR protegido con PIN de 4 dígitos y alcance clínico restringido.
+    - Validación y rechazo de PIN en formato inválido (400 Bad Request).
+    - Control de autorización y aislamiento: rechazo de generación para roles no autorizados como administrador (403 Forbidden).
+    - Consulta del historial del paciente y rechazo de revocación por parte de un paciente ajeno (403 Forbidden).
+    - Consulta pública prehospitalaria: verificación preliminar de vigencia (`/check`), resolución directa del resumen sin PIN, desafío de PIN y rechazo ante PIN incorrecto (403 Forbidden), y resolución del resumen con PIN correcto.
+    - Agotamiento estricto de cupo al tercer acceso auditado y rechazo inmediato de la cuarta lectura.
+    - Revocación instantánea por el paciente titular e invalidación inmediata en el visor público prehospitalario.
+  - Verificación de la suite completa de Maven con 629 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre formal del módulo F2.3.
 - **Pantallas de Generador y Visor de Resumen QR de Emergencia (F2.3.5, ADR-010, §5.17, §5.18)**:
   - Nueva vista de paciente `frontend/js/views/patient-emergency-qr.js` (`#/patient/emergency-qr`):
     - Configuración interactiva de alcance clínico: checkboxes para alergias, medicamentos activos, antecedentes/atenciones previas y contacto de emergencia.
