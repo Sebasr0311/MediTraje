@@ -5,9 +5,9 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** F2.6 — Asistente del Sistema y Reportes Administrativos (COMPLETADA)
+- **Tarea actual:** F2.7.1 — ADR-019: Visor de Auditoría y Exportación de Reportes
 - **Última etiqueta:** v1.6-asistente-reportes (Fase F2.6 completada)
-- **Rama de trabajo:** feature/f2.6-asistente-reportes (lista para merge a develop)
+- **Rama de trabajo:** feature/f2.7-auditoria-reportes
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -126,6 +126,14 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] F2.6.5 Frontend: Dashboard Analítico de Reportes y Widget Flotante del Asistente
 - [x] F2.6.6 Pruebas, Colección HTTP y Cierre F2.6
 
+### F2.7 — Visor de Auditoría de Seguridad y Exportación de Reportes
+- [x] F2.7.1 ADR-019: Visor de Auditoría de Seguridad y Exportación de Reportes
+- [ ] F2.7.2 Repositorio y Servicio de Auditoría de Seguridad
+- [ ] F2.7.3 Controlador REST de Auditoría y Pruebas MockMvc
+- [ ] F2.7.4 Frontend: Exportación a CSV y Pantalla del Visor de Auditoría
+- [ ] F2.7.5 Pruebas, Colección HTTP y Cierre F2.7
+
+
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
 - 2026-10-01 · Aprobación formal de decisiones de arquitectura ADR-001 a ADR-013, Casos de Uso, Reglas de Negocio, MER y Modelo Relacional · Cierre exitoso de Fase M0 · Todos los ADRs
@@ -135,6 +143,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · Aprobación de ADR-016: Dispensación y reclamación farmacéutica de recetas con rol ROLE_FARMACEUTICO, validación estricta de vigencia, control de saldos/entregas parciales y totales, trazabilidad de lotes INVIMA, inmutabilidad y auditoría DISPENSACION_RECETA · Extensión de farmacia en Fase 2 · ADR-016
 - 2026-10-04 · Aprobación de ADR-017: Protocolo de acceso clínico de emergencia (Break-Glass) para ROLE_PROFESIONAL con justificación médica obligatoria (>= 20 chars), ventana de vigencia acotada a 24 horas, tabla inmutable ACCESO_BREAK_GLASS con triggers anti UPDATE/DELETE y auditoría reforzada ACCESO_BREAK_GLASS · Acceso clínico de emergencia en Fase 2 · ADR-017
 - 2026-10-04 · Aprobación de ADR-018: Reportes operativos administrativos mediante agregaciones matemáticas y estadísticas anónimas en BD (COUNT, GROUP BY) sin acceso a contenido clínico ni diagnósticos individuales (ADR-007); motor de asistencia interactivo del sistema (RF-27) con detección prioritaria de emergencias vitales (123 / urgencias), base de conocimiento estructurada de MediTriaje 2.0 y disclaimer médico permanente · Asistente y reportes en Fase 2 · ADR-018
+- 2026-10-04 · Aprobación de ADR-019: Visor de auditoría de seguridad y exportación de reportes operativos; consultas paginadas y filtradas sobre la tabla inmutable AUDITORIA para el oficial de seguridad sin exponer datos clínicos ni diagnósticos de pacientes (ADR-007, ADR-011); exportación client-side de reportes hospitalarios en formato CSV estructurado UTF-8 · Visor de auditoría y exportación en Fase 2 · ADR-019
 
 
 ## Pendientes y dudas abiertas
