@@ -8,6 +8,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Lógica de Dominio y Endpoints de Seguimiento Post-Atención (F2.2.3, ADR-015, §5.16)**:
+  - Enums de dominio `TipoSeguimiento` (`CONTROL_MEDICO`, `EVOLUCION_SINTOMAS`, `EXAMEN_PENDIENTE`, `ADHERENCIA_TRATAMIENTO`) y `EstadoSeguimiento` (`PENDIENTE`, `COMPLETADO`, `CANCELADO`).
+  - Modelo inmutable `SeguimientoPostAtencion.java` y DTOs `CrearSeguimientoRequest`, `ReportarEvolucionRequest` y `SeguimientoResponse` (sin exponer IDs numéricos autonuméricos internos).
+  - Repositorio `SeguimientoRepository.java` con JDBC 100% parametrizado, inserción con `KeyHolder`, actualización de reporte del paciente, cancelación y consultas paginadas ANSI SQL/Oracle.
+  - Servicio `FollowUpService.java`:
+    - Prescripción médica sobre atenciones cerradas con validación de relación asistencial activa o autor.
+    - Notificación por correo al paciente con plantilla HTML de resumen asistencial.
+    - Registro de evolución del paciente sin diagnóstico médico automático (§5.16).
+    - Aislamiento estricto de roles: personal administrativo bloqueado (403 Forbidden), pacientes restringidos a sus propios seguimientos.
+  - Nuevas acciones en `AccionAuditable`: `CREACION_SEGUIMIENTO` y `REPORTE_EVOLUCION_SEGUIMIENTO` (auditadas sin datos clínicos).
+  - Controladores REST:
+    - `FollowUpController.java` (`POST /api/v1/attentions/{id}/follow-ups`, `GET /api/v1/attentions/{id}/follow-ups`, `GET /api/v1/follow-ups/{id}`, `PATCH /api/v1/follow-ups/{id}/cancel`).
+    - `PacienteController.java` (`GET /api/v1/patients/me/follow-ups`, `POST /api/v1/patients/me/follow-ups/{id}/report`).
+  - Suite de 26 pruebas automatizadas nuevas en `SeguimientoRepositoryTest`, `FollowUpServiceTest`, `FollowUpControllerTest` y `PacienteControllerTest` elevando la suite a 594 pruebas al 100% de éxito.
 - **Plantillas HTML y Notificaciones de Citas y Atención (F2.2.2, ADR-015)**:
   - Tres plantillas de correo HTML institucionales en `backend/src/main/resources/templates/email/`:
     - `confirmacion-cita.html`: notificación inmediata tras reserva con fecha/hora local (Bogotá UTC-5), profesional, especialidad, sede, modalidad y código de reserva.
