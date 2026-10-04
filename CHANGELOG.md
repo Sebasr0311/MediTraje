@@ -8,6 +8,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Visor de Auditoría de Seguridad y Exportación de Reportes (F2.7, RF-26, RF-30, RNF-11, ADR-019)**:
+  - Formalización y aprobación de **ADR-019** en `docs/DECISIONES.md`: consulta administrativa supervisada de la bitácora inmutable `AUDITORIA` con cero exposición de datos clínicos confidenciales (ADR-007) y exportación client-side de métricas operativas en CSV estructurado con BOM UTF-8.
+  - Repositorio y Servicio de Auditoría (`AuditoriaRepository`, `AuditoriaService`):
+    - Consultas paginadas y filtradas (`listarEventos`, `contarEventos`) con ANSI SQL / Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`.
+    - Filtros por rango de fechas en zona horaria `America/Bogota`, tipo de acción (`AccionAuditable`) y resultado (`EXITO`, `FALLO`, `BLOQUEADO`).
+    - DTO inmutable `RegistroAuditoriaResponse` con metadatos técnicos de supervisión (cero campos clínicos).
+    - Preservación estricta de la inmutabilidad: la tabla `AUDITORIA` se mantiene sin métodos de actualización ni borrado.
+  - Controlador REST `AdminAuditController` (`/api/v1/admin/audit`):
+    - Protección estricta con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`.
+    - Aislamiento de privilegios: 403 Forbidden para pacientes y profesionales asistenciales; 401 Unauthorized sin autenticación; 400 Bad Request ante fechas invertidas.
+  - Frontend — Exportación a CSV y Pantalla del Visor de Auditoría:
+    - En `frontend/js/views/admin-reports.js`: botón "Exportar CSV" que genera y descarga al instante el archivo `reporte_operativo_YYYYMMDD_YYYYMMDD.csv` con métricas de citas, triajes, farmacia, break-glass y desgloses analíticos.
+    - Nueva pantalla `frontend/js/views/admin-audit.js`: vista reactiva con filtros por fecha, selector de acción agrupada y resultado, tabla accesible con badges de estado, fecha formateada en Bogotá (`es-CO`), identicadores truncados y paginación bidireccional accesible.
+    - Integración en pestañas del panel administrativo (`frontend/js/views/admin-views.js`) y ruta enrutada `#/admin/audit` en `frontend/js/app.js`.
+  - Colección HTTP `docs/api/F2.7.http` con 5 secciones y 9 escenarios de prueba completos.
+  - Verificación global con suite completa de 740 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores).
 - **Colección HTTP y Cierre de Asistente del Sistema y Reportes Administrativos (F2.6.6, RF-27, RF-30, ADR-018)**:
   - Creación de `docs/api/F2.6.http` con 5 secciones y 14 escenarios de prueba completos cubriendo:
     - Healthcheck y autenticación multirol (Administrador, Paciente, Profesional).
