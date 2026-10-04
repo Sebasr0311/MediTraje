@@ -49,5 +49,7 @@ public enum AccionAuditable {
     /** Dispensación y entrega de medicamentos en farmacia (F2.4, ADR-016). */
     DISPENSACION_RECETA,
     /** Activación de acceso clínico excepcional de emergencia Break-Glass (F2.5, ADR-017). */
-    ACCESO_BREAK_GLASS
+    ACCESO_BREAK_GLASS,
+    /** Consulta de reportes y métricas operativas por administradores (F2.6, RF-30, ADR-018). */
+    CONSULTA_REPORTE_ADMINISTRATIVO
 }

@@ -22,6 +22,7 @@ import { professionalPrescriptionView } from './views/professional-prescription.
 import { professionalPatientHistoryView } from './views/professional-patient-history.js';
 import { adminDashboardView } from './views/admin-views.js';
 import { pharmacyDispensationView } from './views/pharmacy-dispensation.js';
+import { initSystemAssistantWidget } from './views/system-assistant-widget.js';
 
 // Inicialización de Tema Claro / Oscuro
 function initTheme() {
@@ -217,6 +218,7 @@ function setupRoutes() {
   router.addRoute('/admin/specialties', (c) => adminDashboardView(c, { tab: 'specialties' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/professionals', (c) => adminDashboardView(c, { tab: 'professionals' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/slots', (c) => adminDashboardView(c, { tab: 'slots' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/reports', (c) => adminDashboardView(c, { tab: 'reports' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
 
   // Rutas F2.4: Ventanilla de Dispensación Farmacéutica (ADR-016)
   router.addRoute('/pharmacy/dispensation', pharmacyDispensationView, { requiresAuth: true, requiredRole: 'ROLE_FARMACEUTICO' });
@@ -259,8 +261,12 @@ async function bootstrap() {
   await auth.init();
   updateNavbar();
 
+  // Inicializar widget interactivo del asistente de orientación
+  initSystemAssistantWidget();
+
   // Arrancar el enrutador
   await router.start();
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);
+
