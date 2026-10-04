@@ -17,6 +17,7 @@ import com.meditriaje.service.FollowUpService;
 import com.meditriaje.service.PacienteService;
 import com.meditriaje.service.PrescriptionService;
 import com.meditriaje.service.EmergencyQrService;
+import com.meditriaje.service.DispensationService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -68,6 +69,9 @@ class PacienteControllerTest {
 
     @MockBean
     private EmergencyQrService emergencyQrService;
+
+    @MockBean
+    private DispensationService dispensationService;
 
     @MockBean
     private JwtService jwtService;
@@ -481,4 +485,50 @@ class PacienteControllerTest {
                         .header("X-Requested-With", "XMLHttpRequest"))
                 .andExpect(status().isNoContent());
     }
+
+    @Test
+    @DisplayName("GET /api/v1/patients/me/prescriptions/{publicId}/dispensation - Paciente: 200 OK")
+    void obtenerDispensacionReceta_paciente_retorna200() throws Exception {
+        String tokenPaciente = "valid.token.paciente";
+        when(jwtService.esValido(tokenPaciente)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenPaciente)).thenReturn("uuid-pac-1");
+        when(jwtService.extraerRoles(tokenPaciente)).thenReturn(List.of("ROLE_PACIENTE"));
+
+        com.meditriaje.dto.pharmacy.RecetaDispensacionResponse mockResp = new com.meditriaje.dto.pharmacy.RecetaDispensacionResponse(
+                "rec-123", "REC-12345678", "atn-1", "pac-1", "CC 10203040", "Carlos Gomez",
+                "prof-1", "Dra. Perez", "Medicina General", 30, Instant.now(), Instant.now().plusSeconds(86400),
+                false, com.meditriaje.model.EstadoRecetaDispensacion.PENDIENTE, List.of(), List.of()
+        );
+        when(dispensationService.consultarDispensacionPaciente("rec-123", "uuid-pac-1")).thenReturn(mockResp);
+
+        mockMvc.perform(get("/api/v1/patients/me/prescriptions/rec-123/dispensation")
+                        .cookie(new Cookie("access_token", tokenPaciente)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recetaPublicId").value("rec-123"))
+                .andExpect(jsonPath("$.codigoReclamacion").value("REC-12345678"))
+                .andExpect(jsonPath("$.estadoDispensacion").value("PENDIENTE"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/patients/me/prescriptions/{publicId}/dispensation - Sin autenticación: 401 Unauthorized")
+    void obtenerDispensacionReceta_sinAuth_retorna401() throws Exception {
+        mockMvc.perform(get("/api/v1/patients/me/prescriptions/rec-123/dispensation"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/patients/me/prescriptions/{publicId}/dispensation - Profesional: 403 Forbidden")
+    void obtenerDispensacionReceta_profesional_retorna403() throws Exception {
+        String tokenProf = "valid.token.prof";
+        when(jwtService.esValido(tokenProf)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenProf)).thenReturn("uuid-prof-1");
+        when(jwtService.extraerRoles(tokenProf)).thenReturn(List.of("ROLE_PROFESIONAL"));
+
+        mockMvc.perform(get("/api/v1/patients/me/prescriptions/rec-123/dispensation")
+                        .cookie(new Cookie("access_token", tokenProf)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("ACCESO_DENEGADO"));
+    }
 }
+

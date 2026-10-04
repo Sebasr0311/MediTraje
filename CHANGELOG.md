@@ -8,6 +8,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Controladores REST para Farmacia y Portal del Paciente (F2.4.4, ADR-016)**:
+  - Controlador `PharmacyDispensationController` en `/api/v1/pharmacy` (protegido con `@PreAuthorize("hasAuthority('ROLE_FARMACEUTICO')")`):
+    - `POST /api/v1/pharmacy/dispensations`: registra dispensación con respuesta 201 Created y cabecera `Location`.
+    - `GET /api/v1/pharmacy/dispensations/{publicId}`: consulta detalle de dispensación registrada.
+    - `GET /api/v1/pharmacy/prescriptions`: búsqueda paginada de recetas por código de reclamación o documento del paciente.
+    - `GET /api/v1/pharmacy/prescriptions/{publicId}`: consulta de receta médica con saldos y entregas previas.
+  - Endpoint en `PacienteController`:
+    - `GET /api/v1/patients/me/prescriptions/{publicId}/dispensation`: consulta de estado de dispensación y código de reclamación para el paciente titular.
+  - Aislamiento estricto de seguridad: 403 Forbidden para pacientes y administradores en `/api/v1/pharmacy/**`; 401 Unauthorized sin sesión; mitigación CSRF obligatoria en operaciones mutantes.
+  - 13 pruebas unitarias y de integración MockMvc nuevas en `PharmacyDispensationControllerTest` y `PacienteControllerTest` elevando la suite completa a 663 pruebas verdes al 100%.
 - **Servicio de Dispensación Farmacéutica y Reglas de Negocio (F2.4.3, ADR-016)**:
   - Implementación de `DispensationService` en `com.meditriaje.service`:
     - Validación de rol del dispensador (`ROLE_FARMACEUTICO`) con rechazo inmediato para otros roles (`AccesoNoAutorizadoException`).
