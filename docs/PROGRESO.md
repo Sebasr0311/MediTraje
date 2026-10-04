@@ -5,9 +5,9 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** F2.5 completada (Acceso Clínico de Emergencia Break-Glass, ADR-017)
+- **Tarea actual:** F2.6.1 — ADR-018 y Alcance de Asistente y Reportes
 - **Última etiqueta:** v1.5-break-glass (Fase F2.5 completada)
-- **Rama de trabajo:** feature/f2.5-break-glass
+- **Rama de trabajo:** feature/f2.6-asistente-reportes
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -118,6 +118,14 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] F2.5.5 Frontend: Modal de justificación legal y consulta asistencial excepcional
 - [x] F2.5.6 Pruebas, colección HTTP y cierre F2.5
 
+### F2.6 — Asistente del Sistema y Reportes Administrativos
+- [x] F2.6.1 ADR-018: Reportes Operativos Administrativos y Asistente del Sistema
+- [ ] F2.6.2 Repositorio de Métricas y Servicio de Reportes Operativos
+- [ ] F2.6.3 Servicio y Motor del Asistente del Sistema
+- [ ] F2.6.4 Controladores REST para Reportes y Asistente
+- [ ] F2.6.5 Frontend: Dashboard Analítico de Reportes y Widget Flotante del Asistente
+- [ ] F2.6.6 Pruebas, Colección HTTP y Cierre F2.6
+
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
 - 2026-10-01 · Aprobación formal de decisiones de arquitectura ADR-001 a ADR-013, Casos de Uso, Reglas de Negocio, MER y Modelo Relacional · Cierre exitoso de Fase M0 · Todos los ADRs
@@ -126,6 +134,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · Aprobación de ADR-015: Seguimiento post-atención y tareas de control, reporte de evolución del paciente sin diagnósticos automáticos (§5.16), confirmaciones y cancelaciones de citas con plantillas HTML institucionales y desacoplamiento tolerante a fallos · Robustecimiento clínico y asistencial en Fase 2 · ADR-015
 - 2026-10-04 · Aprobación de ADR-016: Dispensación y reclamación farmacéutica de recetas con rol ROLE_FARMACEUTICO, validación estricta de vigencia, control de saldos/entregas parciales y totales, trazabilidad de lotes INVIMA, inmutabilidad y auditoría DISPENSACION_RECETA · Extensión de farmacia en Fase 2 · ADR-016
 - 2026-10-04 · Aprobación de ADR-017: Protocolo de acceso clínico de emergencia (Break-Glass) para ROLE_PROFESIONAL con justificación médica obligatoria (>= 20 chars), ventana de vigencia acotada a 24 horas, tabla inmutable ACCESO_BREAK_GLASS con triggers anti UPDATE/DELETE y auditoría reforzada ACCESO_BREAK_GLASS · Acceso clínico de emergencia en Fase 2 · ADR-017
+- 2026-10-04 · Aprobación de ADR-018: Reportes operativos administrativos mediante agregaciones matemáticas y estadísticas anónimas en BD (COUNT, GROUP BY) sin acceso a contenido clínico ni diagnósticos individuales (ADR-007); motor de asistencia interactivo del sistema (RF-27) con detección prioritaria de emergencias vitales (123 / urgencias), base de conocimiento estructurada de MediTriaje 2.0 y disclaimer médico permanente · Asistente y reportes en Fase 2 · ADR-018
 
 
 ## Pendientes y dudas abiertas

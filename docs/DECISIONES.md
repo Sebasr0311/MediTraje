@@ -210,6 +210,33 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
    - La activación genera un evento inmutable `ACCESO_BREAK_GLASS` en `AUDITORIA` registrando el `usuarioId`, la IP de origen, el tipo de recurso `"PACIENTE"`, el `publicId` del paciente y el resultado `EXITO`.
    - Cero contenido clínico confidencial en la tabla general de auditoría o en logs de aplicación.
 
+## ADR-018 Reportes operativos administrativos y asistente del sistema (RF-27, RF-30)
+**Estado:** APROBADO (2026-10-04).
+**Contexto:**
+1. *Métricas y reportes operativos (RF-30):* La gestión de infraestructura hospitalaria, disponibilidad de profesionales y evaluación del triaje requiere que el personal administrativo (`ROLE_ADMINISTRADOR`) cuente con indicadores y estadísticas de rendimiento del servicio (volumen de citas por estado, tasas de cancelación e inasistencia, distribución de triajes por nivel de prioridad I-V, demanda de especialidades y volumen de dispensación farmacéutica). Sin embargo, conforme a ADR-007, el administrador tiene prohibido el acceso a la historia clínica de los pacientes. Por ende, los reportes deben construirse exclusivamente mediante agregaciones matemáticas y estadísticas anónimas en base de datos (`COUNT`, `SUM`, `GROUP BY`), sin retornar jamás identificadores de pacientes, diagnósticos individuales ni datos sensibles de salud.
+2. *Asistente del sistema / chatbot (RF-27, DOCUMENTO_MAESTRO §5.19):* Los usuarios (pacientes y personal) necesitan una herramienta interactiva para resolver dudas operativas frecuentes (orientación sobre el triaje, preparación para citas, reclamación de medicamentos, uso del QR de emergencia y comprensión de estados). Para salvaguardar la seguridad del paciente, el asistente debe contar con reglas no negociables: jamás diagnostica ni prescribe fármacos, detecta inmediatamente expresiones de alarma médica para remitir al 123 o a urgencias, y opera con respuestas estructuradas y deterministas basadas en el conocimiento de la plataforma.
+
+**Decisión:**
+1. **Segregación Estricta de Reportes Administrativos (ADR-007):**
+   - Endpoints bajo `/api/v1/admin/reports/**` protegidos con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`.
+   - Consultas SQL 100% agregadas:
+     - `CITA`: conteo agrupado por `ESTADO`, por `ESPECIALIDAD` y por `SEDE`, calculando tasa de cumplimiento y tasa de inasistencia/cancelación.
+     - `TRIAJE`: conteo por `NIVEL_PRIORIDAD` (I al V) y total de cortes de emergencia activados (`ES_EMERGENCIA = 1`).
+     - `RECETA` y `DISPENSACION`: total de recetas emitidas, conteo por estado de dispensación (`PENDIENTE`, `DISPENSADA_PARCIAL`, `DISPENSADA_TOTAL`) y total de unidades farmacológicas entregadas.
+     - `ACCESO_BREAK_GLASS`: total de activaciones de emergencia y distribución mensual por especialidad para control del comité asistencial.
+   - Parámetros opcionales de ventana temporal (`fechaDesde`, `fechaHasta` calculados en zona horaria `America/Bogota`).
+   - Cero exposición de datos personales ni clínicos identificables en DTOs de reporte.
+2. **Motor y Servicio del Asistente del Sistema (RF-27):**
+   - Servicio `AssistantService` expuesto vía `POST /api/v1/assistant/chat`:
+     - Detección inmediata de síntomas o términos de alarma (dolor torácico, ahogo severo, pérdida de conocimiento, sangrado masivo, etc.): genera respuesta prioritaria de emergencia con instrucciones de acudir a urgencias o llamar al 123 y enlaces de soporte inmediato.
+     - Procesamiento de intenciones temáticas basado en base de conocimiento curada de MediTriaje 2.0:
+       - Triaje y niveles de prioridad (I a V).
+       - Agendamiento y cancelación de citas (regla de anticipación de 2 horas).
+       - Farmacia y reclamación con código `REC-XXXXXXXX`.
+       - Resumen de salud y QR temporal de emergencia.
+       - Derechos del paciente, inmutabilidad de historia clínica y enmiendas.
+     - Inclusión en cada respuesta de sugerencias interactivas de acción (rutas directas SPA como `#/patient/triage`, `#/patient/book`, `#/patient/prescriptions`) y aviso legal permanente: *"Soy un asistente de orientación para MediTriaje 2.0. No sustituyo la valoración médica profesional."*
+
 ---
 
 ## Pendientes reales

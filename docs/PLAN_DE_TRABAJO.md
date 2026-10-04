@@ -665,8 +665,60 @@ Colección docs/api/F2.5.http, pruebas completas de integración y verificación
 
 ---
 
+## Módulo F2.6 — Asistente del Sistema y Reportes Administrativos (RF-27, RF-30)
+
+### F2.6.1 ADR-018: Reportes Operativos Administrativos y Asistente del Sistema
+```
+Formaliza ADR-018 en docs/DECISIONES.md y estructura el alcance en docs/PLAN_DE_TRABAJO.md.
+```
+
+### F2.6.2 Repositorio de Métricas y Servicio de Reportes Operativos
+```
+Implementa en backend:
+- DTOs en com.meditriaje.dto.report: ResumenOperativoResponse, MetricasCitasDto, MetricasTriajeDto, MetricasFarmaciaDto, MetricasBreakGlassDto, DistribucionItemDto.
+- ReporteRepository con JdbcTemplate y SQL parametrizado de agregación matemática (COUNT, GROUP BY) sobre CITA, TRIAJE, RECETA, DISPENSACION, ACCESO_BREAK_GLASS, ESPECIALIDAD, SEDE.
+- ReporteService: consolidación analítica, cálculo de tasas (inasistencia, cancelación, emergencias) y filtro por ventana temporal en zona horaria America/Bogota.
+```
+
+### F2.6.3 Servicio y Motor del Asistente del Sistema
+```
+Implementa en backend:
+- DTOs en com.meditriaje.dto.assistant: PreguntaAsistenteRequest, RespuestaAsistenteResponse, SugerenciaAccionDto.
+- AssistantService: motor de orientación determinista con base de conocimiento clínica/asistencial estructurada.
+- Detección prioritaria de emergencias vitales (alerta inmediata 123 y orientación de urgencias).
+- Procesamiento de tópicos de plataforma (triaje I-V, agendamiento de citas, reclamación de medicamentos, QR de emergencia, inmutabilidad).
+- Enlaces y sugerencias interactivas hacia rutas SPA, disclaimer médico no negociable.
+```
+
+### F2.6.4 Controladores REST para Reportes y Asistente
+```
+Implementa controladores REST:
+- AdminReportController en /api/v1/admin/reports (@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")):
+  - GET /operational: resumen integral de métricas operativas.
+  - GET /appointments: estadísticas específicas de agendamiento y estados.
+  - GET /triage: distribución y tasas de triaje y emergencias.
+  - Seguridad: 403 Forbidden para pacientes y profesionales.
+- AssistantController en /api/v1/assistant:
+  - POST /chat: consulta interactiva con el asistente para usuarios y pacientes.
+```
+
+### F2.6.5 Frontend: Dashboard Analítico de Reportes y Widget Flotante del Asistente
+```
+Actualiza el frontend Vanilla:
+- Vista de reportes administrativos en frontend/js/views/admin-reports.js (#/admin/reports) integrada al dashboard de administración con tarjetas KPI, barras de distribución y filtro por fechas.
+- Widget interactivo del asistente frontend/js/views/system-assistant-widget.js accesible globalmente desde un botón flotante con conversación, atajos frecuentes y detección visual de urgencias.
+- Integración en router.js, admin-views.js y app.js.
+```
+
+### F2.6.6 Pruebas, Colección HTTP y Cierre F2.6
+```
+Colección docs/api/F2.6.http, pruebas completas de integración y verificación. Puerta de salida F2.6: etiqueta v1.6-asistente-reportes.
+```
+
+---
+
 # Otras iniciativas de Fase 2 (orden sugerido)
-1. Asistente y reportes.
+1. Integraciones externas y mejoras analíticas adicionales.
 
 ---
 
