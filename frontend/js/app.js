@@ -6,7 +6,7 @@
 import { auth } from './auth.js';
 import { router } from './router.js';
 import { ui } from './ui.js';
-import { loginView, registerView } from './views/auth-views.js';
+import { loginView, registerView, forgotPasswordView } from './views/auth-views.js';
 import { patientDashboardView } from './views/patient-dashboard.js';
 import { patientTriageView } from './views/patient-triage.js';
 import { patientBookingView } from './views/patient-booking.js';
@@ -167,6 +167,9 @@ function setupRoutes() {
 
   // Ruta 2: Login (M8.2a)
   router.addRoute('/login', loginView, { guestOnly: true });
+
+  // Ruta 2.1: Recuperación de contraseña (F2.1.3, F2.1.5)
+  router.addRoute('/forgot-password', forgotPasswordView, { guestOnly: true });
 
   // Ruta 3: Registro de Paciente en 2 pasos (M8.2a)
   router.addRoute('/register', registerView, { guestOnly: true });

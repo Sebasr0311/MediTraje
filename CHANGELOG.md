@@ -8,6 +8,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Pantallas de Recuperación, Login con MFA y Enrolamiento TOTP en Frontend (F2.1.5, ADR-014)**:
+  - En `frontend/js/auth.js`: métodos cliente de API para MFA (`setupMfa`, `verifyMfa`, `authenticateMfa`) y recuperación de contraseña (`forgotPassword`, `resetPassword`), y soporte de flujo de desafío temporal en `login()`.
+  - En `frontend/js/views/auth-views.js`:
+    - Enlace accesible "¿Olvidaste tu contraseña?" incorporado al formulario de login.
+    - Flujo de desafío de segundo factor en `loginView`: ante respuesta con `mfaRequerido = true`, renderiza `renderMfaChallengeStep` solicitando código TOTP de 6 dígitos o código de respaldo alfanumérico.
+    - Nueva vista de recuperación de contraseña `forgotPasswordView` en dos pasos: solicitud de correo y verificación de código OTP de 6 dígitos con actualización de contraseña segura (toggle de visibilidad, validación de coincidencia y feedback accesible).
+  - En `frontend/js/views/mfa-setup-modal.js`: modal accesible para enrolamiento de doble factor (TOTP) con soporte de teclado (Escape/Tab), exhibición de clave secreta formateada y enlace `otpauth://`, validación inmediata del primer código y entrega de los 8 códigos de respaldo uniuso con botón de copiado masivo al portapapeles.
+  - En cabeceras de `frontend/js/views/professional-agenda.js` y `frontend/js/views/admin-views.js`: botón accesible "Seguridad MFA" para activar y gestionar el doble factor de autenticación.
+  - En `frontend/js/app.js`: registro de la ruta pública `#/forgot-password`.
 - **Autenticación Multifactor (MFA TOTP RFC 6238) en Backend (F2.1.4, ADR-014)**:
   - Utilidad criptográfica pura `Base32Util.java` conforme a RFC 4648 con codificación, decodificación tolerante a espacios/guiones y generación segura de secretos.
   - Servicio `TotpService.java` conforme a RFC 6238 con HMAC-SHA1, paso de 30 segundos, truncamiento dinámico a 6 dígitos, ventana de tolerancia temporal de ±30s (±1 paso) y generación de URIs `otpauth://totp/`.

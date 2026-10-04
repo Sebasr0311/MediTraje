@@ -70,12 +70,54 @@ class AuthService extends EventTarget {
 
   /**
    * Inicia sesión con correo y contraseña.
+   * Si el usuario tiene MFA habilitado, retorna el desafío sin persistir sesión aún (ADR-014, F2.1.4).
    */
   async login(email, password) {
     const session = await api.post('/auth/login', { email, password });
+    if (session && session.mfaRequerido) {
+      return session;
+    }
     this.setUserFromSession(session);
     this.emitChange();
     return session;
+  }
+
+  /**
+   * Resuelve el desafío MFA enviando el código TOTP o de respaldo (ADR-014, F2.1.4).
+   */
+  async authenticateMfa(challengeToken, codigo) {
+    const session = await api.post('/auth/mfa/authenticate', { challengeToken, codigo });
+    this.setUserFromSession(session);
+    this.emitChange();
+    return session;
+  }
+
+  /**
+   * Solicita el inicio de enrolamiento MFA generando un nuevo secreto Base32 (ADR-014, F2.1.4).
+   */
+  async setupMfa() {
+    return await api.post('/auth/mfa/setup');
+  }
+
+  /**
+   * Verifica el primer código TOTP para activar MFA y obtener códigos de respaldo (ADR-014, F2.1.4).
+   */
+  async verifyMfa(codigo) {
+    return await api.post('/auth/mfa/verify', { codigo });
+  }
+
+  /**
+   * Solicita el código OTP para recuperación de contraseña por correo (ADR-014, F2.1.3).
+   */
+  async forgotPassword(email) {
+    return await api.post('/auth/forgot-password', { email });
+  }
+
+  /**
+   * Restablece la contraseña con el código OTP de 6 dígitos recibido por correo (ADR-014, F2.1.3).
+   */
+  async resetPassword(email, codigo, nuevoPassword) {
+    return await api.post('/auth/reset-password', { email, codigo, nuevoPassword });
   }
 
   /**
