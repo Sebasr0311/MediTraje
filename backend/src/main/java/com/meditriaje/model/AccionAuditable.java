@@ -45,5 +45,7 @@ public enum AccionAuditable {
     /** Revocación de acceso temporal QR por el paciente (F2.3, ADR-010). */
     REVOCACION_QR_EMERGENCIA,
     /** Lectura/consulta pública de resumen de salud por QR de emergencia (F2.3, ADR-010). */
-    ACCESO_EMERGENCIA_QR
+    ACCESO_EMERGENCIA_QR,
+    /** Dispensación y entrega de medicamentos en farmacia (F2.4, ADR-016). */
+    DISPENSACION_RECETA
 }

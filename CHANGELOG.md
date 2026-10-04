@@ -8,6 +8,24 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Modelos de Dominio, DTOs y Repositorio JDBC de Dispensación Farmacéutica (F2.4.2, ADR-016)**:
+  - Modelos inmutables de dominio:
+    - `Dispensacion`: cabecera inmutable con `publicId`, `recetaId`, `sedeId`, `usuarioId`, `observaciones` y `createdAt`.
+    - `DispensacionDetalle`: detalle inmutable de entrega con `recetaDetalleId`, `cantidadEntregada`, `lote` y `fechaVencimientoLote`.
+    - `EstadoRecetaDispensacion`: enum (`PENDIENTE`, `DISPENSADA_PARCIAL`, `DISPENSADA_TOTAL`).
+  - DTOs en `com.meditriaje.dto.pharmacy`:
+    - `DetalleEntregaRequest`: ítem a entregar con validación de cantidad mayor a 0, lote y fecha de vencimiento.
+    - `RegistrarDispensacionRequest`: solicitud de dispensación con receta, sede, observaciones y lista no vacía de detalles.
+    - `DispensacionDetalleResponse`: respuesta de ítem entregado con fármaco, código, nombre, lote y vencimiento.
+    - `DispensacionResponse`: cabecera de entrega con sede, dispensador, observaciones e ítems asociados.
+    - `SaldoMedicamentoDto`: cálculo de saldo pendiente (`prescrita - dispensada`) y estado por ítem prescrito.
+    - `RecetaDispensacionResponse`: información integral para farmacia y paciente, incluyendo `codigoReclamacion` (`REC-XXXXXXXX`), estado global, vigencia y entregas previas.
+  - Repositorio `DispensacionRepository`:
+    - Inserción transaccional de cabecera con `GeneratedKeyHolder` y lote en `DISPENSACION_DETALLE`.
+    - Consultas de saldos dinámicos acumulados por ítem prescrito.
+    - Búsqueda de recetas para farmacia por código de reclamación o documento del paciente.
+    - Búsqueda detallada por `publicId` de receta o dispensación.
+  - Pruebas unitarias en `DispensacionRepositoryTest` (9 pruebas pasando al 100%, suite global en 638 pruebas verdes).
 - **Migración Flyway V013: Dispensación Farmacéutica y Rol ROLE_FARMACEUTICO (F2.4.1, ADR-016)**:
   - Archivo de migración `database/migrations/V013__dispensacion_farmacia.sql` creando:
     - Semilla del rol `ROLE_FARMACEUTICO` en `ROL` (actualizando la restricción `CK_ROL_NOMBRE`).
