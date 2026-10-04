@@ -8,6 +8,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Pantallas de Generador y Visor de Resumen QR de Emergencia (F2.3.5, ADR-010, §5.17, §5.18)**:
+  - Nueva vista de paciente `frontend/js/views/patient-emergency-qr.js` (`#/patient/emergency-qr`):
+    - Configuración interactiva de alcance clínico: checkboxes para alergias, medicamentos activos, antecedentes/atenciones previas y contacto de emergencia.
+    - Campo opcional de PIN numérico de 4 dígitos con ayuda contextual.
+    - Renderizado visual del código QR utilizando la biblioteca local `frontend/js/lib/qrcode.min.js` (cumpliendo estrictamente con CSP `script-src 'self'`).
+    - Temporizador regresivo dinámico en vivo (countdown de 15 minutos en tiempo real `mm:ss`).
+    - Enlace web copiable al portapapeles y botón interactivo de revocación inmediata con confirmación modal.
+    - Tabla responsiva de historial de accesos generados con badges de estado (`ACTIVO`, `EXPIRADO`, `AGOTADO`, `REVOCADO`) y acción de revocación.
+  - Nueva vista pública prehospitalaria `frontend/js/views/emergency-summary-view.js` (`#/emergency-summary/:token`):
+    - Verificación preliminar de estado y vigencia (`GET /api/v1/emergency-summary/:token/check`).
+    - Flujo de solicitud y validación de PIN accesible si el código está protegido.
+    - Despliegue médico sobrio y estructurado: advertencia legal obligatoria de prototipo, identificación y demografía del paciente (edad calculada, documento, teléfono directo), tarjetas de alergias con alerta de severidad, tabla de medicamentos activos con dosis/frecuencia, timeline de atenciones recientes con códigos CIE-10 y pie de auditoría.
+  - Integración en `frontend/js/views/patient-dashboard.js`: tarjeta destacada de acceso rápido a la gestión de códigos QR de emergencia.
+  - Registro de rutas y scripts en `frontend/js/app.js` y `frontend/index.html`.
 - **Endpoints REST de Resumen y QR de Emergencia (F2.3.4, ADR-010, §5.17, §5.18)**:
   - Endpoints protegidos en `PacienteController.java` para pacientes (`ROLE_PACIENTE`):
     - `POST /api/v1/patients/me/emergency-qr`: generación de código QR con PIN opcional y flags de alcance (201 Created).
