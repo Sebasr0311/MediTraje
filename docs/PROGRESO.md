@@ -5,9 +5,9 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** Cierre F2.2 — Merge a develop y etiqueta v1.2-seguimiento
-- **Última etiqueta:** v1.1-mfa (Fase F2.1 completada)
-- **Rama de trabajo:** feature/f2.2-seguimiento-notificaciones
+- **Tarea actual:** Fase F2.2 completada. Próxima fase por definir/planear.
+- **Última etiqueta:** v1.2-seguimiento (Fase F2.2 completada)
+- **Rama de trabajo:** develop
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
