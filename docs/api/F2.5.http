@@ -1,0 +1,237 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase F2.5)
+### Acceso Clínico de Emergencia (Break-Glass) — ADR-017
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+### Cumplimiento estricto: ADR-002, ADR-003, ADR-007, ADR-008, ADR-011, ADR-012, ADR-017
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With
+@csrfValue = XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Autenticación y Credenciales de Prueba Multi-Rol
+### ----------------------------------------------------------------------------
+
+### 2.1 Login como Administrador (ROLE_ADMINISTRADOR)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### 2.2 Registro de Paciente 1 (Carlos Pérez)
+# @name registrarPaciente1
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765432",
+  "nombres": "Carlos",
+  "apellidos": "Perez Gomez",
+  "fechaNacimiento": "1992-08-15",
+  "telefono": "3109876543",
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.3 Login Paciente 1
+# @name loginPaciente1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.4 Registro de Paciente 2 (Ana Gómez)
+# @name registrarPaciente2
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1044556677",
+  "nombres": "Ana",
+  "apellidos": "Gomez Zapata",
+  "fechaNacimiento": "1995-03-22",
+  "telefono": "3144556677",
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.5 Login Paciente 2
+# @name loginPaciente2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.6 Login Médico 1 (Dr. Camilo Torres - Medicina General)
+# @name loginMedico1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "camilo.torres@meditriaje.com",
+  "password": "Temporal12345*"
+}
+
+### 2.7 Login Médico 2 (Dra. Valentina Gómez - Pediatría/Especialista)
+# @name loginMedico2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "valentina.gomez@meditriaje.com",
+  "password": "Temporal12345*"
+}
+
+### ----------------------------------------------------------------------------
+### 3. Obtención de Identificador de Paciente 2
+### ----------------------------------------------------------------------------
+
+### 3.1 Consulta de perfil propio de Paciente 2 para obtener su publicId
+# @name miPerfilPaciente2
+GET {{baseUrl}}/patients/me
+Accept: application/json
+
+@paciente2PublicId = {{miPerfilPaciente2.response.body.publicId}}
+
+### ----------------------------------------------------------------------------
+### 4. Verificación de Regla de Relación Asistencial (ADR-007)
+### ----------------------------------------------------------------------------
+
+### 4.1 Médico 1 intenta consultar historia de Paciente 2 SIN relación asistencial previa
+### Debe fallar con 403 Forbidden ("No existe una relacion asistencial activa...")
+# @name consultaHistoriaSinRelacion
+GET {{baseUrl}}/clinical/patients/{{paciente2PublicId}}/history
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 5. Control de Seguridad y Validaciones en Break-Glass (ADR-017)
+### ----------------------------------------------------------------------------
+
+### 5.1 Intento de activación por Administrador -> 403 Forbidden (Admin NO accede a contenido clínico)
+# @name breakGlassAdminRechazado
+POST {{baseUrl}}/clinical/break-glass
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "pacientePublicId": "{{paciente2PublicId}}",
+  "motivo": "Intento de auditoria administrativa de urgencia."
+}
+
+### 5.2 Intento de activación por Paciente -> 403 Forbidden (Restringido a ROLE_PROFESIONAL)
+# @name breakGlassPacienteRechazado
+POST {{baseUrl}}/clinical/break-glass
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "pacientePublicId": "{{paciente2PublicId}}",
+  "motivo": "Paciente intentando acceder con mecanismo de emergencia."
+}
+
+### 5.3 Médico 1 intenta activar con motivo menor a 20 caracteres -> 400 Bad Request
+# @name breakGlassMotivoCorto
+POST {{baseUrl}}/clinical/break-glass
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "pacientePublicId": "{{paciente2PublicId}}",
+  "motivo": "Urgencia médica"
+}
+
+### 5.4 Activación exitosa por Médico 1 ante urgencia vital -> 201 Created (Vigencia 24 horas)
+# @name activarBreakGlassExitoso
+POST {{baseUrl}}/clinical/break-glass
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "pacientePublicId": "{{paciente2PublicId}}",
+  "motivo": "Paciente ingresa en estado comatoso con trauma craneoencefalico severo e inestabilidad hemodinamica. Se requiere historia para verificar antecedentes alergicos y farmacologicos."
+}
+
+@breakGlassPublicId = {{activarBreakGlassExitoso.response.body.publicId}}
+
+### ----------------------------------------------------------------------------
+### 6. Consulta de Accesos Break-Glass Activos y Detalle
+### ----------------------------------------------------------------------------
+
+### 6.1 Médico 1 consulta sus accesos de emergencia vigentes -> 200 OK
+# @name listarAccesosActivosMedico1
+GET {{baseUrl}}/clinical/break-glass/active
+Accept: application/json
+
+### 6.2 Médico 1 consulta el detalle del acceso recién creado -> 200 OK
+# @name obtenerDetalleBreakGlass
+GET {{baseUrl}}/clinical/break-glass/{{breakGlassPublicId}}
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 7. Consulta de Historia Clínica Mediante Break-Glass Desbloqueado
+### ----------------------------------------------------------------------------
+
+### 7.1 Médico 1 consulta la historia de Paciente 2 con Break-Glass activo -> 200 OK
+### Acceso autorizado excepcionalmente; se audita CONSULTA_HISTORIA en AUDITORIA
+# @name consultaHistoriaConBreakGlass
+GET {{baseUrl}}/clinical/patients/{{paciente2PublicId}}/history?page=0&size=10
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 8. Aislamiento Estricto y No Propagación (ADR-007, ADR-017)
+### ----------------------------------------------------------------------------
+
+### 8.1 Médico 2 (que NO activó Break-Glass ni tiene cita) intenta ver a Paciente 2 -> 403 Forbidden
+### Demuestra que el acceso excepcional es intransferible y no debilita la seguridad de otros médicos
+# @name medico2SinAcceso
+GET {{baseUrl}}/clinical/patients/{{paciente2PublicId}}/history
+Accept: application/json
+
+### 8.2 Administrador intenta consultar la historia de Paciente 2 -> 403 Forbidden
+### Garantía absoluta: el Administrador NUNCA accede a contenido clínico
+# @name adminSinAccesoHistoria
+GET {{baseUrl}}/clinical/patients/{{paciente2PublicId}}/history
+Accept: application/json
+
+### 8.3 Administrador intenta consultar accesos break-glass activos -> 403 Forbidden
+# @name adminSinAccesoBreakGlass
+GET {{baseUrl}}/clinical/break-glass/active
+Accept: application/json

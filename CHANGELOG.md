@@ -8,6 +8,33 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Colección HTTP y Cierre de Acceso Clínico de Emergencia Break-Glass (F2.5.6, ADR-017)**:
+  - Creación de `docs/api/F2.5.http` con 8 secciones y 15 escenarios de prueba cubriendo:
+    - Autenticación multirol y healthcheck.
+    - Rechazo de consulta de historia médica sin relación asistencial (403 Forbidden).
+    - Validaciones y controles de seguridad de Break-Glass (rechazo por justificación menor a 20 caracteres, prohibición estricta para administrador y paciente).
+    - Activación médica exitosa con motivo de urgencia vital y ventana de vigencia a 24 horas (`POST /api/v1/clinical/break-glass` -> 201 Created).
+    - Consulta de accesos activos (`GET /api/v1/clinical/break-glass/active`) y consulta de detalle.
+    - Desbloqueo y consulta efectiva de historia clínica (`GET /api/v1/clinical/patients/{id}/history` -> 200 OK) con registro de auditoría `CONSULTA_HISTORIA`.
+    - Aislamiento intransferible: médicos ajenos sin cita continúan recibiendo 403 Forbidden.
+    - Prohibición absoluta: administradores reciben 403 Forbidden en todo intento de consulta clínica o break-glass.
+  - Verificación global con suite completa de 693 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores).
+- **Frontend: Modal de Justificación Legal y Consulta Asistencial Excepcional (F2.5.5, ADR-017)**:
+  - Diálogo modal accesible `frontend/js/views/break-glass-modal.js` con advertencia legal y ética obligatoria, lista de accesos activos del profesional, campo de justificación clínica con contador de caracteres interactivo (mínimo 20 caracteres), declaración juramentada y activación con `POST /api/v1/clinical/break-glass`.
+  - Nueva vista profesional de historia del paciente `frontend/js/views/professional-patient-history.js` (`#/professional/patient-history/:patientPublicId`):
+    - Detección reactiva de acceso Break-Glass activo y renderizado de banner prominente con fecha de expiración y justificación médica.
+    - Línea de tiempo de atenciones clínicas inmutables, diagnósticos CIE-10, signos vitales, indicaciones y enmiendas aclaratorias.
+    - Manejo de falta de relación asistencial (403) con pantalla de orientación asistencial y botón directo de activación de Break-Glass.
+  - Integración en cabecera de agenda médica (`frontend/js/views/professional-agenda.js`), acciones en tarjetas de citas y acceso a antecedentes en atención clínica (`frontend/js/views/professional-attention.js`).
+  - Registro de ruta protegida para `ROLE_PROFESIONAL` en enrutador SPA (`frontend/js/app.js`); validación sintáctica 100% limpia con `node --check`.
+- **Modelos, Repositorio, Servicios y Controladores REST de Break-Glass (F2.5.2-F2.5.4, ADR-017)**:
+  - Modelo de dominio inmutable `AccesoBreakGlass` y DTOs `ActivarBreakGlassRequest` y `AccesoBreakGlassResponse`.
+  - Repositorio `BreakGlassRepository` con `JdbcTemplate` y SQL parametrizado para inserción con `GeneratedKeyHolder`, verificación de vigencia y listado de accesos activos.
+  - Servicio `BreakGlassService` con validación de profesional asistencial, existencia del paciente, justificación obligatoria (mínimo 20 caracteres), cálculo de vigencia temporal (24 horas) y auditoría reforzada inmutable `ACCESO_BREAK_GLASS`.
+  - Integración centralizada en `AccesoClinicoService`: método `tieneRelacionAsistencial` extendido para conceder acceso excepcional cuando exista un registro Break-Glass activo no expirado.
+  - Servicio `ClinicalAttentionService`: método `obtenerHistoriaClinicaPaciente` con validación de acceso clínico, paginación y auditoría `CONSULTA_HISTORIA`.
+  - Controladores REST `ClinicalBreakGlassController` (`/api/v1/clinical/break-glass`) y `ClinicalPatientHistoryController` (`/api/v1/clinical/patients/{id}/history`) con protección `@PreAuthorize("hasAuthority('ROLE_PROFESIONAL')")`.
+  - 28 pruebas unitarias y de integración MockMvc nuevas elevando la suite a 693 pruebas pasando al 100%.
 - **ADR-017 y Migración Flyway V014 para Acceso Clínico de Emergencia (F2.5.1, ADR-017)**:
   - Documentación de ADR-017 en `docs/DECISIONES.md` formalizando el protocolo *Break-Glass* para habilitar acceso excepcional temporal (24 horas) a la historia clínica de un paciente para `ROLE_PROFESIONAL` ante urgencias médicas con justificación obligatoria.
   - Creación de migración Flyway `database/migrations/V014__acceso_break_glass.sql`: tabla inmutable `ACCESO_BREAK_GLASS`, trigger `TR_BREAK_GLASS_INMUTABILIDAD` bloqueando `UPDATE` y `DELETE` (ORA-20040 / ORA-20041), índices relacionales y concesión de privilegios mínimos a `MEDITRIAJE_APP` (`SELECT, INSERT`).

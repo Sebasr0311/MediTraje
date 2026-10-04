@@ -5,8 +5,8 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** F2.5.1 — ADR-017 y Migración Flyway V014 (Acceso Break-Glass)
-- **Última etiqueta:** v1.4-dispensacion (Fase F2.4 completada)
+- **Tarea actual:** F2.5 completada (Acceso Clínico de Emergencia Break-Glass, ADR-017)
+- **Última etiqueta:** v1.5-break-glass (Fase F2.5 completada)
 - **Rama de trabajo:** feature/f2.5-break-glass
 
 ## Tareas
@@ -112,11 +112,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 ### F2.5 — Acceso Clínico de Emergencia (Break-Glass)
 - [x] F2.5.1 ADR-017 y Migración Flyway V014 (Acceso Break-Glass)
-- [ ] F2.5.2 Modelos de dominio, DTOs y repositorio BreakGlassRepository
-- [ ] F2.5.3 Integración con AccesoClinicoService y BreakGlassService
-- [ ] F2.5.4 Endpoints REST de Break-Glass e historia clínica para profesionales
-- [ ] F2.5.5 Frontend: Modal de justificación legal y consulta asistencial excepcional
-- [ ] F2.5.6 Pruebas, colección HTTP y cierre F2.5
+- [x] F2.5.2 Modelos de dominio, DTOs y repositorio BreakGlassRepository
+- [x] F2.5.3 Integración con AccesoClinicoService y BreakGlassService
+- [x] F2.5.4 Endpoints REST de Break-Glass e historia clínica para profesionales
+- [x] F2.5.5 Frontend: Modal de justificación legal y consulta asistencial excepcional
+- [x] F2.5.6 Pruebas, colección HTTP y cierre F2.5
 
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
@@ -223,6 +223,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · F2.4.5 · Pantallas en Frontend para Ventanilla de Farmacia y Reclamación del Paciente (ADR-016, F2.4): creación de frontend/js/views/pharmacy-dispensation.js con estación de trabajo para el regente de farmacia (#/pharmacy/dispensation), selector dinámico de sede de entrega, buscador reactivo de recetas por código de reclamación alfanumérico o documento, validación estricta de saldos e inhabilitación ante recetas expiradas, captura de lotes INVIMA y fechas de vencimiento, confirmación modal e impresión de comprobantes de entrega; actualización de frontend/js/views/patient-prescriptions.js con código de reclamación destacado (REC-XXXXXXXX), botón de copiado rápido al portapapeles, panel interactivo de trazabilidad farmacéutica con badges de estado y tabla de saldos acumulados por medicamento; integración en api.js, router.js, auth.js y app.js; adición de endpoint auxiliar GET /api/v1/pharmacy/sites en backend; sintaxis 100% limpia con node --check. · feat(frontend): pantallas de ventanilla de farmacia y estado de dispensacion en recetas (F2.4.5)
 - 2026-10-04 · F2.4.6 · Pruebas, Colección HTTP y Cierre F2.4 (ADR-016): creación de docs/api/F2.4.http con 9 secciones y 23 escenarios cubriendo healthcheck, autenticación multirol, ciclo asistencial y emisión de receta, búsqueda en ventanilla por documento o código de reclamación, consulta de saldos, dispensación parcial con trazabilidad de lotes INVIMA, validaciones y rechazo de sobredispensación (400 DatosInvalidosException), dispensación total con agotamiento de saldo, portal del paciente con historial de entregas e inmutabilidad, y aislamiento estricto de seguridad (403 Forbidden para pacientes, médicos y administradores en /pharmacy/**, y 403 entre pacientes); script de semillas dev database/seeds/dev_seeds_f2_4.sql; verificación de suite completa Maven con 665 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.4. · test(api): coleccion f2.4.http y verificacion integral de dispensacion (F2.4.6)
 - 2026-10-04 · F2.5.1 · ADR-017 y Migración Flyway V014 para Acceso Break-Glass (ADR-017, F2.5): formalización de ADR-017 en docs/DECISIONES.md con protocolo de acceso clínico excepcional ante urgencias vitales para ROLE_PROFESIONAL (justificación obligatoria >= 20 caracteres, ventana de vigencia de 24 horas, prohibición total para administradores y auditoría reforzada); creación de database/migrations/V014__acceso_break_glass.sql con tabla ACCESO_BREAK_GLASS, trigger de inmutabilidad TR_BREAK_GLASS_INMUTABILIDAD bloqueando UPDATE y DELETE (ORA-20040 / ORA-20041), índices relacionales y concesión de privilegios mínimos a MEDITRIAJE_APP; adición de ACCESO_BREAK_GLASS en AccionAuditable; actualización de OracleIntegrationTest con >= 14 migraciones y prueba de inmutabilidad de triggers. · feat(database): migracion flyway v014 acceso clinico break glass y adr-017 (F2.5.1)
+- 2026-10-04 · F2.5.2-F2.5.4 · Modelos, servicios y endpoints de acceso Break-Glass e historia clínica para profesionales (ADR-017, F2.5): modelo inmutable AccesoBreakGlass, DTOs ActivarBreakGlassRequest y AccesoBreakGlassResponse; BreakGlassRepository con JdbcTemplate y SQL parametrizado; servicio BreakGlassService con justificación obligatoria (>= 20 chars), cálculo de expiración a 24 horas y auditoría ACCESO_BREAK_GLASS; integración en AccesoClinicoService para conceder acceso excepcional en tieneRelacionAsistencial; ClinicalAttentionService con consulta paginada de historia médica; controladores REST ClinicalBreakGlassController (/api/v1/clinical/break-glass, /active, /{id}) y ClinicalPatientHistoryController (/api/v1/clinical/patients/{id}/history); aislamiento 403 para admin y pacientes; 28 pruebas automatizadas nuevas elevando la suite completa a 693 pruebas verdes al 100%. · feat(clinical): modelos, servicios y endpoints de acceso break-glass e historia de paciente (F2.5.2-F2.5.4)
+- 2026-10-04 · F2.5.5 · Frontend: Modal de justificación legal y consulta asistencial excepcional (ADR-017, F2.5): modal accesible break-glass-modal.js con advertencia legal y ética, contador dinámico de justificación médica (>= 20 caracteres), declaración juramentada y activación con POST /api/v1/clinical/break-glass; vista profesional de historia del paciente professional-patient-history.js (#/professional/patient-history/:patientPublicId) con detección de Break-Glass activo y banner destacado de vigencia, timeline de atenciones y enmiendas, y desbloqueo asistencial ante 403; botones de acceso de emergencia en agenda profesional y atención clínica; registro en router.js y app.js; validación sintáctica limpia con node --check. · feat(frontend): modal de break-glass y consulta asistencial excepcional de historia (F2.5.5)
+- 2026-10-04 · F2.5.6 · Colección HTTP y Cierre F2.5 (ADR-017): creación de docs/api/F2.5.http con 8 secciones y 15 escenarios de prueba cubriendo healthcheck, autenticación multirol, rechazo por falta de relación asistencial (403), validaciones de Break-Glass (rechazo por motivo corto < 20 chars, rechazo para admin y paciente), activación médica exitosa (201 Created), listado y detalle de accesos activos (200 OK), consulta exitosa de historia desbloqueada (200 OK), aislamiento estricto e intransferible entre médicos (403) y exclusión absoluta del administrador (403); suite Maven de 693 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.5. · test(api): coleccion f2.5.http y verificacion integral de break-glass (F2.5.6)
 
 
 
