@@ -42,9 +42,15 @@ export async function renderReports(container) {
               Analítica hospitalaria agregada para evaluación de demanda, triajes, farmacia y accesos de emergencia.
             </p>
           </div>
-          <div class="badge badge--neutral flex items-center gap-1">
-            ${ui.icon('shield', 'icon icon--xs')}
-            <span>ADR-007: Cero acceso a datos clínicos</span>
+          <div class="flex items-center gap-3">
+            <button type="button" id="btnExportarCsv" class="btn btn-secondary btn--sm" title="Descargar reporte operativo en formato CSV">
+              ${ui.icon('download', 'icon icon--sm')}
+              <span>Exportar CSV</span>
+            </button>
+            <div class="badge badge--neutral flex items-center gap-1">
+              ${ui.icon('shield', 'icon icon--xs')}
+              <span>ADR-007: Cero acceso a datos clínicos</span>
+            </div>
           </div>
         </div>
 
@@ -85,11 +91,22 @@ export async function renderReports(container) {
     </div>
   `;
 
+  let datosReporteActual = null;
   const dataContainer = container.querySelector('#reportsDataContainer');
   const filterForm = container.querySelector('#reportsFilterForm');
   const desdeInput = container.querySelector('#repDesde');
   const hastaInput = container.querySelector('#repHasta');
   const rangoButtons = container.querySelectorAll('.btn-rango');
+  const exportBtn = container.querySelector('#btnExportarCsv');
+
+  exportBtn?.addEventListener('click', () => {
+    if (!datosReporteActual) {
+      ui.showToast('Espere a que carguen los datos antes de exportar.', 'warning');
+      return;
+    }
+    exportarReporteCsv(datosReporteActual, fechaDesde, fechaHasta);
+    ui.showToast('Reporte CSV generado y descargado correctamente.', 'success');
+  });
 
   async function cargarMetricas() {
     ui.renderLoading(dataContainer, 'Calculando métricas agregadas...');
@@ -99,6 +116,7 @@ export async function renderReports(container) {
       if (fechaHasta) params.hasta = fechaHasta;
 
       const data = await api.get('/api/v1/admin/reports/operational', params);
+      datosReporteActual = data;
       renderMetricas(dataContainer, data);
     } catch (err) {
       ui.renderError(dataContainer, {
@@ -373,4 +391,85 @@ function renderDistributionList(items, emptyMsg = 'No hay datos registrados en e
       `).join('')}
     </div>
   `;
+}
+
+/**
+ * Exporta las métricas operativas agregadas a un archivo plano CSV (RF-30, ADR-019).
+ * Incluye BOM UTF-8 para compatibilidad nativa con Microsoft Excel.
+ */
+function exportarReporteCsv(data, fechaDesde, fechaHasta) {
+  const rows = [];
+  rows.push(['REPORTE OPERATIVO AGREGADO — MEDITRIAJE 2.0']);
+  rows.push(['Rango Desde', fechaDesde || 'Inicio Historico']);
+  rows.push(['Rango Hasta', fechaHasta || 'Actualidad']);
+  rows.push(['Fecha de Generacion (Bogota)', new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    dateStyle: 'full',
+    timeStyle: 'medium'
+  }).format(new Date())]);
+  rows.push(['Politica de Privacidad', 'ADR-007: Cero contenido clinico ni identificadores individuales']);
+  rows.push([]);
+
+  rows.push(['SECCION', 'INDICADOR', 'CANTIDAD', 'METRICA']);
+  const citas = data.citas || {};
+  rows.push(['CITAS', 'Total Citas Agendadas', citas.totalCitas ?? 0, '100%']);
+  rows.push(['CITAS', 'Citas Atendidas', citas.atendidas ?? 0, `${citas.tasaCumplimiento ?? 0}%`]);
+  rows.push(['CITAS', 'Citas Programadas', citas.programadas ?? 0, '']);
+  rows.push(['CITAS', 'Citas Confirmadas', citas.confirmadas ?? 0, '']);
+  rows.push(['CITAS', 'Citas Canceladas', citas.canceladas ?? 0, `${citas.tasaCancelacion ?? 0}%`]);
+  rows.push(['CITAS', 'No Asistio', citas.noAsistio ?? 0, '']);
+  rows.push(['CITAS', 'Reprogramadas', citas.reprogramadas ?? 0, '']);
+  rows.push([]);
+
+  const triaje = data.triaje || {};
+  rows.push(['TRIAJE', 'Total Triajes Evaluados', triaje.totalTriajes ?? 0, '100%']);
+  rows.push(['TRIAJE', 'Nivel I — Resucitacion / Emergencia', triaje.nivel1 ?? 0, `${triaje.tasaEmergencia ?? 0}%`]);
+  rows.push(['TRIAJE', 'Nivel II — Emergencia / Prioritario', triaje.nivel2 ?? 0, '']);
+  rows.push(['TRIAJE', 'Nivel III — Urgencia / Cita Presencial', triaje.nivel3 ?? 0, '']);
+  rows.push(['TRIAJE', 'Nivel IV — Prioridad Menor / Telemedicina', triaje.nivel4 ?? 0, '']);
+  rows.push(['TRIAJE', 'Nivel V — No Urgente / Consulta Externa', triaje.nivel5 ?? 0, '']);
+  rows.push([]);
+
+  const farmacia = data.farmacia || {};
+  rows.push(['FARMACIA', 'Total Recetas Emitidas', farmacia.totalRecetas ?? 0, '']);
+  rows.push(['FARMACIA', 'Dispensadas Total (Completas)', farmacia.dispensadasTotal ?? 0, '']);
+  rows.push(['FARMACIA', 'Dispensadas Parcial', farmacia.dispensadasParcial ?? 0, '']);
+  rows.push(['FARMACIA', 'Pendientes por Dispensar', farmacia.recetasPendientes ?? 0, '']);
+  rows.push(['FARMACIA', 'Unidades de Farmacos Entregadas', farmacia.unidadesDispensadas ?? 0, '']);
+  rows.push([]);
+
+  const breakGlass = data.breakGlass || {};
+  rows.push(['BREAK_GLASS', 'Total Activaciones Emergencia', breakGlass.totalActivaciones ?? 0, '']);
+  rows.push(['BREAK_GLASS', 'Ventanas Activas (24h)', breakGlass.activacionesActivas ?? 0, '']);
+  rows.push([]);
+
+  rows.push(['CITAS POR ESPECIALIDAD', 'Especialidad', 'Cantidad', 'Porcentaje']);
+  (citas.porEspecialidad || []).forEach(it => {
+    rows.push(['CITAS POR ESPECIALIDAD', it.etiqueta, it.cantidad, `${it.porcentaje}%`]);
+  });
+  rows.push([]);
+
+  rows.push(['CITAS POR SEDE', 'Sede Hospitalaria', 'Cantidad', 'Porcentaje']);
+  (citas.porSede || []).forEach(it => {
+    rows.push(['CITAS POR SEDE', it.etiqueta, it.cantidad, `${it.porcentaje}%`]);
+  });
+  rows.push([]);
+
+  rows.push(['BREAK_GLASS POR ESPECIALIDAD', 'Especialidad Solicitante', 'Cantidad', 'Porcentaje']);
+  (breakGlass.porEspecialidad || []).forEach(it => {
+    rows.push(['BREAK_GLASS POR ESPECIALIDAD', it.etiqueta, it.cantidad, `${it.porcentaje}%`]);
+  });
+
+  const csvContent = '\uFEFF' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  const fDesde = (fechaDesde || 'historico').replace(/[^0-9a-zA-Z_-]/g, '');
+  const fHasta = (fechaHasta || 'actual').replace(/[^0-9a-zA-Z_-]/g, '');
+  link.setAttribute('download', `reporte_operativo_${fDesde}_${fHasta}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
