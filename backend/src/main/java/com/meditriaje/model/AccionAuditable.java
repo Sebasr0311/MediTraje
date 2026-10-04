@@ -47,5 +47,7 @@ public enum AccionAuditable {
     /** Lectura/consulta pública de resumen de salud por QR de emergencia (F2.3, ADR-010). */
     ACCESO_EMERGENCIA_QR,
     /** Dispensación y entrega de medicamentos en farmacia (F2.4, ADR-016). */
-    DISPENSACION_RECETA
+    DISPENSACION_RECETA,
+    /** Activación de acceso clínico excepcional de emergencia Break-Glass (F2.5, ADR-017). */
+    ACCESO_BREAK_GLASS
 }

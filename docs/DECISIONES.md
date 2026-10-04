@@ -188,6 +188,28 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 4. **Auditoría Obligatoria (ADR-011):**
    - Toda entrega farmacéutica genera un evento `DISPENSACION_RECETA` en `AUDITORIA` con el ID del dispensador, IP de origen y el `publicId` de la receta. Cero nombres de fármacos o diagnósticos en los logs o auditoría.
 
+## ADR-017 Acceso clínico de emergencia (Break-Glass)
+**Estado:** APROBADO (2026-10-04).
+**Contexto:** En situaciones clínicas de urgencia o emergencia médica (inconsciencia, trauma mayor, shock, alteración aguda del estado de conciencia o remisión urgente), el profesional de salud necesita consultar de manera inmediata el historial médico completo del paciente (diagnósticos previos, atenciones, signos vitales, alergias, recetas) sin que medie una cita previa agendada ni una atención propia en los últimos 12 meses (ADR-007). Sin embargo, permitir el acceso irrestricto violaría la reserva legal de la historia clínica (Resolución 1995 de 1999 y Ley Estatutaria 1581 de 2012). Es indispensable un protocolo formal de *Break-Glass* ("romper el vidrio") que habilite el acceso excepcional pero garantice justificación obligatoria, temporalidad estricta y auditoría indeleble.
+**Decisión:**
+1. **Autorización y Segregación de Roles (ADR-007):**
+   - Únicamente usuarios con `ROLE_PROFESIONAL` (médicos asistenciales matriculados) pueden invocar la activación del *Break-Glass*.
+   - El personal administrativo (`ROLE_ADMINISTRADOR`) tiene acceso estrictamente prohibido (`403 Forbidden`).
+   - Los pacientes y farmacéuticos no pueden invocar *Break-Glass*.
+2. **Justificación Médica Obligatoria:**
+   - La solicitud de activación requiere un motivo clínico de urgencia explícito (`motivo`, mínimo 20 caracteres, máximo 500).
+   - No se permiten justificaciones vacías, genéricas o en blanco (`400 DatosInvalidosException`).
+3. **Temporalidad y Ventana de Vigencia:**
+   - Todo acceso *Break-Glass* otorgado expira de forma automática transcurridas 24 horas desde el momento de su activación (`FECHA_EXPIRACION = CREATED_AT + 24 HOURS`).
+   - Durante la ventana de 24 horas, `AccesoClinicoService` considera autorizadas las consultas clínicas y de historia clínica de ese paciente por ese profesional específico.
+4. **Persistencia e Inmutabilidad en Base de Datos (ADR-008, ADR-012):**
+   - Tabla relacional inmutable `ACCESO_BREAK_GLASS`: `ID`, `PUBLIC_ID`, `PROFESIONAL_ID`, `PACIENTE_ID`, `MOTIVO`, `FECHA_EXPIRACION`, `CREATED_AT`.
+   - Trigger `TR_BREAK_GLASS_INMUTABILIDAD` que bloquea irrevocablemente cualquier intento de `UPDATE` o `DELETE`.
+   - Concesión de privilegios mínimos a `MEDITRIAJE_APP`: `SELECT, INSERT` únicamente.
+5. **Auditoría Reforzada (ADR-011):**
+   - La activación genera un evento inmutable `ACCESO_BREAK_GLASS` en `AUDITORIA` registrando el `usuarioId`, la IP de origen, el tipo de recurso `"PACIENTE"`, el `publicId` del paciente y el resultado `EXITO`.
+   - Cero contenido clínico confidencial en la tabla general de auditoría o en logs de aplicación.
+
 ---
 
 ## Pendientes reales

@@ -8,6 +8,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **ADR-017 y Migración Flyway V014 para Acceso Clínico de Emergencia (F2.5.1, ADR-017)**:
+  - Documentación de ADR-017 en `docs/DECISIONES.md` formalizando el protocolo *Break-Glass* para habilitar acceso excepcional temporal (24 horas) a la historia clínica de un paciente para `ROLE_PROFESIONAL` ante urgencias médicas con justificación obligatoria.
+  - Creación de migración Flyway `database/migrations/V014__acceso_break_glass.sql`: tabla inmutable `ACCESO_BREAK_GLASS`, trigger `TR_BREAK_GLASS_INMUTABILIDAD` bloqueando `UPDATE` y `DELETE` (ORA-20040 / ORA-20041), índices relacionales y concesión de privilegios mínimos a `MEDITRIAJE_APP` (`SELECT, INSERT`).
+  - Adición del valor `ACCESO_BREAK_GLASS` en `AccionAuditable`.
+  - Actualización de `OracleIntegrationTest` validando schema history (>= 14 migraciones), permisos sobre `ACCESO_BREAK_GLASS` y disparo de triggers de inmutabilidad.
 - **Colección HTTP y Cierre de Dispensación Farmacéutica (F2.4.6, ADR-016)**:
   - Creación de `docs/api/F2.4.http` con 9 secciones y 23 escenarios de prueba exhaustivos:
     - Autenticación multirol (Administrador, Paciente 1, Paciente 2, Médico, Farmacéutico).
