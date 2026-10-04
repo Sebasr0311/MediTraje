@@ -5,7 +5,170 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0-mvp] - 2026-10-03
+
+### Added
+- **Documentación Técnica Consolidada y Guion de Demostración del MVP (M8.6)**:
+  - Documento de arquitectura `docs/architecture/ARCHITECTURE.md` y `ARCHITECTURE.md` con especificación de capas, principios rectores (ADR-001 a ADR-013), diagrama C4 de contenedores en Mermaid, arquitectura de frontend y modelo de seguridad.
+  - Catálogo exhaustivo de API REST `docs/api/API.md` y `API.md` con especificación de los 17 controladores, endpoints, cookies `HttpOnly`, cabecera obligatoria CSRF (`X-Requested-With`), contratos DTO y colecciones interactivas `.http`.
+  - Actualización de `docs/database/DATABASE.md` y `DATABASE.md` con el inventario de las 9 migraciones Flyway (`V001` a `V009`), matriz de 24 tablas en 3FN, triggers PL/SQL de inmutabilidad clínica (`ORA-20000` a `ORA-20009`) y permisos de runtime de `MEDITRIAJE_APP`.
+  - Documento rector de seguridad `docs/security/SECURITY.md` y `SECURITY.md` con el modelo de amenazas, criptografía Argon2id, defensas CSRF/XSS, aislamiento asistencial y matriz de mitigación OWASP Top 10 (2021).
+  - Guion de demostración interactivo `docs/demo/GUION_DEMO.md` con datos 100% ficticios para reproducir los 7 pasos de la demo del MVP (§8 de `docs/MVP.md`): registro con consentimiento Ley 1581, triaje de baja prioridad y cita, corte de emergencia con síntoma de alarma, atención médica con signos vitales y CIE-10, receta con snapshot histórico, prueba de acceso cruzado denegado y auditoría inmutable.
+  - Actualización completa de `README.md` como presentación formal del proyecto con instrucciones de inicio rápido en local, perfiles y credenciales de prueba.
+  - Cumplimiento de la Puerta de Salida M8: checklist de `docs/MVP.md` §7 verificado al 100%, demo ejecutable y 501 pruebas automatizadas pasando exitosamente.
+- **Endurecimiento y Revisión Final de Seguridad (M8.5, ADR-002, ADR-007, ADR-011, ADR-012)**:
+  - Informe exhaustivo de auditoría y hardening documentado en `docs/security/REVISION_FINAL.md`.
+  - Configuración explícita de cabeceras HTTP de seguridad en `SecurityConfig.java`:
+    - `Content-Security-Policy`: Directivas estrictas `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none';`.
+    - `Referrer-Policy`: `strict-origin-when-cross-origin` para prevenir fuga de identificadores en rutas externas.
+    - `Permissions-Policy`: Restricción total de APIs de navegador innecesarias (`camera=(), microphone=(), geolocation=()`).
+    - `X-Frame-Options`: `DENY` contra ataques de Clickjacking.
+  - Endurecimiento del perfil de producción en `backend/src/main/resources/application-prod.yml`:
+    - `security.cookie.secure: true`: Forzado obligatorio de la bandera Secure en cookies JWT en entornos productivos.
+    - `management.endpoint.health.show-details: when-authorized`: Ocultamiento de metadatos internos del pool Hikari y base de datos a usuarios anónimos en Actuator Health.
+  - Nueva prueba de integración en `PingControllerTest.java` para verificar la presencia de las cabeceras HTTP de seguridad en cada respuesta.
+  - Verificación integral de 501 pruebas unitarias y de integración pasando al 100% sin regresiones.
+- **Pantallas de Administración y Generador de Slots (M8.4, HU-10, ADR-002, ADR-003, ADR-005, ADR-007, ADR-011, ADR-012)**:
+  - Panel Centralizado de Administración `frontend/js/views/admin-views.js`:
+    - Interfaz estructurada en pestañas accesibles (`.admin-tabs`, `.admin-tab`) sincronizadas con la URL (`#/admin/institutions`, `#/admin/sites`, `#/admin/specialties`, `#/admin/professionals`, `#/admin/slots`).
+    - CERO exposición de contenido clínico: banner permanente y aislamiento estricto de roles que limita la visibilidad exclusivamente a la oferta asistencial, infraestructura y cuentas asistenciales (ADR-007).
+  - Pestaña de Instituciones:
+    - Listado paginado de instituciones de salud (`GET /api/v1/admin/institutions`) con filtros por estado y badges accesibles.
+    - Formulario colapsable para alta de instituciones (`POST /api/v1/admin/institutions`) con validación de NIT y razón social.
+    - Edición de razón social vía diálogo modal (`PUT /api/v1/admin/institutions/{id}`).
+    - Desactivación y activación con modal de confirmación (`PATCH /api/v1/admin/institutions/{id}/deactivate` / `activate`).
+  - Pestaña de Sedes:
+    - Listado paginado de sedes asistenciales (`GET /api/v1/admin/sites`) con filtros por institución activa y estado.
+    - Formulario colapsable para alta de sedes (`POST /api/v1/admin/sites`) asociadas a una institución activa preexistente.
+    - Edición de nombre, dirección y ciudad (`PUT /api/v1/admin/sites/{id}`).
+    - Activación y desactivación lógica sin borrado físico.
+  - Pestaña de Especialidades:
+    - Listado paginado de especialidades médicas (`GET /api/v1/admin/specialties`) con duración configurable de turno (minutos).
+    - Formulario para registro de especialidades (`POST /api/v1/admin/specialties`) con validación de rango (5 a 240 minutos).
+    - Edición de especialidad (`PUT /api/v1/admin/specialties/{id}`).
+    - Transición de estados ACTIVO/INACTIVO.
+  - Pestaña de Profesionales Asistenciales:
+    - Listado paginado de profesionales médicos (`GET /api/v1/admin/professionals`) con filtro dinámico por especialidad médica.
+    - Formulario de alta asistencial (`POST /api/v1/admin/professionals`) validando registro médico, correo institucional y especialidad activa.
+    - Modal de éxito prominente tras la creación que entrega al administrador la contraseña temporal segura generada por el backend (Argon2id), con advertencia de que no volverá a mostrarse y botón de copia al portapapeles (`navigator.clipboard`).
+    - Edición de datos del profesional (`PUT /api/v1/admin/professionals/{id}`).
+    - Desactivación y activación de cuentas asistenciales.
+  - Pestaña de Slots de Disponibilidad (Generador Masivo y Gestión de Turnos):
+    - Generador masivo de turnos (`POST /api/v1/admin/slots/generate`) calculando intervalos continuos en zona horaria `America/Bogota` (ADR-005) por rango de fechas, franja horaria diaria, selector de días de la semana (Lunes a Sábado) y modalidad (Presencial / Telemedicina), con prevención atómica de solapes.
+    - Buscador y gestión de turnos (`GET /api/v1/admin/slots`) con filtros por profesional, sede, estado (Libre, Bloqueado, Ocupado) y rango de fechas.
+    - Acciones directas sobre turnos: bloqueo de slots libres (`PATCH /api/v1/admin/slots/{id}/block`), desbloqueo (`PATCH /api/v1/admin/slots/{id}/unblock`) y eliminación física condicional de slots libres (`DELETE /api/v1/admin/slots/{id}`).
+  - Estilos y Verificación Visual con Playwright:
+    - Componente CSS `.admin-tabs` y `.admin-tab` con scroll horizontal táctil y soporte responsivo.
+    - Pruebas end-to-end de navegación entre todas las pestañas, validaciones, creación de instituciones, sedes, especialidades, alta de médico con modal de clave temporal, generación de turnos y bloqueo.
+    - Comprobación de cero desbordamiento horizontal en 375 px (móvil), 768 px (tablet) y 1280 px (desktop).
+- **Pantallas del Profesional Asistencial: Agenda, Atención Clínica y Recetas Médicas (M8.3, HU-06, HU-07, HU-08, ADR-007, ADR-008)**:
+  - Módulo de Agenda del Profesional `frontend/js/views/professional-agenda.js`:
+    - Listado cronológico de citas asignadas del día (`GET /api/v1/professionals/me/agenda`) en zona horaria `America/Bogota`.
+    - Filtros reactivos por fecha y estado (Todas, Programada, Confirmada, Atendida, Cancelada, No asistió) y botón de acceso rápido "Hoy".
+    - Tarjeta de cita con hora en formato 12h, sede o telemedicina, paciente, badges accesibles de estado y presencia de triaje clínico.
+    - Acción directa "Iniciar atención" que crea la atención médica en estado `ABIERTA` (`POST /api/v1/attentions`) y navega directamente a la consulta.
+  - Módulo de Atención Clínica `frontend/js/views/professional-attention.js`:
+    - Vista dual (Atención ABIERTA editable vs. Atención CERRADA solo lectura e inmutable).
+    - Secciones colapsables mediante `<details>` accesibles: signos vitales opcionales con validación fisiológica (presión sistólica > diastólica y rangos biológicos para FC, FR, temperatura, SaO2, peso y talla), motivo de consulta, evolución clínica con contador en vivo (0/4000 caracteres), buscador dinámico con debounce de códigos diagnósticos CIE-10 (`GET /api/v1/catalogs/icd10`) e indicaciones médicas.
+    - Cierre irreversible de atención médica con diálogo modal accesible de confirmación (`ui.showModal`) advirtiendo la inmutabilidad del registro y la transición de la cita a `ATENDIDA` (`POST /api/v1/attentions/{id}/close`).
+    - Vista cerrada inmutable con presentación de diagnóstico CIE-10, motivo, evolución, indicaciones y cuadrícula de signos vitales registrados.
+    - Registro de aclaraciones y enmiendas clínicas append-only (`POST /api/v1/attentions/{id}/amendments`) con profesional autor, motivo y timestamp en Bogotá.
+  - Módulo de Emisión de Recetas Médicas `frontend/js/views/professional-prescription.js`:
+    - Emisión farmacológica exclusiva del profesional de la salud asociada a la atención médica.
+    - Búsqueda en catálogo maestro de medicamentos (`GET /api/v1/catalogs/medications`) por nombre comercial, principio activo o código con debounce de 250 ms.
+    - Agregación dinámica de fármacos a la receta (máximo 20) con inputs individuales de dosis, frecuencia, duración en días, cantidad e indicaciones.
+    - Configuración de vigencia de la receta (1 a 365 días, por defecto 30).
+    - Confirmación modal accesible antes de la emisión atómica (`POST /api/v1/prescriptions`).
+    - Pantalla de éxito con código de receta, resumen de medicamentos, vigencia y botones de retorno a la atención o a la agenda.
+  - Sanitización XSS y Seguridad:
+    - Función utilitaria `esc(value)` en `frontend/js/ui.js` para escapar caracteres HTML peligrosos (`&`, `<`, `>`, `"`, `'`) en datos renderizados dinámicamente.
+    - Autorización estricta en frontend (`requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL'`) respaldada por autorización en backend (403 para pacientes y administradores).
+  - Verificación visual y funcional con Playwright:
+    - Pruebas end-to-end de agenda con citas, filtros y acción de inicio.
+    - Pruebas de atención con validación de signos vitales, selección CIE-10 y modal de cierre irreversible.
+    - Pruebas de registro de enmiendas append-only en atención cerrada.
+    - Pruebas de prescripción con catálogo de fármacos, agregación de ítems, vigencia y emisión atómica.
+    - Verificación responsive a 375 px (móvil), 768 px (tablet) y 1280 px (desktop) con cero desbordamiento horizontal (`scrollWidth <= innerWidth`).
+- **Mis Citas, Historia Clínica y Recetas Médicas del Paciente (M8.2c, HU-04, HU-05, HU-08, HU-09, ADR-006, ADR-007, ADR-008)**:
+  - Módulo de Mis Citas `frontend/js/views/patient-appointments.js`:
+    - Listado paginado de citas (`GET /api/v1/patients/me/appointments`) con filtros rápidos por estado (Todas, Próximas y Activas, Finalizadas y Canceladas).
+    - Tarjetas completas con fecha/hora colombiana, médico, especialidad, sede, modalidad y badge accesible de estado.
+    - Mecanismo de cancelación anticipada con validación estricta de la regla de las 2 horas (ADR-006, HU-05): para citas a menos de 120 minutos se deshabilita la cancelación con mensaje explicativo; para citas con anticipación superior, despliega modal accesible (`ui.showModal`) solicitando motivo opcional y ejecuta `PATCH /api/v1/appointments/{id}/cancel` actualizando la vista inmediatamente sin recargar.
+  - Módulo de Historia Clínica `frontend/js/views/patient-history.js`:
+    - Línea de tiempo vertical (`.timeline`, `.timeline-item`) de atenciones médicas cerradas inmutables (`GET /api/v1/patients/me/history`).
+    - Diagnóstico principal CIE-10 (código + descripción), motivo de consulta, evolución médica e indicaciones terapéuticas.
+    - Cuadrícula de parámetros fisiológicos (`.vitals-grid`, `.vital-card`) con presión arterial sistólica/diastólica, frecuencia cardíaca, respiratoria, temperatura, saturación de oxígeno, peso y talla.
+    - Sección destacada de aclaraciones y enmiendas clínicas append-only (quién, cuándo, contenido y motivo de la aclaración).
+    - Botón de impresión o guardado a PDF del historial clínico.
+  - Módulo de Recetas Médicas `frontend/js/views/patient-prescriptions.js`:
+    - Listado de fórmulas farmacológicas digitales (`GET /api/v1/patients/me/prescriptions`).
+    - Cálculo automático de estado de vigencia (Vigente / Vencida) a partir de la fecha de emisión y los días de vigencia.
+    - Tabla estructurada de medicamentos prescritos leyendo de los snapshots inmutables: nombre comercial, principio activo, concentración, presentación, dosificación, frecuencia, duración, cantidad e indicaciones.
+    - Botón para imprimir recetas individuales o el consolidado de fórmulas médicas.
+  - Componentes de diseño en `frontend/css/components.css`:
+    - Estilos de línea de tiempo `.timeline`, `.timeline-marker`, `.timeline-marker--amendment`.
+    - Componente de signos vitales `.vitals-grid` y `.vital-card`.
+    - Reglas de estilo para impresión `@media print` que ocultan menús, barras de navegación, botones y optimizan el documento para hojas impresas o PDF.
+  - Verificación visual y funcional con Playwright:
+    - Validación de flujo de listado de citas y cancelación con regla de 2 horas.
+    - Validación de línea de tiempo clínica con signos vitales y enmiendas.
+    - Validación de prescripciones con medicamentos y badges de vigencia.
+    - Comprobación de cero desbordamiento horizontal en 375 px (móvil), 768 px (tablet) y 1280 px (desktop).
+- **Triaje Clínico, Corte de Emergencia y Agendamiento de Citas (M8.2b, HU-02, HU-03, HU-04, ADR-006, ADR-009)**:
+  - Módulo de Triaje Clínico del Paciente `frontend/js/views/patient-triage.js`:
+    - Asistente por pasos accesible y sereno (Paso 1: selección de síntomas con búsqueda en tiempo real, filtro por categorías y chips táctiles ≥ 44 px; Paso 2: escala táctil de 0 a 10 para intensidad del dolor, selector de duración en horas con presets rápidos de 2h a 72h y observaciones opcionales con contador de caracteres).
+    - Aviso legal sereno y permanente de prototipo: orienta el nivel asistencial sin sustituir la valoración clínica de un profesional de la salud.
+    - Pantalla de CORTE DE EMERGENCIA infalible para síntomas de alarma (ej. dolor torácico opresivo, dificultad respiratoria severa) o Nivel I: banner destacado `.alert--emergency` con fondo y borde de triaje 1, resumen de síntomas de alarma detectados, recomendaciones de primeros auxilios, botón prominente "Llamar al 123" (`<a href="tel:123">`) y CERO opciones o botones de agendamiento.
+    - Pantalla de RESULTADO NO URGENTE para niveles II al V: badge accesible con icono, color y texto explícito (Nivel II Atención Prioritaria, Nivel III Cita Presencial Prioritaria, Nivel IV Telemedicina / No Urgente, Nivel V Consulta General Programada), ruta sugerida, tabla resumen de síntomas evaluados y botón primario para consultar horarios disponibles vinculando el triaje (`#/patient/book?triageId=...`).
+  - Módulo de Disponibilidad y Reserva de Citas `frontend/js/views/patient-booking.js`:
+    - Consulta reactiva y en tiempo real de slots libres futuros (`GET /api/v1/availability`) agrupados por día con chips de hora táctiles.
+    - Filtros dinámicos por especialidad médica, sede asistencial, modalidad (Presencial en Sede / Telemedicina) y fecha.
+    - Tarjeta de confirmación previa a la reserva con resumen exhaustivo (fecha y hora local en Colombia, profesional, especialidad, sede y triaje vinculado).
+    - Agendamiento transaccional consumiendo `POST /api/v1/appointments` con manejo cálido y amigable de colisiones por concurrencia 409 Conflict ("Ese horario acaba de ser tomado. Elige otro, por favor.") y recarga automática.
+    - Pantalla de éxito con código de reserva, indicaciones para el paciente y accesos rápidos a mis citas o al panel principal.
+  - Componentes de diseño en `frontend/css/components.css`:
+    - Chips interactivos (`.chip`, `.chip--alarm`, `.chip-group`) con objetivo táctil ≥ 44 px y estado de selección accesible.
+    - Selector de escala numérica 0–10 táctil (`.scale-selector`, `.scale-btn`) con respuesta visual instantánea.
+    - Cuadrícula de turnos y chips de horario (`.slot-grid`, `.slot-chip`) con subtítulos de sede/modalidad y médico.
+    - Indicador de pasos accesible (`.wizard-stepper`, `.wizard-progress-bar`).
+  - Verificación visual y funcional con Playwright:
+    - Validación de flujo de corte de emergencia y ausencia absoluta de botones de agendamiento.
+    - Validación de flujo no urgente hasta reserva confirmada y manejo de colisión 409.
+    - Comprobación de cero desbordamiento horizontal en 375 px (móvil), 768 px (tablet) y 1280 px (desktop).
+- **Pantallas del Paciente: Registro, Login y Dashboard (M8.2a, HU-04, HU-08, HU-09)**:
+  - Backend asistencial:
+    - Repositorio `CitaRepository`: métodos `listarPorPacienteId` y `contarPorPacienteId` con SQL 100% parametrizado, JOINs a citas, slots, pacientes, profesionales, especialidades y sedes, orden cronológico descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`.
+    - Servicio `AppointmentService.obtenerMisCitas`: validación de paciente autenticado, saneamiento de parámetros de paginación (0..100) y mapeo inmutable a `CitaResponse`.
+    - Controlador REST `PacienteController`: endpoint `GET /api/v1/patients/me/appointments` protegido exclusivamente con `@PreAuthorize("hasAuthority('ROLE_PACIENTE')")` (403 para otros roles, 401 sin sesión).
+    - 11 pruebas automatizadas nuevas en `CitaRepositoryTest`, `AppointmentServiceTest` y `PacienteControllerTest` (suite consolidada en 500 pruebas verdes al 100%).
+  - Módulo de vistas de autenticación `frontend/js/views/auth-views.js`:
+    - Vista de Login con botón toggle para alternar visibilidad de contraseña, validación de campos en cliente accesible mediante `aria-describedby` y feedback visual ante credenciales erróneas (401) o bloqueo temporal por 15 minutos (423).
+    - Vista de Registro de paciente en 2 pasos visuales e interactivos: Paso 1 (tipo y número de documento, nombres, apellidos, fecha de nacimiento no futura y teléfono) con validación previa al avance; Paso 2 (correo, contraseña con toggle, confirmación y consentimiento informado explícito v1.0 bajo Ley 1581 de 2012 no premarcado) con modal accesible para lectura de términos completos.
+  - Módulo de Dashboard del Paciente `frontend/js/views/patient-dashboard.js`:
+    - Carga reactiva y en paralelo (`Promise.allSettled`) de perfil demográfico, citas, historial clínico y recetas médicas con estados de skeleton animados.
+    - Saludo personalizado con nombre completo y número de documento, tarjeta destacada para inicio de triaje clínico, tarjeta de próxima cita activa con gestión o estado vacío sugerente, lista de atenciones con diagnósticos CIE-10 y lista de fórmulas farmacológicas con medicamentos prescritos.
+  - Optimizaciones de accesibilidad y diseño responsive:
+    - Reglas compactas en `frontend/css/components.css` y `frontend/js/app.js` para la barra de navegación en pantallas móviles (< 640 px).
+    - Verificación visual con Playwright en resoluciones de 375 px (móvil), 768 px (tablet) y 1280 px (desktop) con cero desbordamiento horizontal.
+- **Base del Frontend y Arquitectura SPA (M8.1, ADR-002, ADR-003)**:
+  - Cliente API centralizado `frontend/js/api.js` sobre `fetch` nativo con transmisión de cookies HttpOnly (`credentials: 'include'`), cabecera de protección CSRF (`X-Requested-With: XMLHttpRequest`), mapeo a excepción `ApiError` estructurada e interceptor de refresco de token ante 401 con cola de reintento automático.
+  - Servicio de autenticación `frontend/js/auth.js` reactivo (`EventTarget`) con estado exclusivamente en memoria (sin tokens en `localStorage`, ADR-002) y métodos para login, registro, logout, cambio de contraseña y comprobación silenciosa de sesión.
+  - Módulo UI `frontend/js/ui.js` con gestor de notificaciones toast accesibles, modal de confirmación con captura de foco y soporte de tecla Escape, skeletons de carga, vistas de estado vacío y alertas de error con acción de reintento.
+  - Enrutador SPA `frontend/js/router.js` hash-based sin dependencias externas, con soporte de rutas dinámicas con parámetros, query strings y guardias de navegación para rutas privadas, invitadas y roles específicos.
+  - Punto de entrada `frontend/js/app.js` y página principal `frontend/index.html` con estructura semántica, barra superior dinámica según sesión, barra inferior móvil para pacientes, enlace skip-link accesible y vistas base probadas con Playwright.
+- **Sistema de Diseño y Componentes Base (M8.0, ADR-002, docs/DISENO_UI_UX.md)**:
+  - Creación de 26 iconos SVG inline estilo Lucide en `frontend/assets/icons/` (check, alert-triangle, alert-circle, info, calendar, clock, file-text, pill, activity, phone, hospital, shield, user, etc.).
+  - Hoja de estilos base `frontend/css/base.css` con enlace de salto accesible (`.skip-link`), contenedores (`.container`, `.container-narrow`), utilidades semánticas flex/grid, tipografía, utilidades de espaciado y soporte para `prefers-reduced-motion`.
+  - Hoja de componentes `frontend/css/components.css` estructurada 100% sobre `tokens.css`:
+    - Botones (`.btn`): primario (teal), secundario, terciario/ghost, peligro y emergencia (Llamar al 123), tamaños pequeño y grande, y estado de carga animado (`.btn--loading`) con objetivo táctil mínimo de 44 px.
+    - Campos de formulario: etiquetas siempre visibles, textos de ayuda, estados de error con icono y descripción vinculados con `aria-describedby`, inputs de 16 px (prevención de zoom en iOS) y casillas/radios accesibles.
+    - Tarjetas (`.card`): contenedor base, variante destacada (`.card--highlight`) con `--primary-soft` e interactivas.
+    - Badges de estado: citas (PROGRAMADA, CONFIRMADA, ATENDIDA, CANCELADA, REPROGRAMADA) y niveles de triaje I al V cumpliendo la regla de no depender exclusivamente del color (icono + texto explícito).
+    - Alertas (`.alert`): informativas, de éxito, advertencia, peligro y banner crítico de emergencia para triaje I.
+    - Feedback y diálogos: toasts interactivos (`role="status"`), modal de confirmación con backdrop accesible y trampa de teclado (Esc y click fuera), skeletons de carga con animación shimmer y estados vacíos (`.empty-state`) con siguiente acción sugerida.
+    - Navegación: barra superior (`.navbar`), barra lateral (`.sidebar`) y barra inferior móvil (`.bottom-nav`) con indicadores activos.
+    - Tablas de datos responsivas con scroll horizontal y soporte para apilamiento en pantallas pequeñas.
+  - Catálogo interactivo `frontend/styleguide.html` con demostración de todos los componentes, variantes y estados interactivos, con alternancia de tema claro/oscuro persistente en `localStorage` y verificado en 375, 768 y 1280 px sin desbordamiento horizontal.
 
 ## [0.7.0] - 2026-10-03
 

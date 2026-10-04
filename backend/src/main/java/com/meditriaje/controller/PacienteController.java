@@ -1,9 +1,11 @@
 package com.meditriaje.controller;
 
 import com.meditriaje.dto.PacientePerfilResponse;
+import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.dto.clinical.AtencionResponse;
 import com.meditriaje.dto.common.PaginatedResponse;
 import com.meditriaje.dto.prescription.RecetaResponse;
+import com.meditriaje.service.AppointmentService;
 import com.meditriaje.service.ClinicalAttentionService;
 import com.meditriaje.service.PacienteService;
 import com.meditriaje.service.PrescriptionService;
@@ -29,15 +31,18 @@ public class PacienteController {
     private final PacienteService pacienteService;
     private final ClinicalAttentionService clinicalAttentionService;
     private final PrescriptionService prescriptionService;
+    private final AppointmentService appointmentService;
 
     public PacienteController(
             PacienteService pacienteService,
             ClinicalAttentionService clinicalAttentionService,
-            PrescriptionService prescriptionService
+            PrescriptionService prescriptionService,
+            AppointmentService appointmentService
     ) {
         this.pacienteService = Objects.requireNonNull(pacienteService, "PacienteService no puede ser nulo");
         this.clinicalAttentionService = Objects.requireNonNull(clinicalAttentionService, "ClinicalAttentionService no puede ser nulo");
         this.prescriptionService = Objects.requireNonNull(prescriptionService, "PrescriptionService no puede ser nulo");
+        this.appointmentService = Objects.requireNonNull(appointmentService, "AppointmentService no puede ser nulo");
     }
 
     /**
@@ -90,5 +95,23 @@ public class PacienteController {
                 usuarioPublicId, page, size, ipOrigen
         );
         return ResponseEntity.ok(recetas);
+    }
+
+    /**
+     * Consulta paginada de las citas médicas agendadas para el paciente autenticado (HU-04, HU-09).
+     * Solo lectura, sin exponer IDs numéricos autonuméricos de base de datos.
+     */
+    @GetMapping("/me/appointments")
+    @PreAuthorize("hasAuthority('ROLE_PACIENTE')")
+    public ResponseEntity<PaginatedResponse<CitaResponse>> obtenerMisCitas(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            Authentication authentication
+    ) {
+        String usuarioPublicId = authentication.getName();
+        PaginatedResponse<CitaResponse> citas = appointmentService.obtenerMisCitas(
+                usuarioPublicId, page, size
+        );
+        return ResponseEntity.ok(citas);
     }
 }

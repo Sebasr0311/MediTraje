@@ -221,4 +221,48 @@ Las transformaciones del esquema en Oracle ATP son estrictamente versionadas e i
 ### 4. Tabla de Control de Versiones:
 Flyway registra cada ejecución en la tabla técnica `flyway_schema_history` bajo el esquema `MEDITRIAJE_OWNER`, registrando checksums criptográficos, tiempos de ejecución y estado exitoso (`SUCCESS = 1`).
 
+---
+
+## 9. Inventario Consolidado de Migraciones Aplicadas (V001 a V009)
+
+| Versión | Archivo SQL | Fase | Tablas Creadas / Modificadas | Triggers y Mecanismos Clave |
+|---|---|---|---|---|
+| **V001** | `V001__baseline.sql` | M1 | `CONTROL_SISTEMA` | Línea base técnica y validación inicial de permisos. |
+| **V002** | `V002__seguridad.sql` | M2 | `USUARIO`, `ROL`, `USUARIO_ROL`, `REFRESH_TOKEN`, `CONSENTIMIENTO`, `AUDITORIA` | Triggers `TR_CONSENTIMIENTO_INMUTABILIDAD` y `TR_AUDITORIA_INMUTABILIDAD`. Semillas de roles básicos. |
+| **V003** | `V003__paciente.sql` | M2 | `PACIENTE` | Restricciones de unicidad en número de documento y vínculo `USUARIO_ID`. |
+| **V004** | `V004__oferta_administracion.sql` | M3 | `INSTITUCION`, `SEDE`, `ESPECIALIDAD`, `PROFESIONAL`, `DISPONIBILIDAD_SLOT` | Control de solapes, duraciones configurables y estados lógicos sin borrado físico. |
+| **V005** | `V005__usuario_cambio_password.sql` | M3 | `USUARIO` (alter) | Añade columna `DEBE_CAMBIAR_PASSWORD` para forzar cambio de contraseña temporal. |
+| **V006** | `V006__citas.sql` | M4 | `CITA` | Índice funcional único `UQ_CITA_SLOT_ACTIVA` para prevenir colisiones concurrentes. |
+| **V007** | `V007__triaje.sql` | M5 | `SINTOMA`, `REGLA_TRIAJE`, `TRIAJE`, `TRIAJE_SINTOMA` | FK compuesta `(TRIAJE_ID, PACIENTE_ID)` en `CITA`. Semillas de síntomas con 6 banderas de alarma. |
+| **V008** | `V008__atencion_historia_clinica.sql` | M6 | `DIAGNOSTICO_CIE10`, `ATENCION`, `SIGNO_VITAL`, `ATENCION_ENMIENDA` | Triggers `TR_ATENCION_INMUTABILIDAD`, `TR_SIGNO_VITAL_INMUTABILIDAD` y `TR_ENMIENDA_INMUTABILIDAD`. Semillas CIE-10. |
+| **V009** | `V009__recetas_medicamentos.sql` | M7 | `MEDICAMENTO`, `RECETA`, `RECETA_DETALLE` | Triggers `TR_RECETA_INMUTABILIDAD` y `TR_RECETA_DETALLE_INMUTABILIDAD`. Snapshot cuádruple de fármacos. |
+
+---
+
+## 10. Triggers PL/SQL de Inmutabilidad Clínica
+
+Para garantizar inmutabilidad legal en el motor de base de datos Oracle ATP, se implementaron triggers `BEFORE UPDATE OR DELETE` que cancelan la transacción con excepciones de aplicación:
+
+| Trigger | Tabla Protegida | Evento | Código de Error PL/SQL | Justificación |
+|---|---|---|---|---|
+| `TR_CONSENTIMIENTO_INMUTABILIDAD` | `CONSENTIMIENTO` | `UPDATE / DELETE` | `ORA-20000` | Un consentimiento legal firmado jamás puede ser modificado ni destruido. |
+| `TR_AUDITORIA_INMUTABILIDAD` | `AUDITORIA` | `UPDATE / DELETE` | `ORA-20000` | Las trazas de auditoría son de solo inserción (*insert-only*). |
+| `TR_ATENCION_INMUTABILIDAD` | `ATENCION` | `UPDATE` (en CERRADA) / `DELETE` | `ORA-20001` / `ORA-20002` | Una vez cerrada la atención, sus campos clínicos quedan congelados. Modificaciones requieren enmiendas. |
+| `TR_SIGNO_VITAL_INMUTABILIDAD` | `SIGNO_VITAL` | `UPDATE / DELETE` | `ORA-20003` / `ORA-20004` | Los signos vitales registrados durante la atención son inmutables. |
+| `TR_ENMIENDA_INMUTABILIDAD` | `ATENCION_ENMIENDA` | `UPDATE / DELETE` | `ORA-20005` | Las aclaraciones y enmiendas son estrictamente append-only. |
+| `TR_RECETA_INMUTABILIDAD` | `RECETA` | `UPDATE / DELETE` | `ORA-20007` / `ORA-20006` | Las prescripciones emitidas no admiten edición ni borrado posterior. |
+| `TR_RECETA_DETALLE_INMUTABILIDAD` | `RECETA_DETALLE` | `UPDATE / DELETE` | `ORA-20009` / `ORA-20008` | Los detalles farmacológicos de la receta quedan fijados permanentemente. |
+
+---
+
+## 11. Segregación de Privilegios de `MEDITRIAJE_APP` (ADR-012)
+
+La cuenta de conexión en tiempo de ejecución (`MEDITRIAJE_APP`) posee privilegios estrictamente recortados:
+
+* **Tablas de Solo Lectura (SELECT):** `SINTOMA`, `REGLA_TRIAJE`, `DIAGNOSTICO_CIE10`, `MEDICAMENTO`, `ROL`.
+* **Tablas Insert-Only (SELECT, INSERT):** `CONSENTIMIENTO`, `AUDITORIA`, `TRIAJE`, `TRIAJE_SINTOMA`, `SIGNO_VITAL`, `ATENCION_ENMIENDA`, `RECETA`, `RECETA_DETALLE`.
+* **Tablas Transaccionales Controladas (SELECT, INSERT, UPDATE):** `USUARIO`, `PACIENTE`, `PROFESIONAL`, `INSTITUCION`, `SEDE`, `ESPECIALIDAD`, `DISPONIBILIDAD_SLOT`, `CITA`, `ATENCION`, `REFRESH_TOKEN`.
+* **Privilegios DELETE:** Vedados en todas las tablas clínicas, auditorías y catálogos. Únicamente se permite `DELETE` físico condicional en `DISPONIBILIDAD_SLOT` cuando `ESTADO = 'LIBRE'`.
+
+
 

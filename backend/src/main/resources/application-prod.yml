@@ -19,8 +19,16 @@ spring:
 cors:
   origins: ${CORS_ORIGINS}
 
+management:
+  endpoint:
+    health:
+      show-details: when-authorized
+
 security:
+  cookie:
+    secure: true
   jwt:
     secret: ${JWT_SECRET}
     expiration-minutes: 15
     refresh-expiration-days: 7
+

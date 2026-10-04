@@ -364,5 +364,69 @@ public class CitaRepository {
         );
         return count != null && count > 0;
     }
+
+    /**
+     * Consulta paginada de las citas médicas reservadas por un paciente (HU-09).
+     *
+     * @param pacienteId Identificador interno del paciente
+     * @param page       Número de página (0-indexed)
+     * @param size       Tamaño de página
+     * @return Lista de citas mapeadas a {@link CitaResponse}
+     */
+    public List<CitaResponse> listarPorPacienteId(Long pacienteId, int page, int size) {
+        Objects.requireNonNull(pacienteId, "pacienteId no puede ser nulo");
+
+        String sql = """
+            SELECT
+                c.PUBLIC_ID AS CITA_PUBLIC_ID,
+                s.PUBLIC_ID AS SLOT_PUBLIC_ID,
+                p.PUBLIC_ID AS PACIENTE_PUBLIC_ID,
+                p.NOMBRES || ' ' || p.APELLIDOS AS PACIENTE_NOMBRE,
+                pr.PUBLIC_ID AS PROFESIONAL_PUBLIC_ID,
+                pr.NOMBRES || ' ' || pr.APELLIDOS AS PROFESIONAL_NOMBRE,
+                e.PUBLIC_ID AS ESPECIALIDAD_PUBLIC_ID,
+                e.NOMBRE AS ESPECIALIDAD_NOMBRE,
+                sd.PUBLIC_ID AS SEDE_PUBLIC_ID,
+                sd.NOMBRE AS SEDE_NOMBRE,
+                sd.DIRECCION AS SEDE_DIRECCION,
+                s.FECHA_HORA_INICIO,
+                s.FECHA_HORA_FIN,
+                s.MODALIDAD,
+                c.ESTADO,
+                t.PUBLIC_ID AS TRIAJE_PUBLIC_ID,
+                co.PUBLIC_ID AS CITA_ORIGEN_PUBLIC_ID,
+                c.CREATED_AT
+            FROM CITA c
+            JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
+            JOIN PACIENTE p ON c.PACIENTE_ID = p.ID
+            JOIN PROFESIONAL pr ON s.PROFESIONAL_ID = pr.ID
+            JOIN ESPECIALIDAD e ON s.ESPECIALIDAD_ID = e.ID
+            JOIN SEDE sd ON s.SEDE_ID = sd.ID
+            LEFT JOIN TRIAJE t ON c.TRIAJE_ID = t.ID
+            LEFT JOIN CITA co ON c.CITA_ORIGEN_ID = co.ID
+            WHERE c.PACIENTE_ID = ?
+            ORDER BY s.FECHA_HORA_INICIO DESC, c.ID DESC
+            OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+            """;
+
+        int offset = Math.max(0, page) * Math.max(1, size);
+        int limit = Math.max(1, size);
+
+        return jdbcTemplate.query(sql, citaResponseRowMapper, pacienteId, offset, limit);
+    }
+
+    /**
+     * Cuenta el total de citas asociadas a un paciente (HU-09).
+     *
+     * @param pacienteId Identificador interno del paciente
+     * @return Total de citas
+     */
+    public int contarPorPacienteId(Long pacienteId) {
+        Objects.requireNonNull(pacienteId, "pacienteId no puede ser nulo");
+        String sql = "SELECT COUNT(*) FROM CITA WHERE PACIENTE_ID = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, pacienteId);
+        return count != null ? count : 0;
+    }
 }
+
 

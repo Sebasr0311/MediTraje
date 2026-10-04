@@ -947,4 +947,71 @@ class AppointmentServiceTest {
         verify(citaRepository).listarAgendaProfesional(eq(5L), eq(null), eq(null), eq(null), eq(0), eq(10));
         verify(citaRepository).contarAgendaProfesional(eq(5L), eq(null), eq(null), eq(null));
     }
+
+    // =========================================================================
+    // CITAS DEL PACIENTE (HU-09)
+    // =========================================================================
+
+    @Test
+    void obtenerMisCitas_conPacienteValido_retornaPaginaCitas() {
+        Usuario usrPac = new Usuario(1L, "pac-usr-uuid", "carlos@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+        Paciente pac = new Paciente(10L, 1L, "pac-public-uuid", "CC", "1098765432", "Carlos", "Perez",
+                LocalDate.of(1990, 5, 20), "3001234567", NOW, null);
+
+        CitaResponse citaResp = new CitaResponse(
+                "cita-1", "slot-1", "pac-public-uuid", "Carlos Perez",
+                "prof-uuid-5", "Carlos Mendoza", "esp-1", "Medicina General",
+                "sede-1", "Sede Centro", "Calle 10", NOW.plusSeconds(3600), NOW.plusSeconds(4800),
+                "PRESENCIAL", "PROGRAMADA", null, null, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId("pac-usr-uuid")).thenReturn(Optional.of(usrPac));
+        when(pacienteRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.of(pac));
+        when(citaRepository.listarPorPacienteId(10L, 0, 10)).thenReturn(List.of(citaResp));
+        when(citaRepository.contarPorPacienteId(10L)).thenReturn(1);
+
+        PaginatedResponse<CitaResponse> resultado = appointmentService.obtenerMisCitas("pac-usr-uuid", 0, 10);
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.content()).hasSize(1);
+        assertThat(resultado.content().get(0).publicId()).isEqualTo("cita-1");
+        assertThat(resultado.totalElements()).isEqualTo(1L);
+        verify(citaRepository).listarPorPacienteId(10L, 0, 10);
+        verify(citaRepository).contarPorPacienteId(10L);
+    }
+
+    @Test
+    void obtenerMisCitas_conUsuarioNoExistente_lanzaRecursoNoEncontrado() {
+        when(usuarioRepository.buscarPorPublicId("no-existe")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.obtenerMisCitas("no-existe", 0, 10))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining("Usuario no encontrado.");
+    }
+
+    @Test
+    void obtenerMisCitas_conUsuarioNoPaciente_lanzaAccesoNoAutorizado() {
+        Usuario usr = new Usuario(99L, "usr-uuid", "admin@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+        when(usuarioRepository.buscarPorPublicId("usr-uuid")).thenReturn(Optional.of(usr));
+        when(pacienteRepository.buscarPorUsuarioId(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.obtenerMisCitas("usr-uuid", 0, 10))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessage("Solo pacientes registrados pueden consultar sus citas.");
+    }
+
+    @Test
+    void obtenerMisCitas_conPaginacionInvalida_lanzaDatosInvalidos() {
+        assertThatThrownBy(() -> appointmentService.obtenerMisCitas("pac-usr", -1, 10))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("El número de página no puede ser menor a 0.");
+
+        assertThatThrownBy(() -> appointmentService.obtenerMisCitas("pac-usr", 0, 0))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("El tamaño de página debe estar entre 1 y 100.");
+
+        assertThatThrownBy(() -> appointmentService.obtenerMisCitas("pac-usr", 0, 101))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessage("El tamaño de página debe estar entre 1 y 100.");
+    }
 }

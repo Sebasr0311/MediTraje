@@ -53,3 +53,4 @@ desktop.ini
 coverage/
 .nyc_output/
 test-output/
+.playwright-mcp/
