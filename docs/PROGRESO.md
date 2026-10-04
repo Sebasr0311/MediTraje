@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** M7 — Recetas
-- **Tarea actual:** M7.3 — Consulta del paciente
-- **Última etiqueta:** v0.6 (M6 completa)
-- **Rama de trabajo:** feature/m7-recetas
+- **Fase actual:** M8 — Frontend y cierre
+- **Tarea actual:** M8.2c — Paciente: citas, historia, recetas
+- **Última etiqueta:** v0.7 (M7 completa)
+- **Rama de trabajo:** feature/m8-frontend
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -71,8 +71,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ### M8 — Frontend y cierre
 - [x] M8.0 Sistema de diseño
 - [x] M8.1 Base del frontend
-- [ ] M8.2a Paciente: registro, login, dashboard
-- [ ] M8.2b Paciente: triaje, disponibilidad, reserva
+- [x] M8.2a Paciente: registro, login, dashboard
+- [x] M8.2b Paciente: triaje, disponibilidad, reserva
 - [ ] M8.2c Paciente: citas, historia, recetas
 - [ ] M8.3 Pantallas de profesional
 - [ ] M8.4 Pantallas de administración
@@ -143,6 +143,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · M8.0 · Sistema de diseño y componentes base (docs/DISENO_UI_UX.md, tokens.css): generación de 26 iconos SVG inline estilo Lucide en frontend/assets/icons/; creación de frontend/css/base.css con layout mobile-first, contenedores, utilidades flex/grid y enlace accesible skip-link; creación de frontend/css/components.css con botones (4 variantes + loading con spinner), campos de formulario (label superior, ayuda, error accesible aria-describedby, checkbox/radio), tarjetas estándar y destacadas, badges de citas y de triaje I-V (icono + texto), alertas y banner de emergencia para triaje I (Llamar al 123), toasts interactivos, modal accesible de confirmación, skeletons con animación shimmer, estados vacíos, barras de navegación y tablas responsivas; manual interactivo frontend/styleguide.html probado en navegador con alternancia de tema claro/oscuro persistente y validación en 375, 768 y 1280 px sin desbordamiento horizontal ni dependencias externas. · feat(frontend): sistema de diseno componentes base y styleguide (M8.0)
 - 2026-10-03 · M8.1 · Base del frontend y arquitectura SPA (HTML/CSS/JS vanilla con módulos ES): cliente API frontend/js/api.js con fetch nativo, cookies HttpOnly automáticas, cabecera obligatoria CSRF (X-Requested-With: XMLHttpRequest), manejo estructurado de ApiError y cola de reintento transparente ante 401; gestor de autenticación frontend/js/auth.js en memoria (cero tokens en localStorage según ADR-002) con helpers de roles (paciente, profesional, admin); utilidades frontend/js/ui.js con toasts, modales accesibles con trampa de foco y Esc, skeletons y estados vacíos; enrutador frontend/js/router.js hash-based con guardias de navegación para rutas privadas, de invitados y por rol; y página principal frontend/index.html junto con frontend/js/app.js probados en navegador con redirección automática a /login ante accesos no autorizados. · feat(frontend): base del frontend cliente api auth y enrutador spa (M8.1)
 - 2026-10-03 · M8.2a · Pantallas del paciente (registro, login y dashboard) y endpoint de citas del paciente: implementación de GET /api/v1/patients/me/appointments en PacienteController, AppointmentService y CitaRepository con SQL 100% parametrizado, paginación ANSI y 11 pruebas automatizadas nuevas (500 pruebas verdes al 100%); módulo frontend/js/views/auth-views.js con Login (toggle de visibilidad de contraseña, feedback de cuenta bloqueada 423, redirección) y Registro de Paciente en 2 pasos visuales (datos personales y credenciales con validación en cliente accesible aria-describedby y modal interactivo para lectura del consentimiento informado v1.0 Ley 1581 no premarcado); módulo frontend/js/views/patient-dashboard.js con saludo personalizado (GET /patients/me), tarjeta destacada de triaje clínico, tarjeta de próxima cita activa con gestión, resumen de últimas atenciones con diagnósticos CIE-10 y resumen de recetas recientes con fármacos prescritos; ajustes responsive de navbar en components.css y verificación visual con Playwright en 375, 768 y 1280 px con cero desbordamiento horizontal. · feat(frontend): registro login y dashboard del paciente (M8.2a)
+- 2026-10-03 · M8.2b · Triaje clínico, corte de emergencia, disponibilidad y reserva de citas (HU-02, HU-03, HU-04, ADR-006, ADR-009): módulo frontend/js/views/patient-triage.js con asistente por pasos (Paso 1: selección de síntomas con búsqueda en vivo, filtro por categorías y chips táctiles; Paso 2: escala táctil de 0 a 10 para intensidad del dolor, selector de duración en horas con presets rápidos y observaciones opcionales); aviso legal permanente de prototipo; pantalla de CORTE DE EMERGENCIA infalible para síntomas de alarma o Nivel I con banner .alert--emergency, resumen de alarma, recomendaciones de primeros auxilios, botón prominente "Llamar al 123" y CERO opciones de agendamiento; pantalla de RESULTADO NO URGENTE para niveles II al V con badge accesible (icono + color + texto), ruta sugerida, tabla resumen de síntomas y botón para consultar disponibilidad vinculado al triaje; módulo frontend/js/views/patient-booking.js con consulta en tiempo real de slots libres futuros agrupados por día con chips de hora táctiles, filtros dinámicos (especialidad, sede, modalidad, fecha), tarjeta de confirmación previa a la reserva, agendamiento transaccional (POST /api/v1/appointments), manejo cálido de colisión por concurrencia 409 Conflict ("Ese horario acaba de ser tomado. Elige otro, por favor.") y pantalla de éxito con código de reserva; componentes de diseño añadidos en components.css (.chip, .scale-selector, .slot-grid, .slot-chip, .wizard-stepper); suite completa de backend pasando con 500 pruebas al 100%; verificación visual y funcional con Playwright en 375, 768 y 1280 px con cero desbordamiento horizontal. · feat(frontend): triaje corte de emergencia disponibilidad y reserva (M8.2b)
 
 
 

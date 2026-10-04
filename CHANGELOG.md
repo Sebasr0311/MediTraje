@@ -8,6 +8,27 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Triaje Clínico, Corte de Emergencia y Agendamiento de Citas (M8.2b, HU-02, HU-03, HU-04, ADR-006, ADR-009)**:
+  - Módulo de Triaje Clínico del Paciente `frontend/js/views/patient-triage.js`:
+    - Asistente por pasos accesible y sereno (Paso 1: selección de síntomas con búsqueda en tiempo real, filtro por categorías y chips táctiles ≥ 44 px; Paso 2: escala táctil de 0 a 10 para intensidad del dolor, selector de duración en horas con presets rápidos de 2h a 72h y observaciones opcionales con contador de caracteres).
+    - Aviso legal sereno y permanente de prototipo: orienta el nivel asistencial sin sustituir la valoración clínica de un profesional de la salud.
+    - Pantalla de CORTE DE EMERGENCIA infalible para síntomas de alarma (ej. dolor torácico opresivo, dificultad respiratoria severa) o Nivel I: banner destacado `.alert--emergency` con fondo y borde de triaje 1, resumen de síntomas de alarma detectados, recomendaciones de primeros auxilios, botón prominente "Llamar al 123" (`<a href="tel:123">`) y CERO opciones o botones de agendamiento.
+    - Pantalla de RESULTADO NO URGENTE para niveles II al V: badge accesible con icono, color y texto explícito (Nivel II Atención Prioritaria, Nivel III Cita Presencial Prioritaria, Nivel IV Telemedicina / No Urgente, Nivel V Consulta General Programada), ruta sugerida, tabla resumen de síntomas evaluados y botón primario para consultar horarios disponibles vinculando el triaje (`#/patient/book?triageId=...`).
+  - Módulo de Disponibilidad y Reserva de Citas `frontend/js/views/patient-booking.js`:
+    - Consulta reactiva y en tiempo real de slots libres futuros (`GET /api/v1/availability`) agrupados por día con chips de hora táctiles.
+    - Filtros dinámicos por especialidad médica, sede asistencial, modalidad (Presencial en Sede / Telemedicina) y fecha.
+    - Tarjeta de confirmación previa a la reserva con resumen exhaustivo (fecha y hora local en Colombia, profesional, especialidad, sede y triaje vinculado).
+    - Agendamiento transaccional consumiendo `POST /api/v1/appointments` con manejo cálido y amigable de colisiones por concurrencia 409 Conflict ("Ese horario acaba de ser tomado. Elige otro, por favor.") y recarga automática.
+    - Pantalla de éxito con código de reserva, indicaciones para el paciente y accesos rápidos a mis citas o al panel principal.
+  - Componentes de diseño en `frontend/css/components.css`:
+    - Chips interactivos (`.chip`, `.chip--alarm`, `.chip-group`) con objetivo táctil ≥ 44 px y estado de selección accesible.
+    - Selector de escala numérica 0–10 táctil (`.scale-selector`, `.scale-btn`) con respuesta visual instantánea.
+    - Cuadrícula de turnos y chips de horario (`.slot-grid`, `.slot-chip`) con subtítulos de sede/modalidad y médico.
+    - Indicador de pasos accesible (`.wizard-stepper`, `.wizard-progress-bar`).
+  - Verificación visual y funcional con Playwright:
+    - Validación de flujo de corte de emergencia y ausencia absoluta de botones de agendamiento.
+    - Validación de flujo no urgente hasta reserva confirmada y manejo de colisión 409.
+    - Comprobación de cero desbordamiento horizontal en 375 px (móvil), 768 px (tablet) y 1280 px (desktop).
 - **Pantallas del Paciente: Registro, Login y Dashboard (M8.2a, HU-04, HU-08, HU-09)**:
   - Backend asistencial:
     - Repositorio `CitaRepository`: métodos `listarPorPacienteId` y `contarPorPacienteId` con SQL 100% parametrizado, JOINs a citas, slots, pacientes, profesionales, especialidades y sedes, orden cronológico descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`.

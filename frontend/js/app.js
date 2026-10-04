@@ -8,6 +8,8 @@ import { router } from './router.js';
 import { ui } from './ui.js';
 import { loginView, registerView } from './views/auth-views.js';
 import { patientDashboardView } from './views/patient-dashboard.js';
+import { patientTriageView } from './views/patient-triage.js';
+import { patientBookingView } from './views/patient-booking.js';
 
 // Inicialización de Tema Claro / Oscuro
 function initTheme() {
@@ -164,6 +166,12 @@ function setupRoutes() {
 
   // Ruta 4: Dashboard del Paciente (M8.2a)
   router.addRoute('/patient/dashboard', patientDashboardView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+
+  // Rutas M8.2b: Triaje Clínico, Corte de Emergencia y Agendamiento
+  router.addRoute('/patient/triage', patientTriageView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+  router.addRoute('/patient/triage/:id', patientTriageView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+  router.addRoute('/patient/book', patientBookingView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+  router.addRoute('/availability', patientBookingView, { requiresAuth: true });
 
 
   router.addRoute('/professional/agenda', async (container) => {
