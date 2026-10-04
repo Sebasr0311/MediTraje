@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resumen de Atención y Plan de Cuidado — MediTriaje 2.0</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #f8fafc;
+      padding: 40px 16px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 580px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+    .header {
+      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      padding: 32px 24px;
+      text-align: center;
+      color: #ffffff;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      margin: 6px 0 0 0;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .content {
+      padding: 32px 28px;
+    }
+    .greeting {
+      font-size: 18px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    .intro {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #334155;
+      margin-bottom: 24px;
+    }
+    .care-card {
+      background-color: #f0fdfa;
+      border: 1px solid #ccfbf1;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .care-row {
+      display: flex;
+      margin-bottom: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .care-row:last-child {
+      margin-bottom: 0;
+    }
+    .care-label {
+      font-weight: 600;
+      color: #0f766e;
+      width: 140px;
+      flex-shrink: 0;
+    }
+    .care-value {
+      color: #0f172a;
+      font-weight: 500;
+    }
+    .instructions-box {
+      background-color: #ffffff;
+      border: 1px solid #99f6e4;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-top: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #134e4a;
+    }
+    .alert-box {
+      background-color: #fef2f2;
+      border-left: 4px solid #ef4444;
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: #991b1b;
+      line-height: 1.5;
+    }
+    .alert-box strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #7f1d1d;
+    }
+    .cta-container {
+      text-align: center;
+      margin: 28px 0 16px 0;
+    }
+    .cta-button {
+      display: inline-block;
+      background-color: #0d9488;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      padding: 12px 28px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(13, 148, 136, 0.3);
+    }
+    .footer {
+      background-color: #f8fafc;
+      padding: 20px 24px;
+      border-top: 1px solid #f1f5f9;
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <h1>MediTriaje 2.0</h1>
+        <p>Resumen de Atención y Plan de Cuidado</p>
+      </div>
+      <div class="content">
+        <h2 class="greeting">¡Hola, {{pacienteNombre}}!</h2>
+        <p class="intro">Tu consulta médica ha finalizado. Tu profesional tratante ha registrado las siguientes pautas y tareas para el seguimiento de tu salud:</p>
+
+        <div class="care-card">
+          <div class="care-row">
+            <span class="care-label">Profesional:</span>
+            <span class="care-value">{{profesionalNombre}}</span>
+          </div>
+          <div class="care-row">
+            <span class="care-label">Especialidad:</span>
+            <span class="care-value">{{especialidadNombre}}</span>
+          </div>
+          <div class="care-row">
+            <span class="care-label">Fecha de Atención:</span>
+            <span class="care-value">{{fechaAtencion}}</span>
+          </div>
+          <div class="care-row">
+            <span class="care-label">Tipo de Seguimiento:</span>
+            <span class="care-value">{{tipoSeguimiento}}</span>
+          </div>
+          <div class="care-row">
+            <span class="care-label">Control Sugerido:</span>
+            <span class="care-value">{{fechaSugeridaControl}}</span>
+          </div>
+          <div style="margin-top: 12px;">
+            <span class="care-label" style="display: block; margin-bottom: 4px;">Indicaciones de cuidado:</span>
+            <div class="instructions-box">
+              {{indicaciones}}
+            </div>
+          </div>
+        </div>
+
+        <div class="alert-box">
+          <strong>Aviso de seguridad para el paciente:</strong>
+          Esta comunicación es orientativa sobre tu plan de cuidado ambulatorio. Si presentas signos de alarma (dificultad respiratoria, dolor torácico, sangrado persistente o pérdida de consciencia), acude de inmediato a urgencias o llama a la línea 123.
+        </div>
+
+        <div class="cta-container">
+          <a href="{{appUrl}}/#/patient/history" class="cta-button" target="_blank" rel="noopener noreferrer">Ver Mi Historia Clínica</a>
+        </div>
+      </div>
+      <div class="footer">
+        Este es un mensaje institucional automático generado por MediTriaje 2.0.<br>
+        Por favor no respondas a este correo.
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -8,6 +8,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Plantillas HTML y Notificaciones de Citas y Atención (F2.2.2, ADR-015)**:
+  - Tres plantillas de correo HTML institucionales en `backend/src/main/resources/templates/email/`:
+    - `confirmacion-cita.html`: notificación inmediata tras reserva con fecha/hora local (Bogotá UTC-5), profesional, especialidad, sede, modalidad y código de reserva.
+    - `cancelacion-cita.html`: notificación tras cancelación de cita médica con motivo y recomendaciones.
+    - `resumen-atencion-seguimiento.html`: resumen asistencial posterior a la atención médica con recomendaciones de autocuidado y recordatorio de tareas de seguimiento.
+  - Modelo `RecordatorioCita.java` y repositorio `RecordatorioCitaRepository.java` con JDBC parametrizado para registrar historial de notificaciones enviadas y fallidas.
+  - Servicio `AppointmentNotificationService.java`: despacho asíncrono y tolerante a fallos SMTP (`despacharYRegistrar`), resolviendo el correo del paciente y registrando el intento en `RECORDATORIO_CITA`.
+  - Integración en `AppointmentService.java`: despacho automático en `reservarCita` y `cancelarCita` sin abortar las transacciones clínicas/asistenciales ante fallos de correo.
+  - Suite de 14 pruebas automatizadas nuevas en `AppointmentNotificationServiceTest`, `RecordatorioCitaRepositoryTest` y `EmailServiceTest` elevando la suite completa a 568 pruebas al 100% de éxito.
 - **Migración Flyway V011: Seguimiento Post-Atención y Recordatorios (F2.2.1, ADR-015)**:
   - Archivo de migración `database/migrations/V011__seguimiento_post_atencion.sql` creando:
     - Tabla `SEGUIMIENTO_POST_ATENCION` para registro de tareas de control, evolución de síntomas, exámenes pendientes y adherencia a tratamiento, con clave foránea a `ATENCION`, `PACIENTE` y `PROFESIONAL`, e inclusión de reporte del paciente (§5.16).

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmación de Cita Médica — MediTriaje 2.0</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #f8fafc;
+      padding: 40px 16px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 580px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+    .header {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      padding: 32px 24px;
+      text-align: center;
+      color: #ffffff;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      margin: 6px 0 0 0;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .content {
+      padding: 32px 28px;
+    }
+    .greeting {
+      font-size: 18px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    .intro {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #334155;
+      margin-bottom: 24px;
+    }
+    .appointment-card {
+      background-color: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .appointment-row {
+      display: flex;
+      margin-bottom: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .appointment-row:last-child {
+      margin-bottom: 0;
+    }
+    .appointment-label {
+      font-weight: 600;
+      color: #0369a1;
+      width: 140px;
+      flex-shrink: 0;
+    }
+    .appointment-value {
+      color: #0f172a;
+      font-weight: 500;
+    }
+    .badge-modalidad {
+      display: inline-block;
+      padding: 2px 10px;
+      background-color: #e0f2fe;
+      color: #0284c7;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid #bae6fd;
+    }
+    .reminder-box {
+      background-color: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: #92400e;
+      line-height: 1.5;
+    }
+    .reminder-box strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #78350f;
+    }
+    .cta-container {
+      text-align: center;
+      margin: 28px 0 16px 0;
+    }
+    .cta-button {
+      display: inline-block;
+      background-color: #0284c7;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      padding: 12px 28px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(2, 132, 199, 0.3);
+    }
+    .footer {
+      background-color: #f8fafc;
+      padding: 20px 24px;
+      border-top: 1px solid #f1f5f9;
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <h1>MediTriaje 2.0</h1>
+        <p>Confirmación de Cita Médica</p>
+      </div>
+      <div class="content">
+        <h2 class="greeting">¡Hola, {{pacienteNombre}}!</h2>
+        <p class="intro">Tu cita médica ha sido agendada exitosamente en nuestra plataforma. A continuación encontrarás el detalle de tu reserva:</p>
+
+        <div class="appointment-card">
+          <div class="appointment-row">
+            <span class="appointment-label">Especialidad:</span>
+            <span class="appointment-value">{{especialidadNombre}}</span>
+          </div>
+          <div class="appointment-row">
+            <span class="appointment-label">Profesional:</span>
+            <span class="appointment-value">{{profesionalNombre}}</span>
+          </div>
+          <div class="appointment-row">
+            <span class="appointment-label">Fecha y Hora:</span>
+            <span class="appointment-value">{{fechaHoraBogota}}</span>
+          </div>
+          <div class="appointment-row">
+            <span class="appointment-label">Modalidad:</span>
+            <span class="appointment-value"><span class="badge-modalidad">{{modalidad}}</span></span>
+          </div>
+          <div class="appointment-row">
+            <span class="appointment-label">Sede / Ubicación:</span>
+            <span class="appointment-value">{{sedeNombre}} — {{sedeDireccion}}</span>
+          </div>
+          <div class="appointment-row">
+            <span class="appointment-label">Código de Cita:</span>
+            <span class="appointment-value" style="font-family: monospace; font-size: 13px;">{{codigoCita}}</span>
+          </div>
+        </div>
+
+        <div class="reminder-box">
+          <strong>Recomendaciones para tu consulta:</strong>
+          • Preséntate 15 minutos antes con tu documento de identidad original para citas presenciales.<br>
+          • Para telemedicina, conéctate 5 minutos antes desde un lugar tranquilo y privado.<br>
+          • <em>Política de cancelación:</em> Si no puedes asistir, recuerda cancelar con al menos 2 horas de anticipación para permitir que otro paciente aproveche el turno.
+        </div>
+
+        <div class="cta-container">
+          <a href="{{appUrl}}/#/patient/appointments" class="cta-button" target="_blank" rel="noopener noreferrer">Ver Mis Citas</a>
+        </div>
+      </div>
+      <div class="footer">
+        Este es un mensaje institucional automático generado por MediTriaje 2.0.<br>
+        Por favor no respondas a este correo.
+      </div>
+    </div>
+  </div>
+</body>
+</html>

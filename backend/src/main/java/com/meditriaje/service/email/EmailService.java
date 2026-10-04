@@ -6,6 +6,15 @@ package com.meditriaje.service.email;
 public interface EmailService {
 
     /**
+     * Envía un correo con contenido HTML a un destinatario.
+     *
+     * @param destinatarioEmail Correo del destinatario
+     * @param asunto            Asunto del mensaje
+     * @param cuerpoHtml        Contenido en formato HTML
+     */
+    void enviarCorreoHtml(String destinatarioEmail, String asunto, String cuerpoHtml);
+
+    /**
      * Envía el correo con el código de 6 dígitos para recuperación de contraseña.
      *
      * @param destinatarioEmail  Correo del usuario
