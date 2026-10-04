@@ -5,9 +5,9 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** F2.6.1 — ADR-018 y Alcance de Asistente y Reportes
-- **Última etiqueta:** v1.5-break-glass (Fase F2.5 completada)
-- **Rama de trabajo:** feature/f2.6-asistente-reportes
+- **Tarea actual:** F2.6 — Asistente del Sistema y Reportes Administrativos (COMPLETADA)
+- **Última etiqueta:** v1.6-asistente-reportes (Fase F2.6 completada)
+- **Rama de trabajo:** feature/f2.6-asistente-reportes (lista para merge a develop)
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -120,11 +120,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 ### F2.6 — Asistente del Sistema y Reportes Administrativos
 - [x] F2.6.1 ADR-018: Reportes Operativos Administrativos y Asistente del Sistema
-- [ ] F2.6.2 Repositorio de Métricas y Servicio de Reportes Operativos
-- [ ] F2.6.3 Servicio y Motor del Asistente del Sistema
-- [ ] F2.6.4 Controladores REST para Reportes y Asistente
-- [ ] F2.6.5 Frontend: Dashboard Analítico de Reportes y Widget Flotante del Asistente
-- [ ] F2.6.6 Pruebas, Colección HTTP y Cierre F2.6
+- [x] F2.6.2 Repositorio de Métricas y Servicio de Reportes Operativos
+- [x] F2.6.3 Servicio y Motor del Asistente del Sistema
+- [x] F2.6.4 Controladores REST para Reportes y Asistente
+- [x] F2.6.5 Frontend: Dashboard Analítico de Reportes y Widget Flotante del Asistente
+- [x] F2.6.6 Pruebas, Colección HTTP y Cierre F2.6
 
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
@@ -235,6 +235,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · F2.5.2-F2.5.4 · Modelos, servicios y endpoints de acceso Break-Glass e historia clínica para profesionales (ADR-017, F2.5): modelo inmutable AccesoBreakGlass, DTOs ActivarBreakGlassRequest y AccesoBreakGlassResponse; BreakGlassRepository con JdbcTemplate y SQL parametrizado; servicio BreakGlassService con justificación obligatoria (>= 20 chars), cálculo de expiración a 24 horas y auditoría ACCESO_BREAK_GLASS; integración en AccesoClinicoService para conceder acceso excepcional en tieneRelacionAsistencial; ClinicalAttentionService con consulta paginada de historia médica; controladores REST ClinicalBreakGlassController (/api/v1/clinical/break-glass, /active, /{id}) y ClinicalPatientHistoryController (/api/v1/clinical/patients/{id}/history); aislamiento 403 para admin y pacientes; 28 pruebas automatizadas nuevas elevando la suite completa a 693 pruebas verdes al 100%. · feat(clinical): modelos, servicios y endpoints de acceso break-glass e historia de paciente (F2.5.2-F2.5.4)
 - 2026-10-04 · F2.5.5 · Frontend: Modal de justificación legal y consulta asistencial excepcional (ADR-017, F2.5): modal accesible break-glass-modal.js con advertencia legal y ética, contador dinámico de justificación médica (>= 20 caracteres), declaración juramentada y activación con POST /api/v1/clinical/break-glass; vista profesional de historia del paciente professional-patient-history.js (#/professional/patient-history/:patientPublicId) con detección de Break-Glass activo y banner destacado de vigencia, timeline de atenciones y enmiendas, y desbloqueo asistencial ante 403; botones de acceso de emergencia en agenda profesional y atención clínica; registro en router.js y app.js; validación sintáctica limpia con node --check. · feat(frontend): modal de break-glass y consulta asistencial excepcional de historia (F2.5.5)
 - 2026-10-04 · F2.5.6 · Colección HTTP y Cierre F2.5 (ADR-017): creación de docs/api/F2.5.http con 8 secciones y 15 escenarios de prueba cubriendo healthcheck, autenticación multirol, rechazo por falta de relación asistencial (403), validaciones de Break-Glass (rechazo por motivo corto < 20 chars, rechazo para admin y paciente), activación médica exitosa (201 Created), listado y detalle de accesos activos (200 OK), consulta exitosa de historia desbloqueada (200 OK), aislamiento estricto e intransferible entre médicos (403) y exclusión absoluta del administrador (403); suite Maven de 693 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.5. · test(api): coleccion f2.5.http y verificacion integral de break-glass (F2.5.6)
+- 2026-10-04 · F2.6.1 · ADR-018 y Alcance de Asistente y Reportes: formalización de ADR-018 en docs/DECISIONES.md con segregación estricta de reportes administrativos (ADR-007) mediante agregaciones anónimas en base de datos sin datos de salud individuales, y reglas de operación del asistente virtual (cero diagnósticos/fármacos, corte de emergencia prioritario al 123); desglose detallado de tareas F2.6.1 a F2.6.6 en docs/PLAN_DE_TRABAJO.md y actualización de roadmap en docs/PROGRESO.md. · docs(architecture): adr-018 asistente del sistema y reportes administrativos (F2.6.1)
+- 2026-10-04 · F2.6.2-F2.6.4 · Modelos, repositorio, servicios y controladores REST de reportes y asistente (ADR-018, RF-27, RF-30): DTOs inmutables para reportes (citas, triaje, farmacia, break-glass) y asistente (pregunta, respuesta, sugerencias); Repositorio ReporteRepository con JdbcTemplate y SQL parametrizado para agregaciones matemáticas anónimas (COUNT, SUM, GROUP BY); Servicio ReporteService con validación de rangos temporales en America/Bogota y auditoría inmutable CONSULTA_REPORTE_ADMINISTRATIVO; Servicio AssistantService con normalización de texto, detección infalible de emergencias médicas vitales (123 / urgencias), motor temático y disclaimer legal; controladores AdminReportController (/api/v1/admin/reports/** con ROLE_ADMINISTRADOR) y AssistantController (/api/v1/assistant/chat con acceso universal en SecurityConfig); 36 pruebas automatizadas nuevas elevando la suite completa a 729 pruebas pasando al 100%. · feat(reports): repositorio de metricas servicio analitico y asistente virtual (F2.6.2-F2.6.4)
+- 2026-10-04 · F2.6.5 · Frontend: Dashboard analítico de reportes y widget flotante del asistente virtual (ADR-018, RF-27, RF-30): vista analítica frontend/js/views/admin-reports.js integrada en panel administrativo (#/admin/reports) con filtros temporales, atajos rápidos, tarjetas KPI de citas, triajes, farmacia y break-glass, barras de progreso y listas de distribución por especialidad y sede; widget interactivo flotante frontend/js/views/system-assistant-widget.js con botón flotante (#assistant-fab), panel desplegable (#assistant-panel), chips de sugerencia rápida, renderizado reactivo con indicador de tipeo, botones de acción SPA y destacado de emergencia al 123; integrado globalmente en app.js; sintaxis limpia con node --check. · feat(frontend): dashboard analitico de reportes y widget de asistente virtual (F2.6.5)
+- 2026-10-04 · F2.6.6 · Colección HTTP y Cierre F2.6 (ADR-018, RF-27, RF-30): creación de docs/api/F2.6.http con 5 secciones y 14 escenarios de prueba cubriendo healthcheck, login multirol, consultas de reportes operativos globales y con filtros temporales, aislamiento 403 para pacientes y médicos, validación de fechas invertidas (400), consultas temáticas al asistente virtual (citas, triaje, farmacia, QR), corte infalible de emergencia médica vital con llamado prioritario al 123, validación de mensaje vacío (400) y acceso sin autenticación previa; verificación completa de la suite Maven con 729 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.6. · test(api): coleccion f2.6.http y verificacion integral de asistente y reportes (F2.6.6)
+
 
 
 

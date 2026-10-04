@@ -8,6 +8,39 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Colección HTTP y Cierre de Asistente del Sistema y Reportes Administrativos (F2.6.6, RF-27, RF-30, ADR-018)**:
+  - Creación de `docs/api/F2.6.http` con 5 secciones y 14 escenarios de prueba completos cubriendo:
+    - Healthcheck y autenticación multirol (Administrador, Paciente, Profesional).
+    - Resumen operativo global y consultas filtradas por rango de fechas (`America/Bogota`).
+    - Métricas especializadas de citas y triaje clínico.
+    - Seguridad y segregación estricta de privilegios: 403 Forbidden para pacientes y profesionales en endpoints de reportes administrativos (ADR-007); 401 Unauthorized sin sesión; 400 Bad Request ante fechas invertidas.
+    - Asistente virtual del sistema: orientación operativa sobre citas, triaje clínico, farmacia y reclamación con código `REC-XXXXXXXX`, y QR de emergencia.
+    - Detección infalible de emergencias médicas vitales (dolor de pecho, ahogo, pérdida de conciencia) con respuesta inmediata y enlace a la línea 123.
+    - Validación de mensajes en blanco (400) y acceso universal sin autenticación previa para orientación de pacientes.
+  - Verificación global con suite completa de 729 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores).
+- **Frontend: Dashboard Analítico de Reportes y Widget Flotante del Asistente Virtual (F2.6.5, RF-27, RF-30, ADR-018)**:
+  - Nueva vista analítica `frontend/js/views/admin-reports.js` integrada en el panel administrativo (`#/admin/reports`):
+    - Filtros temporales (`desde`, `hasta`) con atajos predeterminados (Hoy, 7 días, 30 días, Histórico).
+    - Tarjetas KPI: total de citas, tasa de cumplimiento e inasistencia/cancelación, evaluaciones de triaje, emergencias Nivel I, recetas emitidas y unidades farmacológicas entregadas, y activaciones Break-Glass activas.
+    - Barras de progreso porcentuales para estados de citas, distribución de triaje por niveles I–V y estados de dispensación farmacéutica.
+    - Listas de distribución de demanda por especialidad médica y por sede hospitalaria, y auditoría de accesos Break-Glass por especialidad médica.
+    - Cumplimiento estricto de ADR-007: métricas agregadas anónimas sin acceso a historias clínicas individuales.
+  - Widget interactivo flotante `frontend/js/views/system-assistant-widget.js`:
+    - Botón flotante accesible (`#assistant-fab`) con apertura/cierre de panel de chat (`#assistant-panel`).
+    - Atajos rápidos de consulta sugerida (agendamiento, triaje, farmacia, QR de emergencia, alerta médica).
+    - Renderizado de mensajes con indicador de tipeo reactivo, disclaimer médico permanente y botones de acción rápida con navegación SPA.
+    - Destacado visual de alarma de emergencia médica con llamado de urgencia al 123.
+    - Inicialización global en `frontend/js/app.js` disponible para todos los usuarios.
+- **Modelos, Repositorio, Servicios y Controladores REST de Reportes y Asistente Virtual (F2.6.2-F2.6.4, RF-27, RF-30, ADR-018)**:
+  - DTOs inmutables para reportes (`MetricasCitasDto`, `MetricasTriajeDto`, `MetricasFarmaciaDto`, `MetricasBreakGlassDto`, `DistribucionItemDto`, `ResumenOperativoResponse`) y asistente (`PreguntaAsistenteRequest`, `RespuestaAsistenteResponse`, `SugerenciaAccionDto`).
+  - Repositorio `ReporteRepository` con `JdbcTemplate` y SQL 100% parametrizado para agregaciones matemáticas anónimas (`COUNT`, `SUM`, `GROUP BY`) sobre `CITA`, `TRIAJE`, `RECETA`, `DISPENSACION`, `ACCESO_BREAK_GLASS`, `ESPECIALIDAD` y `SEDE`.
+  - Servicio `ReporteService` con validación de rangos temporales en zona `America/Bogota`, cálculo de tasas porcentuales y auditoría inmutable de consultas administrativas (`CONSULTA_REPORTE_ADMINISTRATIVO`).
+  - Servicio `AssistantService` con normalización de texto sin tildes, detección de términos de alarma vital para corte de emergencia, clasificación de intenciones en base de conocimiento de la plataforma, generación de acciones interactivas y aviso legal permanente.
+  - Controladores REST `AdminReportController` (`/api/v1/admin/reports/**`) con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")` y `AssistantController` (`/api/v1/assistant/chat`) con acceso público en `SecurityConfig`.
+  - 36 pruebas unitarias y de integración MockMvc nuevas elevando la suite completa a 729 pruebas pasando al 100%.
+- **ADR-018: Reportes Operativos Administrativos y Asistente del Sistema (F2.6.1, RF-27, RF-30)**:
+  - Documentación formal de ADR-018 en `docs/DECISIONES.md`: segregación estricta de reportes administrativos (ADR-007) mediante agregaciones anónimas en base de datos sin datos de salud individuales, y reglas de operación del asistente virtual (cero diagnósticos/fármacos, corte de emergencia prioritario al 123).
+  - Desglose detallado de tareas F2.6.1 a F2.6.6 en `docs/PLAN_DE_TRABAJO.md` y actualización de roadmap en `docs/PROGRESO.md`.
 - **Colección HTTP y Cierre de Acceso Clínico de Emergencia Break-Glass (F2.5.6, ADR-017)**:
   - Creación de `docs/api/F2.5.http` con 8 secciones y 15 escenarios de prueba cubriendo:
     - Autenticación multirol y healthcheck.

@@ -1,0 +1,187 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase F2.6)
+### Asistente del Sistema y Reportes Administrativos — RF-27, RF-30, ADR-018
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+### Cumplimiento estricto: ADR-002, ADR-003, ADR-007, ADR-011, ADR-018
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With
+@csrfValue = XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Autenticación y Credenciales Multi-Rol
+### ----------------------------------------------------------------------------
+
+### 2.1 Login como Administrador (ROLE_ADMINISTRADOR)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### 2.2 Login como Paciente (ROLE_PACIENTE)
+# @name loginPaciente
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.3 Login como Profesional Asistencial (ROLE_PROFESIONAL)
+# @name loginMedico
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "dra.garcia@meditriaje.com",
+  "password": "PasswordSegura123*"
+}
+
+### ----------------------------------------------------------------------------
+### 3. Reportes Operativos Administrativos (RF-30, ADR-007, ADR-018)
+### ----------------------------------------------------------------------------
+
+### 3.1 Consulta de Resumen Operativo Global (Admin) -> 200 OK
+# @name resumenOperativoGlobal
+GET {{baseUrl}}/admin/reports/operational
+Accept: application/json
+
+### 3.2 Consulta de Resumen Operativo con Rango de Fechas (Admin) -> 200 OK
+# @name resumenOperativoRango
+GET {{baseUrl}}/admin/reports/operational?desde=2026-01-01&hasta=2026-12-31
+Accept: application/json
+
+### 3.3 Consulta Detallada de Métricas de Citas (Admin) -> 200 OK
+# @name metricasCitas
+GET {{baseUrl}}/admin/reports/appointments?desde=2026-01-01&hasta=2026-12-31
+Accept: application/json
+
+### 3.4 Consulta Detallada de Métricas de Triaje (Admin) -> 200 OK
+# @name metricasTriaje
+GET {{baseUrl}}/admin/reports/triage?desde=2026-01-01&hasta=2026-12-31
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 4. Seguridad y Segregación de Privilegios (ADR-007, ADR-018)
+### ----------------------------------------------------------------------------
+
+### 4.1 Paciente intentando consultar reportes administrativos -> 403 Forbidden
+# @name reportePacienteProhibido
+GET {{baseUrl}}/admin/reports/operational
+Accept: application/json
+Cookie: access_token={{loginPaciente.response.headers.Set-Cookie}}
+
+### 4.2 Profesional intentando consultar reportes administrativos -> 403 Forbidden
+# @name reporteProfesionalProhibido
+GET {{baseUrl}}/admin/reports/operational
+Accept: application/json
+Cookie: access_token={{loginMedico.response.headers.Set-Cookie}}
+
+### 4.3 Petición sin autenticación -> 401 Unauthorized
+# @name reporteSinSesion
+GET {{baseUrl}}/admin/reports/operational
+Accept: application/json
+
+### 4.4 Rango de fechas invertido (desde > hasta) -> 400 Bad Request
+# @name reporteFechasInvertidas
+GET {{baseUrl}}/admin/reports/operational?desde=2026-12-31&hasta=2026-01-01
+Accept: application/json
+Cookie: access_token={{loginAdmin.response.headers.Set-Cookie}}
+
+### ----------------------------------------------------------------------------
+### 5. Asistente Virtual del Sistema (RF-27, §5.19, ADR-018)
+### ----------------------------------------------------------------------------
+
+### 5.1 Orientación sobre agendamiento de citas médicas -> 200 OK (Categoría: CITAS)
+# @name asistenteCitas
+POST {{baseUrl}}/assistant/chat
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "mensaje": "¿Cómo puedo pedir o cancelar una cita médica en la plataforma?"
+}
+
+### 5.2 Orientación sobre triaje clínico y niveles de urgencia -> 200 OK (Categoría: TRIAJE)
+# @name asistenteTriaje
+POST {{baseUrl}}/assistant/chat
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "mensaje": "¿Qué es el triaje clínico y qué significan los niveles del 1 al 5?"
+}
+
+### 5.3 Orientación sobre farmacia y reclamación de medicamentos -> 200 OK (Categoría: FARMACIA)
+# @name asistenteFarmacia
+POST {{baseUrl}}/assistant/chat
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "mensaje": "¿Cómo reclamo mi medicina con el código de receta en la ventanilla de farmacia?"
+}
+
+### 5.4 Orientación sobre resumen de salud y QR de emergencia -> 200 OK (Categoría: QR_EMERGENCIA)
+# @name asistenteQr
+POST {{baseUrl}}/assistant/chat
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "mensaje": "¿Cómo funciona el código QR de emergencia y qué información muestra?"
+}
+
+### 5.5 Detección prioritaria de emergencia médica vital -> 200 OK (esEmergencia: true, Llamar al 123)
+# @name asistenteEmergencia
+POST {{baseUrl}}/assistant/chat
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "mensaje": "Siento un dolor muy fuerte opresivo en el pecho y me cuesta mucho respirar"
+}
+
+### 5.6 Consulta general / saludos -> 200 OK (Categoría: GENERAL)
+# @name asistenteGeneral
+POST {{baseUrl}}/assistant/chat
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "mensaje": "Hola, ¿en qué me puedes ayudar?"
+}
+
+### 5.7 Validación: mensaje vacío o en blanco -> 400 Bad Request
+# @name asistenteMensajeVacio
+POST {{baseUrl}}/assistant/chat
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "mensaje": "    "
+}
