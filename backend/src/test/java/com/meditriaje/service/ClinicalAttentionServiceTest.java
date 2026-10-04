@@ -39,6 +39,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +47,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -571,5 +573,75 @@ class ClinicalAttentionServiceTest {
         assertThatThrownBy(() -> clinicalAttentionService.obtenerMiHistoriaClinica(usuarioPublicId, 0, 10, "127.0.0.1"))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessageContaining("Usuario autenticado no encontrado.");
+    }
+
+    @Test
+    @DisplayName("obtenerHistoriaClinicaPaciente - médico autorizado por relación o break-glass consulta historia y audita")
+    void obtenerHistoriaClinicaPaciente_exito() {
+        String pacientePublicId = "pac-100";
+        String usuarioMedPublicId = "usr-med-1";
+        Long pacienteId = 300L;
+        Paciente paciente = new Paciente(
+                pacienteId, 30L, pacientePublicId, "CC", "12345678", "Carlos", "Sanchez",
+                LocalDate.of(1985, 5, 20), "3001234567", AHORA, AHORA
+        );
+
+        when(usuarioRepository.buscarPorPublicId(usuarioMedPublicId)).thenReturn(Optional.of(usuarioMedico));
+        when(pacienteRepository.buscarPorPublicId(pacientePublicId)).thenReturn(Optional.of(paciente));
+
+        AtencionResponse atencion = new AtencionResponse(
+                "atn-uuid-1", "cita-uuid-1", pacientePublicId, "Carlos Sanchez",
+                "prof-1", "Carlos Gomez", "Medicina General",
+                "CERRADA", AHORA.minusSeconds(1000), AHORA, "J00", "Rinofaringitis aguda",
+                "Motivo", "Evolucion", "Indicaciones", null
+        );
+
+        when(atencionRepository.listarHistoriaPaciente(pacienteId, 0, 10)).thenReturn(List.of(atencion));
+        when(atencionRepository.contarHistoriaPaciente(pacienteId)).thenReturn(1);
+
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL"));
+
+        PaginatedResponse<AtencionResponse> response = clinicalAttentionService.obtenerHistoriaClinicaPaciente(
+                pacientePublicId,
+                usuarioMedPublicId,
+                authorities,
+                0,
+                10,
+                "192.168.1.50"
+        );
+
+        assertThat(response).isNotNull();
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.totalElements()).isEqualTo(1);
+        assertThat(response.content().get(0).publicId()).isEqualTo("atn-uuid-1");
+
+        // Verifica autorización centralizada (ADR-007, ADR-017)
+        verify(accesoClinicoService).validarAccesoHistorialClinico(usuarioMedPublicId, pacientePublicId, authorities);
+
+        // Verifica auditoría
+        ArgumentCaptor<EventoAuditoria> captorAuditoria = ArgumentCaptor.forClass(EventoAuditoria.class);
+        verify(auditoriaService).auditar(captorAuditoria.capture());
+        EventoAuditoria evento = captorAuditoria.getValue();
+        assertThat(evento.accion()).isEqualTo(AccionAuditable.CONSULTA_HISTORIA);
+        assertThat(evento.tipoRecurso()).isEqualTo("HISTORIA_CLINICA");
+        assertThat(evento.recursoPublicId()).isEqualTo(pacientePublicId);
+    }
+
+    @Test
+    @DisplayName("obtenerHistoriaClinicaPaciente - rechaza si acceso clínico no autoriza al médico")
+    void obtenerHistoriaClinicaPaciente_sinAutorizacion_lanzaExcepcion() {
+        String pacientePublicId = "pac-100";
+        String usuarioMedPublicId = "usr-med-1";
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL"));
+
+        org.mockito.Mockito.doThrow(new AccesoNoAutorizadoException("No existe una relacion asistencial activa con el paciente."))
+                .when(accesoClinicoService).validarAccesoHistorialClinico(usuarioMedPublicId, pacientePublicId, authorities);
+
+        assertThatThrownBy(() -> clinicalAttentionService.obtenerHistoriaClinicaPaciente(
+                pacientePublicId, usuarioMedPublicId, authorities, 0, 10, "127.0.0.1"
+        )).isInstanceOf(AccesoNoAutorizadoException.class)
+          .hasMessageContaining("No existe una relacion asistencial activa");
+
+        verify(atencionRepository, never()).listarHistoriaPaciente(any(), anyInt(), anyInt());
     }
 }

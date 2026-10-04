@@ -402,4 +402,51 @@ public class ClinicalAttentionService {
 
         return PaginatedResponse.of(contenido, safePage, safeSize, total);
     }
+
+    /**
+     * Consulta paginada de la historia clínica de un paciente para profesionales asistenciales (HU-07, HU-09, ADR-007, ADR-017).
+     * Valida autorización asistencial (cita futura, atención previa en 12 meses o acceso Break-Glass activo).
+     */
+    public PaginatedResponse<AtencionResponse> obtenerHistoriaClinicaPaciente(
+            String pacientePublicId,
+            String usuarioAutenticadoPublicId,
+            Collection<? extends GrantedAuthority> authorities,
+            int page,
+            int size,
+            String ipOrigen
+    ) {
+        if (usuarioAutenticadoPublicId == null || usuarioAutenticadoPublicId.isBlank()) {
+            throw new AccesoNoAutorizadoException("Usuario no autenticado.");
+        }
+        if (pacientePublicId == null || pacientePublicId.isBlank()) {
+            throw new DatosInvalidosException("Identificador de paciente no proporcionado.");
+        }
+
+        // Valida que el profesional tenga relación asistencial activa o break-glass
+        accesoClinicoService.validarAccesoHistorialClinico(usuarioAutenticadoPublicId, pacientePublicId, authorities);
+
+        Usuario usuario = usuarioRepository.buscarPorPublicId(usuarioAutenticadoPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado."));
+
+        Paciente paciente = pacienteRepository.buscarPorPublicId(pacientePublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Paciente no encontrado."));
+
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+
+        List<AtencionResponse> contenido = atencionRepository.listarHistoriaPaciente(paciente.id(), safePage, safeSize);
+        long total = atencionRepository.contarHistoriaPaciente(paciente.id());
+
+        // Auditar consulta de historia clínica médica (ADR-011)
+        auditoriaService.auditar(new EventoAuditoria(
+                usuario.id(),
+                AccionAuditable.CONSULTA_HISTORIA,
+                "HISTORIA_CLINICA",
+                paciente.publicId(),
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        ));
+
+        return PaginatedResponse.of(contenido, safePage, safeSize, total);
+    }
 }

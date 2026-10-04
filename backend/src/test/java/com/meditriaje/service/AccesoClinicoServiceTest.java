@@ -6,6 +6,7 @@ import com.meditriaje.model.Paciente;
 import com.meditriaje.model.Profesional;
 import com.meditriaje.model.Usuario;
 import com.meditriaje.repository.AtencionRepository;
+import com.meditriaje.repository.BreakGlassRepository;
 import com.meditriaje.repository.CitaRepository;
 import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
@@ -65,6 +66,9 @@ class AccesoClinicoServiceTest {
     @Mock
     private AtencionRepository atencionRepository;
 
+    @Mock
+    private BreakGlassRepository breakGlassRepository;
+
     private Clock clock;
     private AccesoClinicoService accesoClinicoService;
 
@@ -77,6 +81,7 @@ class AccesoClinicoServiceTest {
                 profesionalRepository,
                 citaRepository,
                 atencionRepository,
+                breakGlassRepository,
                 clock,
                 12
         );
@@ -293,5 +298,57 @@ class AccesoClinicoServiceTest {
         boolean tieneRelacion = accesoClinicoService.tieneRelacionAsistencial(proPublicId, pacPublicId);
 
         assertThat(tieneRelacion).isTrue();
+    }
+
+    @Test
+    @DisplayName("Profesional sin cita ni atención previa pero con Break-Glass activo: acceso permitido (ADR-017)")
+    void profesional_sinRelacionOrdinaria_conBreakGlassActivo_accesoPermitido() {
+        String usuarioMedPublicId = "u-med-1";
+        String pacientePublicId = "pac-001";
+
+        Usuario usuarioMed = crearUsuario(20L, usuarioMedPublicId, "med@test.com");
+        Profesional profesional = new Profesional(200L, 20L, "pro-001", 5L, "RM-12345", "Carlos", "Gomez", AHORA, AHORA);
+        Paciente paciente = crearPaciente(100L, 10L, pacientePublicId);
+
+        when(usuarioRepository.buscarPorPublicId(usuarioMedPublicId)).thenReturn(Optional.of(usuarioMed));
+        when(profesionalRepository.buscarPorUsuarioId(20L)).thenReturn(Optional.of(profesional));
+        when(pacienteRepository.buscarPorPublicId(pacientePublicId)).thenReturn(Optional.of(paciente));
+
+        // No hay cita activa futura
+        when(citaRepository.existeCitaActivaFutura(eq(200L), eq(100L), any(Instant.class))).thenReturn(false);
+        // No hay atención previa en ventana de 12 meses
+        when(atencionRepository.existeAtencionPreviaEnVentana(eq(200L), eq(100L), any(Instant.class))).thenReturn(false);
+        // SÍ hay acceso Break-Glass activo
+        when(breakGlassRepository.existeAccesoActivo(eq(200L), eq(100L), any(Instant.class))).thenReturn(true);
+
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL"));
+
+        assertThatCode(() -> accesoClinicoService.validarAccesoHistorialClinico(usuarioMedPublicId, pacientePublicId, authorities))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("Profesional sin relación ordinaria y sin Break-Glass activo: acceso rechazado 403 (ADR-007, ADR-017)")
+    void profesional_sinRelacionOrdinaria_sinBreakGlass_accesoRechazado() {
+        String usuarioMedPublicId = "u-med-1";
+        String pacientePublicId = "pac-001";
+
+        Usuario usuarioMed = crearUsuario(20L, usuarioMedPublicId, "med@test.com");
+        Profesional profesional = new Profesional(200L, 20L, "pro-001", 5L, "RM-12345", "Carlos", "Gomez", AHORA, AHORA);
+        Paciente paciente = crearPaciente(100L, 10L, pacientePublicId);
+
+        when(usuarioRepository.buscarPorPublicId(usuarioMedPublicId)).thenReturn(Optional.of(usuarioMed));
+        when(profesionalRepository.buscarPorUsuarioId(20L)).thenReturn(Optional.of(profesional));
+        when(pacienteRepository.buscarPorPublicId(pacientePublicId)).thenReturn(Optional.of(paciente));
+
+        when(citaRepository.existeCitaActivaFutura(eq(200L), eq(100L), any(Instant.class))).thenReturn(false);
+        when(atencionRepository.existeAtencionPreviaEnVentana(eq(200L), eq(100L), any(Instant.class))).thenReturn(false);
+        when(breakGlassRepository.existeAccesoActivo(eq(200L), eq(100L), any(Instant.class))).thenReturn(false);
+
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL"));
+
+        assertThatThrownBy(() -> accesoClinicoService.validarAccesoHistorialClinico(usuarioMedPublicId, pacientePublicId, authorities))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("No existe una relacion asistencial activa con el paciente");
     }
 }
