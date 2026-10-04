@@ -8,6 +8,21 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Servicio de Agregación de Resumen Clínico de Salud (F2.3.3, ADR-010, §5.17, §5.18)**:
+  - Modelo de dominio `Alergia.java` y repositorio `AlergiaRepository.java` con JDBC parametrizado para consultar hipersensibilidades del paciente registradas en `ALERGIA`.
+  - DTOs de agregación clínica en `com.meditriaje.dto.emergency.summary`:
+    - `PacienteEmergenciaDto`: datos básicos, documento, edad calculada, contacto condicional.
+    - `AlergiaEmergenciaDto`: sustancia, reacción, severidad.
+    - `MedicamentoActivoDto`: fármaco, principio activo, presentación, concentración, dosis, frecuencia, duración, indicaciones, vigencia y fecha de prescripción.
+    - `AtencionResumenDto`: fecha, especialidad, código y descripción CIE-10, motivo de consulta, indicaciones.
+    - `ResumenSaludResponse`: vista médica consolidada con advertencia legal explícita.
+  - Servicio `EmergencySummaryService.java`:
+    - Validación de token criptográfico y PIN de seguridad opcional contra `pinHash`.
+    - Registro atómico de acceso en base de datos (`registrarAcceso`).
+    - Auditoría inmutable `ACCESO_EMERGENCIA_QR` vía `AuditoriaService`.
+    - Filtrado dinámico de información clínica según flags de alcance autorizados por el paciente (`incluirAlergias`, `incluirMedicamentos`, `incluirAtenciones`, `incluirContacto`).
+    - Exclusión automática de medicamentos de recetas expiradas.
+  - 12 pruebas unitarias nuevas en `AlergiaRepositoryTest` y `EmergencySummaryServiceTest`.
 - **Repositorio y Lógica de Tokens Temporales Criptográficos QR (F2.3.2, ADR-010, §5.17, §5.18)**:
   - Modelo de dominio inmutable `AccesoTemporalQr.java` con métodos de resolución de estado temporal (`estaActivo`, `requierePin`, `resolverEstado`) y enum `EstadoAccesoQr.java` (`ACTIVO`, `EXPIRADO`, `AGOTADO`, `REVOCADO`).
   - DTOs de emergencia en `com.meditriaje.dto.emergency`: `GenerarQrRequest`, `GenerarQrResponse`, `AccesoQrResponse`, `VerificarQrResponse`, `ConsultarResumenRequest`.
