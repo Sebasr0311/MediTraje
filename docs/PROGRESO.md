@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** MVP COMPLETADO (v1.0-mvp)
-- **Tarea actual:** Todas las tareas de M0 a M8 completadas
-- **Última etiqueta:** v1.0-mvp (lista para etiquetar)
-- **Rama de trabajo:** feature/m8-frontend
+- **Fase actual:** Fase 2 — Extensiones y Robustecimiento
+- **Tarea actual:** F2.1.1 — Migración Flyway V010 (MFA y recuperación de contraseña)
+- **Última etiqueta:** v1.0-mvp (MVP completado)
+- **Rama de trabajo:** feature/f2.1-mfa-recuperacion
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -79,10 +79,20 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M8.5 Endurecimiento
 - [x] M8.6 Documentación final y demo
 
+### F2.1 — MFA para Profesionales y Recuperación de Contraseña
+- [ ] F2.1.1 Migración Flyway V010 (columnas MFA, CODIGO_VERIFICACION, MFA_BACKUP_CODE)
+- [ ] F2.1.2 Servicio de correo y plantilla HTML institucional
+- [ ] F2.1.3 Endpoints y lógica de recuperación de contraseña con código OTP
+- [ ] F2.1.4 Autenticación Multifactor (MFA TOTP) en Backend
+- [ ] F2.1.5 Pantallas en Frontend (Login, Recuperación y Enrolamiento MFA)
+- [ ] F2.1.6 Pruebas, colección HTTP y cierre F2.1
+
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
 - 2026-10-01 · Aprobación formal de decisiones de arquitectura ADR-001 a ADR-013, Casos de Uso, Reglas de Negocio, MER y Modelo Relacional · Cierre exitoso de Fase M0 · Todos los ADRs
 - 2026-10-01 · Ajustes finales aprobados de M0: ES_ALARMA exclusivamente en SINTOMA con corte de emergencia (alarma O Nivel I) y default conservador Nivel III; EVOLUCION en VARCHAR2(4000 CHAR) con validación DTO @Size(max=4000) por MAX_STRING_SIZE; segregación dual de usuarios DB (MEDITRIAJE_OWNER y MEDITRIAJE_APP); SIGNO_VITAL trigger bloquea INSERT en atención CERRADA; RECETA emitida sobre atención CERRADA con inmutabilidad desde INSERT; coherencia CITA-TRIAJE por clave foránea compuesta UQ(ID, PACIENTE_ID) y FK(TRIAJE_ID, PACIENTE_ID); TIME_ZONE configurado en connectionInitSql de HikariCP · Robustez técnica y seguridad relacional en Oracle ATP · ADR-005, ADR-008, ADR-009, ADR-012
+- 2026-10-03 · Aprobación de ADR-014: Recuperación de contraseña mediante código numérico de 6 dígitos con expiración a 15 minutos enviado por correo con plantilla HTML institucional de MediTriaje 2.0 y hasheado en BD; MFA TOTP (RFC 6238) con secreto Base32 y códigos de respaldo para profesionales y administradores · Elevación de seguridad en Fase 2 · ADR-014
+
 
 ## Pendientes y dudas abiertas
 (Todo lo marcado como PENDIENTE DE DECISIÓN)
