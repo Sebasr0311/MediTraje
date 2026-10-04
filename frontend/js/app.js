@@ -14,6 +14,8 @@ import { patientAppointmentsView } from './views/patient-appointments.js';
 import { patientHistoryView } from './views/patient-history.js';
 import { patientPrescriptionsView } from './views/patient-prescriptions.js';
 import { patientFollowUpsView } from './views/patient-follow-ups.js';
+import { patientEmergencyQrView } from './views/patient-emergency-qr.js';
+import { emergencySummaryView } from './views/emergency-summary-view.js';
 import { professionalAgendaView } from './views/professional-agenda.js';
 import { professionalAttentionView } from './views/professional-attention.js';
 import { professionalPrescriptionView } from './views/professional-prescription.js';
@@ -189,6 +191,10 @@ function setupRoutes() {
   router.addRoute('/patient/history', patientHistoryView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
   router.addRoute('/patient/prescriptions', patientPrescriptionsView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
   router.addRoute('/patient/follow-ups', patientFollowUpsView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+  router.addRoute('/patient/emergency-qr', patientEmergencyQrView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+
+  // Ruta pública: Resumen de Emergencia por Token QR (ADR-010, F2.3.5)
+  router.addRoute('/emergency-summary/:token', emergencySummaryView);
 
 
   // Rutas M8.3: Agenda, Atención Clínica y Recetas del Profesional Asistencial

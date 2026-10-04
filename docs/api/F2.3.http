@@ -1,0 +1,338 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase F2.3)
+### Resumen de Salud y Acceso Temporal por Código QR
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+### Cumplimiento estricto: ADR-010, ADR-011, §5.17, §5.18
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With
+@csrfValue = XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Autenticación y Cuentas de Prueba
+### ----------------------------------------------------------------------------
+
+### 2.1 Registro Paciente 1 (Carlos Pérez)
+# @name registrarPaciente1
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765432",
+  "nombres": "Carlos",
+  "apellidos": "Perez Gomez",
+  "fechaNacimiento": "1992-08-15",
+  "telefono": "3109876543",
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.2 Login Paciente 1
+# @name loginPaciente1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.3 Registro Paciente 2 (Ana Gómez)
+# @name registrarPaciente2
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1044556677",
+  "nombres": "Ana",
+  "apellidos": "Gomez Zapata",
+  "fechaNacimiento": "1995-03-22",
+  "telefono": "3144556677",
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.4 Login Paciente 2
+# @name loginPaciente2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.5 Login Administrador
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### ----------------------------------------------------------------------------
+### 3. Generación de Acceso Temporal QR (Portal del Paciente)
+### ----------------------------------------------------------------------------
+
+### 3.1 Re-autenticar Paciente 1 para generación
+# @name reLoginPaciente1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 3.2 Generar QR sin PIN (Acceso directo, alcance completo)
+# Espera: 201 Created con token en plano, qrUrl, 15 min de vigencia y max 3 lecturas
+# @name generarQrLibre
+POST {{baseUrl}}/patients/me/emergency-qr
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "pin": null,
+  "incluirAlergias": true,
+  "incluirMedicamentos": true,
+  "incluirAtenciones": true,
+  "incluirContacto": true
+}
+
+@tokenLibre = {{generarQrLibre.response.body.token}}
+@publicIdLibre = {{generarQrLibre.response.body.publicId}}
+
+### 3.3 Generar QR protegido con PIN de 4 dígitos ("1234") y alcance acotado
+# Espera: 201 Created con requierePin = true
+# @name generarQrConPin
+POST {{baseUrl}}/patients/me/emergency-qr
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "pin": "1234",
+  "incluirAlergias": true,
+  "incluirMedicamentos": false,
+  "incluirAtenciones": false,
+  "incluirContacto": true
+}
+
+@tokenConPin = {{generarQrConPin.response.body.token}}
+@publicIdConPin = {{generarQrConPin.response.body.publicId}}
+
+### 3.4 Intento de generar QR con PIN inválido (letras o longitud distinta de 4)
+# Espera: 400 Bad Request
+POST {{baseUrl}}/patients/me/emergency-qr
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "pin": "abcd",
+  "incluirAlergias": true
+}
+
+### 3.5 Intento de generar QR de emergencia con Rol Administrador
+# Re-autenticar como admin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### Intento admin: Espera 403 Forbidden
+POST {{baseUrl}}/patients/me/emergency-qr
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "pin": null
+}
+
+### ----------------------------------------------------------------------------
+### 4. Consulta de Historial y Aislamiento entre Pacientes
+### ----------------------------------------------------------------------------
+
+### 4.1 Re-autenticar Paciente 1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 4.2 Consultar Historial de Tokens QR del Paciente 1
+# Espera: 200 OK con listado de tokens, estados, flags de alcance y lecturas
+GET {{baseUrl}}/patients/me/emergency-qr
+Accept: application/json
+
+### 4.3 Intento de revocación por otro paciente (Aislamiento de seguridad)
+# Login Paciente 2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### Paciente 2 intenta revocar el código del Paciente 1: Espera 403 Forbidden
+PATCH {{baseUrl}}/patients/me/emergency-qr/{{publicIdLibre}}/revoke
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### ----------------------------------------------------------------------------
+### 5. Consulta Pública Prehospitalaria del Resumen Clínico
+### (No requiere sesión, cookies ni autenticación previa)
+### ----------------------------------------------------------------------------
+
+### 5.1 Verificación preliminar de token libre
+# Espera: 200 OK con valido=true, requierePin=false, estado="ACTIVO"
+GET {{baseUrl}}/emergency-summary/{{tokenLibre}}/check
+Accept: application/json
+
+### 5.2 Consulta efectiva del resumen libre
+# Espera: 200 OK con ResumenSaludResponse, advertencia legal y consumo de 1 lectura
+POST {{baseUrl}}/emergency-summary/{{tokenLibre}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "pin": null
+}
+
+### 5.3 Verificación preliminar de token con PIN
+# Espera: 200 OK con valido=true, requierePin=true
+GET {{baseUrl}}/emergency-summary/{{tokenConPin}}/check
+Accept: application/json
+
+### 5.4 Intento de consulta de token con PIN incorrecto ("9999")
+# Espera: 403 Forbidden ("PIN de seguridad incorrecto.")
+POST {{baseUrl}}/emergency-summary/{{tokenConPin}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "pin": "9999"
+}
+
+### 5.5 Consulta efectiva de token con PIN correcto ("1234")
+# Espera: 200 OK con ResumenSaludResponse, alergias y contacto autorizados
+POST {{baseUrl}}/emergency-summary/{{tokenConPin}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "pin": "1234"
+}
+
+### ----------------------------------------------------------------------------
+### 6. Agotamiento de Lecturas (Límite estricto de 3 consultas)
+### ----------------------------------------------------------------------------
+
+### 6.1 Segunda lectura de tokenLibre (Consumo 2 de 3)
+# Espera: 200 OK
+POST {{baseUrl}}/emergency-summary/{{tokenLibre}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "pin": null
+}
+
+### 6.2 Tercera lectura de tokenLibre (Consumo 3 de 3 - Cupo máximo alcanzado)
+# Espera: 200 OK
+POST {{baseUrl}}/emergency-summary/{{tokenLibre}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "pin": null
+}
+
+### 6.3 Cuarta lectura sobre tokenLibre (Intento excedido)
+# Espera: 400 Bad Request ("El acceso QR ha agotado el maximo de 3 lecturas permitidas.")
+POST {{baseUrl}}/emergency-summary/{{tokenLibre}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "pin": null
+}
+
+### 6.4 Verificación de estado del token agotado
+# Espera: 200 OK con valido=false, estado="AGOTADO"
+GET {{baseUrl}}/emergency-summary/{{tokenLibre}}/check
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 7. Revocación Inmediata por el Paciente Titular
+### ----------------------------------------------------------------------------
+
+### 7.1 Login Paciente 1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 7.2 Paciente 1 revoca su código protegido con PIN
+# Espera: 204 No Content
+PATCH {{baseUrl}}/patients/me/emergency-qr/{{publicIdConPin}}/revoke
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### 7.3 Verificación pública de token revocado
+# Espera: 200 OK con valido=false, estado="REVOCADO"
+GET {{baseUrl}}/emergency-summary/{{tokenConPin}}/check
+Accept: application/json
+
+### 7.4 Intento de consulta prehospitalaria sobre token revocado
+# Espera: 400 Bad Request ("El acceso QR ha sido revocado por el paciente.")
+POST {{baseUrl}}/emergency-summary/{{tokenConPin}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "pin": "1234"
+}

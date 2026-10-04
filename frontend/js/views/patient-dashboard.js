@@ -135,6 +135,32 @@ export async function patientDashboardView(container) {
           <div class="skeleton skeleton-card" style="height: 100px;"></div>
         </div>
       </div>
+
+      <!-- Resumen y Código QR de Emergencia (F2.3.5) -->
+      <div class="card mb-8" id="cardEmergencyQr" style="border-left: 4px solid var(--danger); background: linear-gradient(90deg, var(--danger-bg) 0%, var(--surface) 100%);">
+        <div class="card-body flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div style="background-color: var(--danger); color: #FFFFFF; width: 44px; height: 44px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              ${ui.icon('shield', 'icon icon--md')}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <h3 class="text-lg font-bold" style="color: var(--text);">Resumen de Salud y Código QR de Emergencia</h3>
+                <span class="badge badge--danger text-xs font-semibold">15 Minutos · Seguro</span>
+              </div>
+              <p class="text-sm text-muted" style="margin: 0; max-width: 60ch;">
+                Genera un código QR temporal para paramédicos y personal de ambulancia con tus alergias, medicamentos activos y contacto de emergencia.
+              </p>
+            </div>
+          </div>
+          <div>
+            <a href="#/patient/emergency-qr" class="btn btn-primary btn--md">
+              ${ui.icon('shield', 'icon icon--sm')}
+              <span>Gestionar Código QR</span>
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 

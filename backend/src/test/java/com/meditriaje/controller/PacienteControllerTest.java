@@ -16,6 +16,7 @@ import com.meditriaje.service.ClinicalAttentionService;
 import com.meditriaje.service.FollowUpService;
 import com.meditriaje.service.PacienteService;
 import com.meditriaje.service.PrescriptionService;
+import com.meditriaje.service.EmergencyQrService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -63,6 +65,9 @@ class PacienteControllerTest {
 
     @MockBean
     private FollowUpService followUpService;
+
+    @MockBean
+    private EmergencyQrService emergencyQrService;
 
     @MockBean
     private JwtService jwtService;
@@ -395,5 +400,85 @@ class PacienteControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reporte\": \"Reporte admin invalido\"}"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/patients/me/emergency-qr - Paciente: 201 Created")
+    void generarAccesoQr_paciente_retorna201() throws Exception {
+        String tokenPaciente = "valid.token.paciente";
+        when(jwtService.esValido(tokenPaciente)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenPaciente)).thenReturn("uuid-pac-1");
+        when(jwtService.extraerRoles(tokenPaciente)).thenReturn(List.of("ROLE_PACIENTE"));
+
+        com.meditriaje.dto.emergency.GenerarQrResponse response = new com.meditriaje.dto.emergency.GenerarQrResponse(
+                "qr-uuid-1", "plain-token-xyz", "#/emergency-summary/plain-token-xyz",
+                Instant.now().plusSeconds(900), 3, false,
+                true, true, true, true, Instant.now()
+        );
+
+        when(emergencyQrService.generarAccesoQr(any(), eq("uuid-pac-1"), anyString()))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/patients/me/emergency-qr")
+                        .cookie(new Cookie("access_token", tokenPaciente))
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pin\": null, \"incluirAlergias\": true}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.publicId").value("qr-uuid-1"))
+                .andExpect(jsonPath("$.token").value("plain-token-xyz"))
+                .andExpect(jsonPath("$.maxAccesos").value(3));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/patients/me/emergency-qr - Profesional: 403 Forbidden")
+    void generarAccesoQr_profesional_retorna403() throws Exception {
+        String tokenProf = "valid.token.prof";
+        when(jwtService.esValido(tokenProf)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenProf)).thenReturn("uuid-prof-1");
+        when(jwtService.extraerRoles(tokenProf)).thenReturn(List.of("ROLE_PROFESIONAL"));
+
+        mockMvc.perform(post("/api/v1/patients/me/emergency-qr")
+                        .cookie(new Cookie("access_token", tokenProf))
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/patients/me/emergency-qr - Paciente: 200 OK")
+    void listarMisAccesosQr_paciente_retorna200() throws Exception {
+        String tokenPaciente = "valid.token.paciente";
+        when(jwtService.esValido(tokenPaciente)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenPaciente)).thenReturn("uuid-pac-1");
+        when(jwtService.extraerRoles(tokenPaciente)).thenReturn(List.of("ROLE_PACIENTE"));
+
+        com.meditriaje.dto.emergency.AccesoQrResponse item = new com.meditriaje.dto.emergency.AccesoQrResponse(
+                "qr-uuid-1", "ACTIVO", 3, 1, false, false,
+                true, true, true, true, Instant.now().plusSeconds(600), Instant.now()
+        );
+
+        when(emergencyQrService.listarMisAccesosQr("uuid-pac-1")).thenReturn(List.of(item));
+
+        mockMvc.perform(get("/api/v1/patients/me/emergency-qr")
+                        .cookie(new Cookie("access_token", tokenPaciente)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].publicId").value("qr-uuid-1"))
+                .andExpect(jsonPath("$[0].estado").value("ACTIVO"));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/v1/patients/me/emergency-qr/{publicId}/revoke - Paciente: 204 No Content")
+    void revocarAccesoQr_paciente_retorna204() throws Exception {
+        String tokenPaciente = "valid.token.paciente";
+        when(jwtService.esValido(tokenPaciente)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenPaciente)).thenReturn("uuid-pac-1");
+        when(jwtService.extraerRoles(tokenPaciente)).thenReturn(List.of("ROLE_PACIENTE"));
+
+        mockMvc.perform(patch("/api/v1/patients/me/emergency-qr/qr-uuid-1/revoke")
+                        .cookie(new Cookie("access_token", tokenPaciente))
+                        .header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isNoContent());
     }
 }

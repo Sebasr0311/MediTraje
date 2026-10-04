@@ -502,11 +502,66 @@ Colección docs/api/F2.2.http, pruebas completas de integración y verificación
 
 ---
 
+## Módulo F2.3 — Resumen de Salud y Acceso por Código QR Temporal
+
+### F2.3.1 Migración de base de datos V012 (Acceso temporal QR)
+```
+Crea database/migrations/V012__acceso_temporal_qr.sql:
+- Tabla ACCESO_TEMPORAL_QR: ID, PUBLIC_ID, PACIENTE_ID (FK), TOKEN_HASH (VARCHAR2(64), UNIQUE), PIN_HASH (VARCHAR2(100), NULLABLE), INCLUIR_ALERGIAS (NUMBER(1) DEFAULT 1), INCLUIR_MEDICAMENTOS (NUMBER(1) DEFAULT 1), INCLUIR_ATENCIONES (NUMBER(1) DEFAULT 1), INCLUIR_CONTACTO (NUMBER(1) DEFAULT 1), MAX_ACCESOS (NUMBER(3) DEFAULT 3), ACCESOS_REALIZADOS (NUMBER(3) DEFAULT 0), REVOCADO (NUMBER(1) DEFAULT 0), EXPIRA_AT (TIMESTAMP WITH TIME ZONE), CREATED_AT, UPDATED_AT.
+- Índices IX_ACCESO_QR_TOKEN y IX_ACCESO_QR_PACIENTE.
+- Constraints CHECK para flags booleanos y rangos.
+- GRANTs mínimos a MEDITRIAJE_APP (ADR-012).
+```
+
+### F2.3.2 Repositorio y lógica de tokens temporales criptográficos
+```
+Implementa repositorio y servicio de tokens de emergencia:
+- Generación de token criptográfico de 256 bits (SecureRandom Base64Url).
+- Hash SHA-256 en reposo (TokenHashUtil).
+- Hashing de PIN opcional con Argon2id / PasswordEncoder.
+- Control de vigencia (15 minutos), límite de 3 accesos, incremento atómico y revocación por el paciente.
+- Registro inmutable de auditoría para GENERACION_QR_EMERGENCIA, REVOCACION_QR_EMERGENCIA y ACCESO_EMERGENCIA_QR.
+```
+
+### F2.3.3 Servicio de agregación de resumen clínico de salud
+```
+Implementa EmergencySummaryService:
+- Agrega datos esenciales del paciente (datos básicos, documento, edad).
+- Agrega alergias registradas del paciente (ALERGIA).
+- Agrega medicamentos activos de recetas vigentes (RECETA y RECETA_DETALLE).
+- Agrega antecedentes clínicos relevantes / últimas atenciones (ATENCION con CIE-10).
+- Aplica filtros según los flags de alcance autorizados por el paciente.
+```
+
+### F2.3.4 Endpoints REST de resumen y QR de emergencia
+```
+Implementa controladores REST:
+- POST /api/v1/patients/me/emergency-qr: generación de QR por el paciente con alcance y PIN opcional.
+- GET /api/v1/patients/me/emergency-qr: listado de tokens generados y estado (ACTIVO, EXPIRADO, AGOTADO, REVOCADO).
+- PATCH /api/v1/patients/me/emergency-qr/{publicId}/revoke: revocación inmediata por el paciente.
+- GET /api/v1/emergency-summary/{token}/check: verificación pública de vigencia del token y si requiere PIN.
+- POST /api/v1/emergency-summary/{token}: lectura pública del resumen con validación de PIN opcional, incremento de accesos y auditoría.
+- Pruebas unitarias y MockMvc con seguridad.
+```
+
+### F2.3.5 Pantallas en Frontend (Generador en portal del paciente y visor público)
+```
+Actualiza el frontend Vanilla:
+- Nueva vista / tarjeta en el portal del paciente para generar y administrar QRs de emergencia (alcance configurable, PIN opcional, contador de 15 min en vivo, botón de revocación y renderizado visual SVG del código QR).
+- Vista pública accesible #/emergency-summary/:token con formulario para PIN si aplica y visualización clínica de grado médico.
+```
+
+### F2.3.6 Pruebas, colección HTTP y cierre F2.3
+```
+Colección docs/api/F2.3.http, pruebas completas de integración y verificación. Puerta de salida F2.3: etiqueta v1.3-resumen-qr.
+```
+
+---
+
 # Otras iniciativas de Fase 2 (orden sugerido)
-1. Resumen de salud y QR temporal (ADR-010).
-2. Dispensación/reclamación y tratamientos.
-3. Acceso de emergencia *break-glass*.
-4. Asistente y reportes.
+1. Dispensación/reclamación y tratamientos.
+2. Acceso de emergencia *break-glass*.
+3. Asistente y reportes.
 
 ---
 

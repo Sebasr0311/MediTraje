@@ -7,18 +7,24 @@ import com.meditriaje.dto.common.PaginatedResponse;
 import com.meditriaje.dto.followup.ReportarEvolucionRequest;
 import com.meditriaje.dto.followup.SeguimientoResponse;
 import com.meditriaje.dto.prescription.RecetaResponse;
+import com.meditriaje.dto.emergency.AccesoQrResponse;
+import com.meditriaje.dto.emergency.GenerarQrRequest;
+import com.meditriaje.dto.emergency.GenerarQrResponse;
 import com.meditriaje.service.AppointmentService;
 import com.meditriaje.service.ClinicalAttentionService;
+import com.meditriaje.service.EmergencyQrService;
 import com.meditriaje.service.FollowUpService;
 import com.meditriaje.service.PacienteService;
 import com.meditriaje.service.PrescriptionService;
 import com.meditriaje.util.IpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -40,19 +47,22 @@ public class PacienteController {
     private final PrescriptionService prescriptionService;
     private final AppointmentService appointmentService;
     private final FollowUpService followUpService;
+    private final EmergencyQrService emergencyQrService;
 
     public PacienteController(
             PacienteService pacienteService,
             ClinicalAttentionService clinicalAttentionService,
             PrescriptionService prescriptionService,
             AppointmentService appointmentService,
-            FollowUpService followUpService
+            FollowUpService followUpService,
+            EmergencyQrService emergencyQrService
     ) {
         this.pacienteService = Objects.requireNonNull(pacienteService, "PacienteService no puede ser nulo");
         this.clinicalAttentionService = Objects.requireNonNull(clinicalAttentionService, "ClinicalAttentionService no puede ser nulo");
         this.prescriptionService = Objects.requireNonNull(prescriptionService, "PrescriptionService no puede ser nulo");
         this.appointmentService = Objects.requireNonNull(appointmentService, "AppointmentService no puede ser nulo");
         this.followUpService = Objects.requireNonNull(followUpService, "FollowUpService no puede ser nulo");
+        this.emergencyQrService = Objects.requireNonNull(emergencyQrService, "EmergencyQrService no puede ser nulo");
     }
 
     /**
@@ -161,5 +171,48 @@ public class PacienteController {
                 publicId, request, usuarioPublicId, ipOrigen
         );
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Genera un nuevo código QR y token temporal de acceso al resumen clínico de emergencia (ADR-010, §5.17, §5.18).
+     */
+    @PostMapping("/me/emergency-qr")
+    @PreAuthorize("hasAuthority('ROLE_PACIENTE')")
+    public ResponseEntity<GenerarQrResponse> generarAccesoQr(
+            @Valid @RequestBody(required = false) GenerarQrRequest request,
+            Authentication authentication,
+            HttpServletRequest httpRequest
+    ) {
+        String usuarioPublicId = authentication.getName();
+        String ipOrigen = IpUtil.extraerIp(httpRequest);
+        GenerarQrResponse response = emergencyQrService.generarAccesoQr(request, usuarioPublicId, ipOrigen);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Lista los accesos temporales QR generados por el paciente con su estado actual (ACTIVO, EXPIRADO, AGOTADO, REVOCADO).
+     */
+    @GetMapping("/me/emergency-qr")
+    @PreAuthorize("hasAuthority('ROLE_PACIENTE')")
+    public ResponseEntity<List<AccesoQrResponse>> listarMisAccesosQr(Authentication authentication) {
+        String usuarioPublicId = authentication.getName();
+        List<AccesoQrResponse> response = emergencyQrService.listarMisAccesosQr(usuarioPublicId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Revoca inmediatamente un acceso temporal QR a solicitud del paciente titular.
+     */
+    @PatchMapping("/me/emergency-qr/{publicId}/revoke")
+    @PreAuthorize("hasAuthority('ROLE_PACIENTE')")
+    public ResponseEntity<Void> revocarAccesoQr(
+            @PathVariable String publicId,
+            Authentication authentication,
+            HttpServletRequest httpRequest
+    ) {
+        String usuarioPublicId = authentication.getName();
+        String ipOrigen = IpUtil.extraerIp(httpRequest);
+        emergencyQrService.revocarAccesoQr(publicId, usuarioPublicId, ipOrigen);
+        return ResponseEntity.noContent().build();
     }
 }

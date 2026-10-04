@@ -8,6 +8,83 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Colección HTTP y Cierre de Resumen QR de Emergencia (F2.3.6, ADR-010, §5.17, §5.18)**:
+  - Creación de `docs/api/F2.3.http` con 7 secciones y 17 escenarios de prueba completos:
+    - Healthcheck y autenticación de roles (Admin, Paciente 1, Paciente 2).
+    - Generación de código QR de emergencia sin PIN (acceso libre con alcance clínico total).
+    - Generación de código QR protegido con PIN de 4 dígitos y alcance clínico restringido.
+    - Validación y rechazo de PIN en formato inválido (400 Bad Request).
+    - Control de autorización y aislamiento: rechazo de generación para roles no autorizados como administrador (403 Forbidden).
+    - Consulta del historial del paciente y rechazo de revocación por parte de un paciente ajeno (403 Forbidden).
+    - Consulta pública prehospitalaria: verificación preliminar de vigencia (`/check`), resolución directa del resumen sin PIN, desafío de PIN y rechazo ante PIN incorrecto (403 Forbidden), y resolución del resumen con PIN correcto.
+    - Agotamiento estricto de cupo al tercer acceso auditado y rechazo inmediato de la cuarta lectura.
+    - Revocación instantánea por el paciente titular e invalidación inmediata en el visor público prehospitalario.
+  - Verificación de la suite completa de Maven con 629 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre formal del módulo F2.3.
+- **Pantallas de Generador y Visor de Resumen QR de Emergencia (F2.3.5, ADR-010, §5.17, §5.18)**:
+  - Nueva vista de paciente `frontend/js/views/patient-emergency-qr.js` (`#/patient/emergency-qr`):
+    - Configuración interactiva de alcance clínico: checkboxes para alergias, medicamentos activos, antecedentes/atenciones previas y contacto de emergencia.
+    - Campo opcional de PIN numérico de 4 dígitos con ayuda contextual.
+    - Renderizado visual del código QR utilizando la biblioteca local `frontend/js/lib/qrcode.min.js` (cumpliendo estrictamente con CSP `script-src 'self'`).
+    - Temporizador regresivo dinámico en vivo (countdown de 15 minutos en tiempo real `mm:ss`).
+    - Enlace web copiable al portapapeles y botón interactivo de revocación inmediata con confirmación modal.
+    - Tabla responsiva de historial de accesos generados con badges de estado (`ACTIVO`, `EXPIRADO`, `AGOTADO`, `REVOCADO`) y acción de revocación.
+  - Nueva vista pública prehospitalaria `frontend/js/views/emergency-summary-view.js` (`#/emergency-summary/:token`):
+    - Verificación preliminar de estado y vigencia (`GET /api/v1/emergency-summary/:token/check`).
+    - Flujo de solicitud y validación de PIN accesible si el código está protegido.
+    - Despliegue médico sobrio y estructurado: advertencia legal obligatoria de prototipo, identificación y demografía del paciente (edad calculada, documento, teléfono directo), tarjetas de alergias con alerta de severidad, tabla de medicamentos activos con dosis/frecuencia, timeline de atenciones recientes con códigos CIE-10 y pie de auditoría.
+  - Integración en `frontend/js/views/patient-dashboard.js`: tarjeta destacada de acceso rápido a la gestión de códigos QR de emergencia.
+  - Registro de rutas y scripts en `frontend/js/app.js` y `frontend/index.html`.
+- **Endpoints REST de Resumen y QR de Emergencia (F2.3.4, ADR-010, §5.17, §5.18)**:
+  - Endpoints protegidos en `PacienteController.java` para pacientes (`ROLE_PACIENTE`):
+    - `POST /api/v1/patients/me/emergency-qr`: generación de código QR con PIN opcional y flags de alcance (201 Created).
+    - `GET /api/v1/patients/me/emergency-qr`: listado de tokens generados y estado dinámico calculado.
+    - `PATCH /api/v1/patients/me/emergency-qr/{publicId}/revoke`: revocación inmediata de token temporal (204 No Content).
+  - Controlador público prehospitalario `EmergencySummaryController.java`:
+    - `GET /api/v1/emergency-summary/{token}/check`: verificación pública de vigencia preliminar y si requiere PIN (200 OK).
+    - `POST /api/v1/emergency-summary/{token}`: consulta pública del resumen de salud con PIN opcional, consumo atómico de lecturas y registro de auditoría (200 OK).
+  - Configuración de seguridad:
+    - `SecurityConfig.java`: permitAll para `/api/v1/emergency-summary/**`.
+    - `CsrfHeaderFilter.java`: exención de rutas `/api/v1/emergency-summary/` para consumo sin cookies.
+  - 16 pruebas MockMvc nuevas en `PacienteControllerTest` y `EmergencySummaryControllerTest` elevando la suite completa a 629 pruebas verdes.
+- **Servicio de Agregación de Resumen Clínico de Salud (F2.3.3, ADR-010, §5.17, §5.18)**:
+  - Modelo de dominio `Alergia.java` y repositorio `AlergiaRepository.java` con JDBC parametrizado para consultar hipersensibilidades del paciente registradas en `ALERGIA`.
+  - DTOs de agregación clínica en `com.meditriaje.dto.emergency.summary`:
+    - `PacienteEmergenciaDto`: datos básicos, documento, edad calculada, contacto condicional.
+    - `AlergiaEmergenciaDto`: sustancia, reacción, severidad.
+    - `MedicamentoActivoDto`: fármaco, principio activo, presentación, concentración, dosis, frecuencia, duración, indicaciones, vigencia y fecha de prescripción.
+    - `AtencionResumenDto`: fecha, especialidad, código y descripción CIE-10, motivo de consulta, indicaciones.
+    - `ResumenSaludResponse`: vista médica consolidada con advertencia legal explícita.
+  - Servicio `EmergencySummaryService.java`:
+    - Validación de token criptográfico y PIN de seguridad opcional contra `pinHash`.
+    - Registro atómico de acceso en base de datos (`registrarAcceso`).
+    - Auditoría inmutable `ACCESO_EMERGENCIA_QR` vía `AuditoriaService`.
+    - Filtrado dinámico de información clínica según flags de alcance autorizados por el paciente (`incluirAlergias`, `incluirMedicamentos`, `incluirAtenciones`, `incluirContacto`).
+    - Exclusión automática de medicamentos de recetas expiradas.
+  - 12 pruebas unitarias nuevas en `AlergiaRepositoryTest` y `EmergencySummaryServiceTest`.
+- **Repositorio y Lógica de Tokens Temporales Criptográficos QR (F2.3.2, ADR-010, §5.17, §5.18)**:
+  - Modelo de dominio inmutable `AccesoTemporalQr.java` con métodos de resolución de estado temporal (`estaActivo`, `requierePin`, `resolverEstado`) y enum `EstadoAccesoQr.java` (`ACTIVO`, `EXPIRADO`, `AGOTADO`, `REVOCADO`).
+  - DTOs de emergencia en `com.meditriaje.dto.emergency`: `GenerarQrRequest`, `GenerarQrResponse`, `AccesoQrResponse`, `VerificarQrResponse`, `ConsultarResumenRequest`.
+  - Repositorio `AccesoTemporalQrRepository.java` con JDBC 100% parametrizado:
+    - Inserción con `GeneratedKeyHolder`.
+    - Búsqueda indexada por hash de token SHA-256 (`IX_ACCESO_QR_TOKEN`).
+    - Búsqueda por `publicId` y listado por paciente (`IX_ACCESO_QR_PACIENTE`).
+    - Registro de lectura concurrente atómico con incremento de accesos condicional (`ACCESOS_REALIZADOS + 1`) y validación de vigencia.
+    - Revocación atómica por paciente titular.
+  - Servicio `EmergencyQrService.java`:
+    - Generación de token criptográfico opaco de 256 bits (32 bytes con `SecureRandom`, `Base64Url`).
+    - Hashing SHA-256 en reposo vía `TokenHashUtil`.
+    - Soporte para PIN numérico opcional de 4 dígitos hasheado con Argon2id (`PasswordEncoder`).
+    - Regla de negocio de vigencia estricta de 15 minutos exactos y máximo 3 lecturas.
+    - Revocación inmediata por el paciente titular con validación de aislamiento (403 si es ajeno).
+    - Verificación pública preliminar de vigencia y si requiere PIN.
+    - Auditoría inmutable con `GENERACION_QR_EMERGENCIA` y `REVOCACION_QR_EMERGENCIA`.
+  - 14 pruebas unitarias nuevas en `AccesoTemporalQrRepositoryTest` y `EmergencyQrServiceTest`.
+- **Migración Flyway V012: Acceso Temporal QR y Resumen de Emergencia (F2.3.1, ADR-010, §5.17, §5.18)**:
+  - Archivo de migración `database/migrations/V012__acceso_temporal_qr.sql` creando:
+    - Tabla `ACCESO_TEMPORAL_QR` para registro de tokens temporales de acceso criptográfico (256 bits, hash SHA-256 en reposo), soporte de PIN opcional con hash, flags booleanos de alcance (`INCLUIR_ALERGIAS`, `INCLUIR_MEDICAMENTOS`, `INCLUIR_ATENCIONES`, `INCLUIR_CONTACTO`), límite estricto de 3 lecturas (`MAX_ACCESOS`, `ACCESOS_REALIZADOS`), expiración a 15 minutos (`EXPIRA_AT`) y soporte de revocación (`REVOCADO`).
+    - Índices `IX_ACCESO_QR_TOKEN` e `IX_ACCESO_QR_PACIENTE`.
+    - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (`SELECT, INSERT, UPDATE`).
+  - Actualización de `OracleIntegrationTest.java` para verificar esquema V12 y lectura sobre `ACCESO_TEMPORAL_QR`.
 - **Colección HTTP y Cierre de Seguimiento y Notificaciones (F2.2.5, ADR-015)**:
   - Creación de la colección interactiva `docs/api/F2.2.http` con 7 secciones y 20 escenarios de prueba:
     - Healthcheck técnico (`/ping`).
