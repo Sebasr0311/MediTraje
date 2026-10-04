@@ -8,6 +8,79 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Colección HTTP y Cierre de Dispensación Farmacéutica (F2.4.6, ADR-016)**:
+  - Creación de `docs/api/F2.4.http` con 9 secciones y 23 escenarios de prueba exhaustivos:
+    - Autenticación multirol (Administrador, Paciente 1, Paciente 2, Médico, Farmacéutico).
+    - Ciclo asistencial previo: catálogo, disponibilidad, cita, atención cerrada y emisión de receta médica con 2 fármacos.
+    - Ventanilla de farmacia: búsqueda por cédula y código de reclamación, consulta de receta con saldos y listado de sedes.
+    - Entrega parcial con registro de lote INVIMA y fecha de vencimiento (`POST /api/v1/pharmacy/dispensations`).
+    - Control de saldos: validación matemática de disponibilidad y rechazo de sobredispensación (400 `DatosInvalidosException`).
+    - Segunda entrega completando el saldo total y verificación de estado `DISPENSADA_TOTAL` (saldo 0).
+    - Portal del paciente: consulta del código de reclamación y trazabilidad de entregas previas (`GET /api/v1/patients/me/prescriptions/{id}/dispensation`).
+    - Aislamiento de seguridad: 403 Forbidden para pacientes, médicos y administradores en `/api/v1/pharmacy/**`; 403 entre pacientes distintos; 401 Unauthorized sin sesión.
+  - Script de semillas ficticias para ambiente dev: `database/seeds/dev_seeds_f2_4.sql` habilitando usuario farmacéutico con `ROLE_FARMACEUTICO`.
+  - Verificación global con suite completa de 665 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores).
+- **Ventanilla de Farmacia y Seguimiento de Dispensación en Recetas del Paciente (F2.4.5, ADR-016)**:
+  - Nueva vista de farmacia `frontend/js/views/pharmacy-dispensation.js` (`#/pharmacy/dispensation`):
+    - Estación de trabajo para regente de farmacia (`ROLE_FARMACEUTICO`) con selección dinámica de sede de entrega.
+    - Buscador reactivo de prescripciones por código de reclamación alfanumérico o documento de identidad del paciente.
+    - Ficha de receta médica con alerta destacada de caducidad e inhabilitación ante recetas expiradas.
+    - Formulario de entrega controlada: validación de topes según saldo remanente, captura de lote INVIMA y fecha de vencimiento.
+    - Modal accesible de confirmación inmutable y generación inmediata de comprobante de entrega imprimible (`window.print()`).
+    - Consulta de historial cronológico de entregas farmacéuticas previas.
+  - Actualización de la vista del paciente `frontend/js/views/patient-prescriptions.js`:
+    - Visualización prominente del código de reclamación alfanumérico (`REC-XXXXXXXX`) con botón de copiado rápido al portapapeles.
+    - Panel interactivo de trazabilidad farmacéutica con badges de estado (`PENDIENTE`, `DISPENSADA_PARCIAL`, `DISPENSADA_TOTAL`).
+    - Desglose de saldos acumulados por medicamento prescrito e historial cronológico de recepciones en farmacia.
+  - Integración en cliente API (`frontend/js/api.js`), enrutador SPA (`frontend/js/router.js`), autenticación (`frontend/js/auth.js`) y navegación (`frontend/js/app.js`).
+  - Endpoint auxiliar `GET /api/v1/pharmacy/sites` en `PharmacyDispensationController` y `DispensationService` para listar sedes activas para farmacia con pruebas unitarias y de integración.
+- **Controladores REST para Farmacia y Portal del Paciente (F2.4.4, ADR-016)**:
+  - Controlador `PharmacyDispensationController` en `/api/v1/pharmacy` (protegido con `@PreAuthorize("hasAuthority('ROLE_FARMACEUTICO')")`):
+    - `POST /api/v1/pharmacy/dispensations`: registra dispensación con respuesta 201 Created y cabecera `Location`.
+    - `GET /api/v1/pharmacy/dispensations/{publicId}`: consulta detalle de dispensación registrada.
+    - `GET /api/v1/pharmacy/prescriptions`: búsqueda paginada de recetas por código de reclamación o documento del paciente.
+    - `GET /api/v1/pharmacy/prescriptions/{publicId}`: consulta de receta médica con saldos y entregas previas.
+  - Endpoint en `PacienteController`:
+    - `GET /api/v1/patients/me/prescriptions/{publicId}/dispensation`: consulta de estado de dispensación y código de reclamación para el paciente titular.
+  - Aislamiento estricto de seguridad: 403 Forbidden para pacientes y administradores en `/api/v1/pharmacy/**`; 401 Unauthorized sin sesión; mitigación CSRF obligatoria en operaciones mutantes.
+  - 13 pruebas unitarias y de integración MockMvc nuevas en `PharmacyDispensationControllerTest` y `PacienteControllerTest` elevando la suite completa a 663 pruebas verdes al 100%.
+- **Servicio de Dispensación Farmacéutica y Reglas de Negocio (F2.4.3, ADR-016)**:
+  - Implementación de `DispensationService` en `com.meditriaje.service`:
+    - Validación de rol del dispensador (`ROLE_FARMACEUTICO`) con rechazo inmediato para otros roles (`AccesoNoAutorizadoException`).
+    - Validación estricta de vigencia de la receta médica (`createdAt + vigenciaDias >= now`) con rechazo de recetas vencidas (`DatosInvalidosException`).
+    - Validación y control matemático de saldos acumulados por ítem prescrito (rechazo de sobre-dispensación y de ítems con saldo agotado).
+    - Prevención de duplicados en la lista de medicamentos de la solicitud.
+    - Persistencia transaccional atómica de cabecera `DISPENSACION` y detalles `DISPENSACION_DETALLE` con lote INVIMA y fecha de caducidad.
+    - Registro inmutable de auditoría `DISPENSACION_RECETA` vía `AuditoriaService` con ID del dispensador, IP de origen y UUID de la receta (cero datos clínicos en logs/auditoría).
+    - Consultas de saldos y código de reclamación para ventanilla de farmacia y portal del paciente titular con aislamiento de pacientes.
+  - Pruebas unitarias exhaustivas en `DispensationServiceTest` (12 pruebas pasando al 100%, suite global en 650 pruebas verdes).
+- **Modelos de Dominio, DTOs y Repositorio JDBC de Dispensación Farmacéutica (F2.4.2, ADR-016)**:
+  - Modelos inmutables de dominio:
+    - `Dispensacion`: cabecera inmutable con `publicId`, `recetaId`, `sedeId`, `usuarioId`, `observaciones` y `createdAt`.
+    - `DispensacionDetalle`: detalle inmutable de entrega con `recetaDetalleId`, `cantidadEntregada`, `lote` y `fechaVencimientoLote`.
+    - `EstadoRecetaDispensacion`: enum (`PENDIENTE`, `DISPENSADA_PARCIAL`, `DISPENSADA_TOTAL`).
+  - DTOs en `com.meditriaje.dto.pharmacy`:
+    - `DetalleEntregaRequest`: ítem a entregar con validación de cantidad mayor a 0, lote y fecha de vencimiento.
+    - `RegistrarDispensacionRequest`: solicitud de dispensación con receta, sede, observaciones y lista no vacía de detalles.
+    - `DispensacionDetalleResponse`: respuesta de ítem entregado con fármaco, código, nombre, lote y vencimiento.
+    - `DispensacionResponse`: cabecera de entrega con sede, dispensador, observaciones e ítems asociados.
+    - `SaldoMedicamentoDto`: cálculo de saldo pendiente (`prescrita - dispensada`) y estado por ítem prescrito.
+    - `RecetaDispensacionResponse`: información integral para farmacia y paciente, incluyendo `codigoReclamacion` (`REC-XXXXXXXX`), estado global, vigencia y entregas previas.
+  - Repositorio `DispensacionRepository`:
+    - Inserción transaccional de cabecera con `GeneratedKeyHolder` y lote en `DISPENSACION_DETALLE`.
+    - Consultas de saldos dinámicos acumulados por ítem prescrito.
+    - Búsqueda de recetas para farmacia por código de reclamación o documento del paciente.
+    - Búsqueda detallada por `publicId` de receta o dispensación.
+  - Pruebas unitarias en `DispensacionRepositoryTest` (9 pruebas pasando al 100%, suite global en 638 pruebas verdes).
+- **Migración Flyway V013: Dispensación Farmacéutica y Rol ROLE_FARMACEUTICO (F2.4.1, ADR-016)**:
+  - Archivo de migración `database/migrations/V013__dispensacion_farmacia.sql` creando:
+    - Semilla del rol `ROLE_FARMACEUTICO` en `ROL` (actualizando la restricción `CK_ROL_NOMBRE`).
+    - Tabla `DISPENSACION`: cabecera inmutable de entrega farmacéutica vinculada a `RECETA`, `SEDE` y `USUARIO` dispensador.
+    - Tabla `DISPENSACION_DETALLE`: ítem entregado con cantidad, lote y fecha de vencimiento para trazabilidad INVIMA.
+    - Triggers de inmutabilidad `TR_DISPENSACION_INMUTABILIDAD` y `TR_DISP_DETALLE_INMUTABILIDAD` bloqueando `UPDATE` y `DELETE`.
+    - Índices relacionales y concesión de privilegios mínimos `SELECT, INSERT` a `MEDITRIAJE_APP` (ADR-012).
+  - Actualización de `OracleIntegrationTest.java` para verificar 13 migraciones Flyway y privilegios de lectura en las nuevas tablas.
+  - Documentación en `docs/DECISIONES.md` (ADR-016) y `docs/database/MODELO_RELACIONAL.md`.
 - **Colección HTTP y Cierre de Resumen QR de Emergencia (F2.3.6, ADR-010, §5.17, §5.18)**:
   - Creación de `docs/api/F2.3.http` con 7 secciones y 17 escenarios de prueba completos:
     - Healthcheck y autenticación de roles (Admin, Paciente 1, Paciente 2).

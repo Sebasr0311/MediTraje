@@ -558,10 +558,65 @@ Colección docs/api/F2.3.http, pruebas completas de integración y verificación
 
 ---
 
+## Módulo F2.4 — Dispensación y Reclamación Farmacéutica de Recetas (ADR-016)
+
+### F2.4.1 Migración de base de datos V013 (Dispensación de Farmacia y Rol)
+```
+Crea database/migrations/V013__dispensacion_farmacia.sql:
+- Semilla del rol ROLE_FARMACEUTICO en la tabla ROL (si no existe).
+- Tabla DISPENSACION: ID, PUBLIC_ID, RECETA_ID (FK a RECETA), SEDE_ID (FK a SEDE), USUARIO_ID (FK a USUARIO), OBSERVACIONES, CREATED_AT.
+- Tabla DISPENSACION_DETALLE: ID, DISPENSACION_ID (FK a DISPENSACION), RECETA_DETALLE_ID (FK a RECETA_DETALLE), CANTIDAD_ENTREGADA (NUMBER > 0), LOTE (VARCHAR2(50)), FECHA_VENCIMIENTO_LOTE (DATE), CREATED_AT.
+- Triggers TR_DISPENSACION_INMUTABILIDAD y TR_DISP_DETALLE_INMUTABILIDAD (bloquean UPDATE y DELETE).
+- Índices relacionales y GRANTs mínimos a MEDITRIAJE_APP (ADR-012).
+```
+
+### F2.4.2 Modelos de dominio y repositorios JDBC
+```
+Implementa en el backend:
+- Modelos inmutables: Dispensacion, DispensacionDetalle, EstadoRecetaDispensacion.
+- DTOs: RegistrarDispensacionRequest, DetalleEntregaRequest, DispensacionResponse, RecetaDispensacionResponse, SaldoMedicamentoDto.
+- Repositorio DispensacionRepository con JdbcTemplate y SQL 100% parametrizado.
+- Consultas de saldo acumulado entregado vs. prescrito.
+```
+
+### F2.4.3 Servicio de dispensación farmacéutica y reglas de negocio
+```
+Implementa DispensationService:
+- Validación de vigencia de la receta (rechazar si expiró).
+- Validación de rol del dispensador (ROLE_FARMACEUTICO).
+- Validación estricta de saldo disponible por ítem prescrito (prohibido sobre-dispensar).
+- Cálculo dinámico de estado de entrega de la receta (PENDIENTE, DISPENSADA_PARCIAL, DISPENSADA_TOTAL).
+- Persistencia atómica de dispensación y detalles.
+- Auditoría inmutable obligatoria DISPENSACION_RECETA vía AuditoriaService.
+```
+
+### F2.4.4 Controladores REST para farmacia y portal del paciente
+```
+Implementa endpoints:
+- POST /api/v1/pharmacy/dispensations: registrar dispensación (ROLE_FARMACEUTICO).
+- GET /api/v1/pharmacy/prescriptions: búsqueda de recetas por código de reclamación o documento del paciente (ROLE_FARMACEUTICO).
+- GET /api/v1/pharmacy/prescriptions/{publicId}: detalle de receta con saldos pendientes para dispensación.
+- GET /api/v1/patients/me/prescriptions/{publicId}/dispensation: consulta del paciente sobre el estado de entrega y código de reclamación (ROLE_PACIENTE).
+- Pruebas unitarias y MockMvc con seguridad y aislamiento (403 para otros roles).
+```
+
+### F2.4.5 Pantallas en Frontend (Ventanilla de Farmacia y Reclamación del Paciente)
+```
+Actualiza el frontend Vanilla:
+- Nueva vista de farmacia #/pharmacy/dispensation: buscador de receta por código/documento, visualización de medicamentos, campos para cantidad a entregar y lote INVIMA, y confirmación de entrega con recibo/comprobante.
+- Actualización de #/patient/prescriptions: visualización del estado de dispensación por medicamento (badge de reclamado/pendiente/parcial) y código de reclamación alfanumérico / QR para ventanilla.
+```
+
+### F2.4.6 Pruebas, colección HTTP y cierre F2.4
+```
+Colección docs/api/F2.4.http, pruebas completas de integración y verificación. Puerta de salida F2.4: etiqueta v1.4-dispensacion.
+```
+
+---
+
 # Otras iniciativas de Fase 2 (orden sugerido)
-1. Dispensación/reclamación y tratamientos.
-2. Acceso de emergencia *break-glass*.
-3. Asistente y reportes.
+1. Acceso de emergencia *break-glass*.
+2. Asistente y reportes.
 
 ---
 

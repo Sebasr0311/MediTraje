@@ -10,8 +10,10 @@ import com.meditriaje.dto.prescription.RecetaResponse;
 import com.meditriaje.dto.emergency.AccesoQrResponse;
 import com.meditriaje.dto.emergency.GenerarQrRequest;
 import com.meditriaje.dto.emergency.GenerarQrResponse;
+import com.meditriaje.dto.pharmacy.RecetaDispensacionResponse;
 import com.meditriaje.service.AppointmentService;
 import com.meditriaje.service.ClinicalAttentionService;
+import com.meditriaje.service.DispensationService;
 import com.meditriaje.service.EmergencyQrService;
 import com.meditriaje.service.FollowUpService;
 import com.meditriaje.service.PacienteService;
@@ -48,6 +50,7 @@ public class PacienteController {
     private final AppointmentService appointmentService;
     private final FollowUpService followUpService;
     private final EmergencyQrService emergencyQrService;
+    private final DispensationService dispensationService;
 
     public PacienteController(
             PacienteService pacienteService,
@@ -55,7 +58,8 @@ public class PacienteController {
             PrescriptionService prescriptionService,
             AppointmentService appointmentService,
             FollowUpService followUpService,
-            EmergencyQrService emergencyQrService
+            EmergencyQrService emergencyQrService,
+            DispensationService dispensationService
     ) {
         this.pacienteService = Objects.requireNonNull(pacienteService, "PacienteService no puede ser nulo");
         this.clinicalAttentionService = Objects.requireNonNull(clinicalAttentionService, "ClinicalAttentionService no puede ser nulo");
@@ -63,6 +67,7 @@ public class PacienteController {
         this.appointmentService = Objects.requireNonNull(appointmentService, "AppointmentService no puede ser nulo");
         this.followUpService = Objects.requireNonNull(followUpService, "FollowUpService no puede ser nulo");
         this.emergencyQrService = Objects.requireNonNull(emergencyQrService, "EmergencyQrService no puede ser nulo");
+        this.dispensationService = Objects.requireNonNull(dispensationService, "DispensationService no puede ser nulo");
     }
 
     /**
@@ -115,6 +120,22 @@ public class PacienteController {
                 usuarioPublicId, page, size, ipOrigen
         );
         return ResponseEntity.ok(recetas);
+    }
+
+    /**
+     * Consulta el estado de dispensación farmacéutica y código de reclamación de una receta médica propia (F2.4, ADR-016).
+     */
+    @GetMapping("/me/prescriptions/{publicId}/dispensation")
+    @PreAuthorize("hasAuthority('ROLE_PACIENTE')")
+    public ResponseEntity<RecetaDispensacionResponse> obtenerDispensacionReceta(
+            @PathVariable String publicId,
+            Authentication authentication
+    ) {
+        String usuarioPublicId = authentication.getName();
+        RecetaDispensacionResponse response = dispensationService.consultarDispensacionPaciente(
+                publicId, usuarioPublicId
+        );
+        return ResponseEntity.ok(response);
     }
 
     /**

@@ -46,6 +46,10 @@ class AuthService extends EventTarget {
     return this.hasRole('ROLE_ADMINISTRADOR');
   }
 
+  get isFarmaceutico() {
+    return this.hasRole('ROLE_FARMACEUTICO');
+  }
+
   /**
    * Inicializa la sesión intentando refrescar credenciales de las cookies HttpOnly existentes.
    */

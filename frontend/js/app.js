@@ -20,6 +20,7 @@ import { professionalAgendaView } from './views/professional-agenda.js';
 import { professionalAttentionView } from './views/professional-attention.js';
 import { professionalPrescriptionView } from './views/professional-prescription.js';
 import { adminDashboardView } from './views/admin-views.js';
+import { pharmacyDispensationView } from './views/pharmacy-dispensation.js';
 
 // Inicialización de Tema Claro / Oscuro
 function initTheme() {
@@ -69,6 +70,10 @@ function updateNavbar() {
       roleName = 'Administrador';
       roleBadgeClass = 'badge--rescheduled';
       dashboardLink = '#/admin/dashboard';
+    } else if (auth.isFarmaceutico) {
+      roleName = 'Farmacia';
+      roleBadgeClass = 'badge--confirmed';
+      dashboardLink = '#/pharmacy/dispensation';
     }
 
     navContainer.innerHTML = `
@@ -210,6 +215,10 @@ function setupRoutes() {
   router.addRoute('/admin/specialties', (c) => adminDashboardView(c, { tab: 'specialties' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/professionals', (c) => adminDashboardView(c, { tab: 'professionals' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/slots', (c) => adminDashboardView(c, { tab: 'slots' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+
+  // Rutas F2.4: Ventanilla de Dispensación Farmacéutica (ADR-016)
+  router.addRoute('/pharmacy/dispensation', pharmacyDispensationView, { requiresAuth: true, requiredRole: 'ROLE_FARMACEUTICO' });
+  router.addRoute('/pharmacy', pharmacyDispensationView, { requiresAuth: true, requiredRole: 'ROLE_FARMACEUTICO' });
 
   // Manejador 404 No Encontrado
   router.notFound(async (container, { path }) => {
