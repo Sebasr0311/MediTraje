@@ -1,6 +1,6 @@
 # MediTriaje 2.0 — Decisiones técnicas (ADRs)
 
-Estado: **PROPUESTAS POR DEFECTO**. Quedan aprobadas cuando Juan las confirme; desde entonces el agente no las reabre sin avisar.
+Estado: **APROBADO** por Juan (2026-10-01). Decisiones arquitectónicas firmes; no reabrir sin previa justificación y aviso.
 Cada decisión resuelve uno o más de los 22 pendientes del Documento Maestro §54.
 
 ## Resumen
@@ -54,7 +54,13 @@ Cada decisión resuelve uno o más de los 22 pendientes del Documento Maestro §
 **Nota:** verificar compatibilidad de la versión de Flyway con la versión de Oracle de ATP; si falla, usar Liquibase.
 
 ## ADR-005 Fechas y zona horaria
-**Decisión:** zona del proyecto `America/Bogota`. Instantes en `TIMESTAMP WITH TIME ZONE`; fechas de nacimiento en `DATE`. La API usa ISO-8601 con offset.
+**Decisión:** zona del proyecto `America/Bogota`. Instantes en `TIMESTAMP WITH TIME ZONE`; fechas de nacimiento en `DATE`. La API usa ISO-8601 con offset. El pool de conexiones (HikariCP) de `MEDITRIAJE_APP` configura obligatoriamente en `connectionInitSql` un bloque anónimo PL/SQL (`BEGIN ... END;`) que fija tanto la zona horaria como el esquema por defecto en cada conexión física:
+```sql
+BEGIN
+  EXECUTE IMMEDIATE 'ALTER SESSION SET TIME_ZONE = ''America/Bogota''';
+  EXECUTE IMMEDIATE 'ALTER SESSION SET CURRENT_SCHEMA = MEDITRIAJE_OWNER';
+END;
+```
 
 ## ADR-006 Citas, disponibilidad y concurrencia
 **Disponibilidad:** tabla `DISPONIBILIDAD_SLOT` generada por el admin (profesional, sede, especialidad, modalidad, inicio, fin, estado LIBRE/OCUPADO/BLOQUEADO). Duración por defecto 20 min, configurable por especialidad.
@@ -85,11 +91,21 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 ## ADR-009 Triaje
 **Decisión:**
 - Prioridad en 5 niveles (I–V), alineada con la Resolución 5596 de 2015. **Verificar la norma vigente y los tiempos objetivo antes de mostrarlos.**
-- Reglas en tabla `REGLA_TRIAJE` versionada (síntoma, condición, nivel, bandera de alarma), no en el código. Cada triaje guarda la versión de reglas usada.
-- Síntomas de alarma ⇒ **corte de emergencia**: mensaje "llama al 123 o ve a urgencias", sin ofrecer cita, evento registrado.
+- Reglas en tabla `REGLA_TRIAJE` versionada con columnas estructuradas (`duracion_min_horas`, `duracion_max_horas`, `intensidad_min`, `intensidad_max`, `nivel_prioridad`), no en código. Cada triaje guarda la versión de reglas usada.
+- **Bandera de alarma:** `ES_ALARMA` reside **exclusivamente en `SINTOMA`** (alarma incondicional e intrínseca). Se elimina de `REGLA_TRIAJE`.
+- **Corte de emergencia:** Emergencia = presencia de síntoma con `ES_ALARMA = 1` O evaluación de `NIVEL_PRIORIDAD = 'I'`. Mensaje "llama al 123 o ve a urgencias", sin ofrecer cita, evento registrado en auditoría.
+- **Nivel por defecto conservador:** Si los síntomas reportados no coinciden con ninguna regla específica en `REGLA_TRIAJE`, el motor asigna por defecto **Nivel III (Urgencia menor / Prioritaria)**. **Nunca se asigna Nivel V** ante sintomatología no tipificada.
 - Catálogo semilla pequeño (≈20 síntomas), marcado como **reglas de prototipo, no validadas clínicamente**. Si se quiere validez clínica, debe revisarlas personal de salud.
-- Ruta sugerida: Atención prioritaria / Cita presencial / Cita remota / Consulta programada.
+- Ruta sugerida: Urgencias / Atención prioritaria / Cita presencial / Cita remota / Consulta programada.
 - El triaje nunca produce un diagnóstico ni recomienda medicamentos.
+
+**Adenda M5.2 (prototipo)** — precisiones de implementación del motor, no validadas clínicamente:
+- Duración: rango de regla `[DURACION_MIN_HORAS, DURACION_MAX_HORAS)` (mínimo inclusivo, máximo exclusivo; `NULL` = sin tope). Duración de entrada ≥ 0, puede ser fraccionaria. Intensidad: rango cerrado `[INTENSIDAD_MIN, INTENSIDAD_MAX]`, entero 0–10.
+- Varios síntomas: se evalúa cada uno y el nivel final es el **más urgente** (I más urgente … V menos). Un síntoma sin regla aplicable aporta Nivel III (nunca V). Si varias reglas del mismo síntoma solapan, gana la más urgente.
+- Nivel → ruta (mapeo de prototipo): I→URGENCIAS; II→ATENCION_PRIORITARIA; III→CITA_PRESENCIAL; IV→CITA_TELEMEDICINA; V→CONSULTA_PROGRAMADA.
+- Emergencia = (algún síntoma con `ES_ALARMA`) O (nivel final = I). Entonces nivel = I, ruta = URGENCIAS, sin ruta de cita y mensaje «Llama al 123 o acude a urgencias de inmediato.».
+- No se inventan tiempos de espera. Todo resultado incluye el aviso: «Esta orientación es un prototipo, no sustituye la valoración de un profesional de la salud.»
+- El evento de emergencia se audita con `TRIAJE_EMERGENCIA` (solo usuario, acción, recurso e id; sin síntomas). Su conexión a endpoints corresponde a M5.4.
 
 ## ADR-010 QR temporal (fase 2)
 **Defaults:** token aleatorio de 256 bits, expira a los 15 min, máximo 3 accesos, revocable. Alcance mínimo: alergias, medicamentos activos y antecedentes relevantes. Lectura sin login, con límite de intentos y PIN opcional. Cada acceso se audita. El QR contiene solo una URL con el token, nunca datos.
@@ -97,11 +113,18 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 ## ADR-011 Auditoría
 **Decisión:** tabla `AUDITORIA` insert-only (usuario, acción, tipo de recurso, id de recurso, resultado, IP, fecha). Prohibido guardar contenido clínico o secretos. Eventos del MVP listados en HU-11.
 
-## ADR-012 Entornos, backups y despliegue
+## ADR-012 Entornos, usuarios de BD, backups y despliegue
+- **Segregación de usuarios de base de datos:**
+  - `MEDITRIAJE_OWNER`: propietario del esquema, utilizado exclusivamente por Flyway para migraciones y operaciones DDL (`CREATE`, `ALTER`, `DROP`, triggers, secuencias).
+  - `MEDITRIAJE_APP`: usuario de mínimos privilegios utilizado por la aplicación en runtime (Spring Boot / HikariCP). En la inicialización de cada conexión física, su pool ejecuta en `connectionInitSql` un bloque anónimo PL/SQL (`BEGIN ... END;`) que fija `CURRENT_SCHEMA = MEDITRIAJE_OWNER` y `TIME_ZONE = 'America/Bogota'`, permitiendo acceder a los objetos sin prefijo de esquema y garantizando la zona horaria del proyecto.
+  - **GRANTs mínimos por migración:** cada script Flyway (`database/migrations/V###__*.sql`), ejecutado por `MEDITRIAJE_OWNER`, incluye al final las sentencias `GRANT` mínimas indispensables para `MEDITRIAJE_APP` (`SELECT`, `INSERT`, `UPDATE` estrictamente necesarios; sin privilegios de `DELETE` en tablas clínicas y sin `UPDATE`/`DELETE` en `AUDITORIA` y `ATENCION_ENMIENDA`).
 - Desarrollo local con Oracle Free en Docker (o ATP directo) y pruebas de integración con Testcontainers.
 - Perfiles `dev`, `test`, `prod`; secretos por variables de entorno (`DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`). Wallet fuera del repo y en `.gitignore`.
-- Backups: los automáticos de ATP; documentar en `DATABASE.md` cómo restaurar.
-- Despliegue: demo local en el MVP; luego backend + frontend en OCI (cuenta Always Free) conservando HTTPS. El frontend nunca habla con Oracle.
+- Despliegue en la nube:
+  - **Frontend:** Alojado en **Vercel** como sitio web estático (HTML/CSS/JS vanilla sin build, entrega CDN global, HTTPS nativo).
+  - **Backend:** Desplegado en **Render** como Web Service (Java 21 / Docker). Render asigna dinámicamente la variable de entorno `$PORT` (manejada con `server.port = ${PORT:${SERVER_PORT:8080}}`). Las credenciales y el wallet de Oracle ATP se inyectan como variables de entorno y *Secret Files* (`/etc/secrets/wallet`) sin tocar el repositorio.
+  - **Base de Datos:** Oracle ATP permanece en OCI Always Free.
+  - El frontend nunca interactúa directamente con Oracle; `CORS_ORIGINS` en Render se configura con el dominio de Vercel.
 
 ## ADR-013 Datos personales y cumplimiento (verificar con la norma vigente)
 - Consentimiento de tratamiento de datos (Ley 1581 de 2012) obligatorio en el registro, guardado en `CONSENTIMIENTO` con versión y fecha.

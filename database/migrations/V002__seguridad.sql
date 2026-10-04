@@ -1,0 +1,168 @@
+-- =============================================================================
+-- MediTriaje 2.0 — Migración V002: Módulo de Seguridad, Identidad y Auditoría
+-- =============================================================================
+-- Tablas: USUARIO, ROL, USUARIO_ROL, REFRESH_TOKEN, CONSENTIMIENTO, AUDITORIA
+-- Incluye restricciones, índices, triggers de inmutabilidad y semillas de roles.
+-- Concesión de privilegios mínimos a MEDITRIAJE_APP según ADR-012.
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- 1. TABLA: USUARIO
+-- -----------------------------------------------------------------------------
+CREATE TABLE USUARIO (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY,
+    PUBLIC_ID VARCHAR2(36 CHAR) NOT NULL,
+    EMAIL VARCHAR2(100 CHAR) NOT NULL,
+    PASSWORD_HASH VARCHAR2(255 CHAR) NOT NULL,
+    ESTADO VARCHAR2(20 CHAR) DEFAULT 'ACTIVO' NOT NULL,
+    INTENTOS_FALLIDOS NUMBER DEFAULT 0 NOT NULL,
+    BLOQUEADO_HASTA TIMESTAMP WITH TIME ZONE,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATED_AT TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT PK_USUARIO PRIMARY KEY (ID),
+    CONSTRAINT UQ_USUARIO_PUBLIC_ID UNIQUE (PUBLIC_ID),
+    CONSTRAINT UQ_USUARIO_EMAIL UNIQUE (EMAIL),
+    CONSTRAINT CK_USUARIO_EMAIL_LOWER CHECK (EMAIL = LOWER(EMAIL)),
+    CONSTRAINT CK_USUARIO_ESTADO CHECK (ESTADO IN ('ACTIVO', 'INACTIVO', 'BLOQUEADO'))
+);
+
+-- -----------------------------------------------------------------------------
+-- 2. TABLA: ROL
+-- -----------------------------------------------------------------------------
+CREATE TABLE ROL (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY,
+    NOMBRE VARCHAR2(30 CHAR) NOT NULL,
+    DESCRIPCION VARCHAR2(150 CHAR),
+    CONSTRAINT PK_ROL PRIMARY KEY (ID),
+    CONSTRAINT UQ_ROL_NOMBRE UNIQUE (NOMBRE),
+    CONSTRAINT CK_ROL_NOMBRE CHECK (NOMBRE IN ('ROLE_PACIENTE', 'ROLE_PROFESIONAL', 'ROLE_ADMINISTRADOR'))
+);
+
+-- -----------------------------------------------------------------------------
+-- 3. TABLA: USUARIO_ROL
+-- -----------------------------------------------------------------------------
+CREATE TABLE USUARIO_ROL (
+    USUARIO_ID NUMBER NOT NULL,
+    ROL_ID NUMBER NOT NULL,
+    CONSTRAINT PK_USUARIO_ROL PRIMARY KEY (USUARIO_ID, ROL_ID),
+    CONSTRAINT FK_USUARIO_ROL_USUARIO FOREIGN KEY (USUARIO_ID) REFERENCES USUARIO(ID) ON DELETE CASCADE,
+    CONSTRAINT FK_USUARIO_ROL_ROL FOREIGN KEY (ROL_ID) REFERENCES ROL(ID)
+);
+
+CREATE INDEX IX_USUARIO_ROL_ROL ON USUARIO_ROL (ROL_ID);
+
+-- -----------------------------------------------------------------------------
+-- 4. TABLA: REFRESH_TOKEN
+-- -----------------------------------------------------------------------------
+CREATE TABLE REFRESH_TOKEN (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY,
+    USUARIO_ID NUMBER NOT NULL,
+    TOKEN_HASH VARCHAR2(255 CHAR) NOT NULL,
+    EXPIRACION TIMESTAMP WITH TIME ZONE NOT NULL,
+    REVOCADO NUMBER(1) DEFAULT 0 NOT NULL,
+    CREATED_AT TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT PK_REFRESH_TOKEN PRIMARY KEY (ID),
+    CONSTRAINT UQ_REFRESH_TOKEN_HASH UNIQUE (TOKEN_HASH),
+    CONSTRAINT FK_REFRESH_TOKEN_USUARIO FOREIGN KEY (USUARIO_ID) REFERENCES USUARIO(ID) ON DELETE CASCADE,
+    CONSTRAINT CK_REFRESH_TOKEN_REVOCADO CHECK (REVOCADO IN (0, 1))
+);
+
+CREATE INDEX IX_REFRESH_TOKEN_USER_EXP ON REFRESH_TOKEN (USUARIO_ID, EXPIRACION, REVOCADO);
+
+-- -----------------------------------------------------------------------------
+-- 5. TABLA: CONSENTIMIENTO
+-- -----------------------------------------------------------------------------
+CREATE TABLE CONSENTIMIENTO (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY,
+    USUARIO_ID NUMBER NOT NULL,
+    VERSION_TEXTO VARCHAR2(20 CHAR) NOT NULL,
+    ACEPTADO NUMBER(1) NOT NULL,
+    FECHA_ACEPTACION TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    IP_ORIGEN VARCHAR2(45 CHAR) NOT NULL,
+    REVOCADO NUMBER(1) DEFAULT 0 NOT NULL,
+    FECHA_REVOCACION TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT PK_CONSENTIMIENTO PRIMARY KEY (ID),
+    CONSTRAINT FK_CONSENTIMIENTO_USUARIO FOREIGN KEY (USUARIO_ID) REFERENCES USUARIO(ID),
+    CONSTRAINT CK_CONSENTIMIENTO_ACEPTADO CHECK (ACEPTADO = 1),
+    CONSTRAINT CK_CONSENTIMIENTO_REVOCADO CHECK (REVOCADO IN (0, 1)),
+    CONSTRAINT CK_CONSENTIMIENTO_FECHA_REV CHECK (
+        (REVOCADO = 0 AND FECHA_REVOCACION IS NULL) OR
+        (REVOCADO = 1 AND FECHA_REVOCACION IS NOT NULL)
+    )
+);
+
+-- Trigger de inmutabilidad para CONSENTIMIENTO
+CREATE OR REPLACE TRIGGER TR_CONSENTIMIENTO_INMUTABILIDAD
+BEFORE UPDATE OR DELETE ON CONSENTIMIENTO
+FOR EACH ROW
+BEGIN
+    IF DELETING THEN
+        RAISE_APPLICATION_ERROR(-20010, 'Prohibido eliminar registros de consentimiento informado.');
+    END IF;
+    IF UPDATING THEN
+        IF :OLD.REVOCADO = 1 THEN
+            RAISE_APPLICATION_ERROR(-20011, 'El consentimiento ya ha sido revocado y es inmutable.');
+        END IF;
+        IF :NEW.REVOCADO = 1 AND :OLD.REVOCADO = 0 THEN
+            IF :NEW.FECHA_REVOCACION IS NULL THEN
+                RAISE_APPLICATION_ERROR(-20012, 'La fecha de revocacion es obligatoria al revocar el consentimiento.');
+            END IF;
+            IF :NEW.ID <> :OLD.ID
+               OR :NEW.USUARIO_ID <> :OLD.USUARIO_ID
+               OR :NEW.VERSION_TEXTO <> :OLD.VERSION_TEXTO
+               OR :NEW.ACEPTADO <> :OLD.ACEPTADO
+               OR :NEW.FECHA_ACEPTACION <> :OLD.FECHA_ACEPTACION
+               OR :NEW.IP_ORIGEN <> :OLD.IP_ORIGEN THEN
+                RAISE_APPLICATION_ERROR(-20013, 'Solo se permite actualizar los campos de revocacion en consentimiento.');
+            END IF;
+        ELSE
+            RAISE_APPLICATION_ERROR(-20014, 'Operacion no permitida sobre el registro de consentimiento.');
+        END IF;
+    END IF;
+END;
+/
+
+-- -----------------------------------------------------------------------------
+-- 6. TABLA: AUDITORIA
+-- -----------------------------------------------------------------------------
+CREATE TABLE AUDITORIA (
+    ID NUMBER GENERATED ALWAYS AS IDENTITY,
+    USUARIO_ID NUMBER,
+    ACCION VARCHAR2(50 CHAR) NOT NULL,
+    TIPO_RECURSO VARCHAR2(40 CHAR) NOT NULL,
+    RECURSO_PUBLIC_ID VARCHAR2(36 CHAR),
+    RESULTADO VARCHAR2(20 CHAR) NOT NULL,
+    IP_ORIGEN VARCHAR2(45 CHAR) NOT NULL,
+    FECHA_HORA TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT PK_AUDITORIA PRIMARY KEY (ID),
+    CONSTRAINT CK_AUDITORIA_RESULTADO CHECK (RESULTADO IN ('EXITO', 'FALLO', 'BLOQUEADO'))
+);
+
+CREATE INDEX IX_AUDITORIA_FECHA ON AUDITORIA (FECHA_HORA DESC);
+CREATE INDEX IX_AUDITORIA_USUARIO ON AUDITORIA (USUARIO_ID, FECHA_HORA DESC);
+
+-- Trigger de inmutabilidad incondicional para AUDITORIA
+CREATE OR REPLACE TRIGGER TR_AUDITORIA_INMUTABILIDAD
+BEFORE UPDATE OR DELETE ON AUDITORIA
+FOR EACH ROW
+BEGIN
+    RAISE_APPLICATION_ERROR(-20020, 'La bitacora de auditoria es inmutable: prohibido modificar o eliminar registros.');
+END;
+/
+
+-- -----------------------------------------------------------------------------
+-- 7. SEMILLAS DE ROLES DE SISTEMA
+-- -----------------------------------------------------------------------------
+INSERT INTO ROL (NOMBRE, DESCRIPCION) VALUES ('ROLE_PACIENTE', 'Paciente del sistema de salud');
+INSERT INTO ROL (NOMBRE, DESCRIPCION) VALUES ('ROLE_PROFESIONAL', 'Profesional medico o asistencial');
+INSERT INTO ROL (NOMBRE, DESCRIPCION) VALUES ('ROLE_ADMINISTRADOR', 'Administrador de plataforma y catalogos');
+
+-- -----------------------------------------------------------------------------
+-- 8. CONCESIÓN DE PRIVILEGIOS MÍNIMOS A MEDITRIAJE_APP (ADR-012)
+-- -----------------------------------------------------------------------------
+GRANT SELECT, INSERT, UPDATE ON USUARIO TO MEDITRIAJE_APP;
+GRANT SELECT ON ROL TO MEDITRIAJE_APP;
+GRANT SELECT, INSERT, DELETE ON USUARIO_ROL TO MEDITRIAJE_APP;
+GRANT SELECT, INSERT, UPDATE, DELETE ON REFRESH_TOKEN TO MEDITRIAJE_APP;
+GRANT SELECT, INSERT, UPDATE ON CONSENTIMIENTO TO MEDITRIAJE_APP;
+GRANT SELECT, INSERT ON AUDITORIA TO MEDITRIAJE_APP;

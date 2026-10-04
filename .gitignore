@@ -42,6 +42,7 @@ logs/
 .settings/
 .project
 .classpath
+.codegraph/
 
 # Sistema operativo
 .DS_Store
@@ -52,3 +53,4 @@ desktop.ini
 coverage/
 .nyc_output/
 test-output/
+.playwright-mcp/

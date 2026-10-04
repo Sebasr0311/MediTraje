@@ -103,8 +103,10 @@ Lee `DECISIONES.md`, `MER.md` y `MODELO_RELACIONAL.md`. Cambia lo que no te gust
 ### Prerrequisito manual (lo haces tú)
 1. Crea tu cuenta de Oracle Cloud y una **Autonomous Transaction Processing** (opción Always Free).
 2. Descarga el **wallet** (Instance Wallet) a una carpeta **fuera del repo** (p. ej. `~/oracle/wallet`).
-3. Crea en ATP un usuario para la app (p. ej. `MEDITRIAJE`) con privilegios mínimos (`CREATE SESSION`, `CREATE TABLE`, `CREATE SEQUENCE`, `CREATE TRIGGER`, `CREATE INDEX`, cuota en el tablespace). **No uses `ADMIN`.**
-4. Define variables de entorno: `DB_URL` (formato `jdbc:oracle:thin:@<alias>_tp?TNS_ADMIN=/ruta/al/wallet`), `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`.
+3. Crea en ATP los **dos usuarios** según ADR-012 (no uses `ADMIN`):
+   - **`MEDITRIAJE_OWNER`** (para Flyway / DDL): privilegios `CREATE SESSION`, `CREATE TABLE`, `CREATE SEQUENCE`, `CREATE TRIGGER`, `CREATE INDEX`, cuota en el tablespace.
+   - **`MEDITRIAJE_APP`** (para runtime de Spring Boot): privilegios `CREATE SESSION`, `SELECT`, `INSERT`, `UPDATE` sobre las tablas del esquema `MEDITRIAJE_OWNER`. Sin `DELETE` en tablas clínicas, y sin `UPDATE`/`DELETE` en `AUDITORIA` y `ATENCION_ENMIENDA`.
+4. Define variables de entorno: `DB_URL` (formato `jdbc:oracle:thin:@<alias>_tp?TNS_ADMIN=/ruta/al/wallet`), `DB_USER` (`MEDITRIAJE_APP`), `DB_PASSWORD`, `FLYWAY_USER` (`MEDITRIAJE_OWNER`), `FLYWAY_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`.
 
 ### M1.1 Proyecto Spring Boot base
 **Qué:** proyecto Maven (Java 21, Spring Boot 3) en `backend/`, paquetes por capas del documento maestro §8, perfiles `dev`/`test`/`prod`, endpoint `GET /api/v1/ping`.
@@ -137,10 +139,11 @@ Implementa manejo global de errores con una respuesta ApiError consistente (sin 
 **Verifica:** un error provocado devuelve JSON estructurado sin stack trace.
 
 ### M1.5 Pruebas y CI
-**Qué:** una prueba de integración con Testcontainers (Oracle Free) y un workflow de GitHub Actions que ejecute `mvn verify`.
+**Qué:** una prueba de integración con Testcontainers (Oracle Free) que cree ambos usuarios de BD (`MEDITRIAJE_OWNER` y `MEDITRIAJE_APP`) y un workflow de GitHub Actions que ejecute `mvn verify`.
 ```
-Agrega una prueba de integración con Testcontainers (Oracle Free) que aplique las migraciones, y un workflow de GitHub Actions que ejecute mvn clean verify en cada push. Documenta cómo correr las pruebas en README.
+Agrega una prueba de integración con Testcontainers (Oracle Free) que inicialice el contenedor aprovisionando ambos usuarios de BD (MEDITRIAJE_OWNER para ejecutar migraciones Flyway y MEDITRIAJE_APP con privilegios mínimos para el datasource de la aplicación), aplique las migraciones y valide la conectividad. Añade un workflow de GitHub Actions que ejecute mvn clean verify en cada push. Documenta cómo correr las pruebas en README.
 ```
+**Verifica:** Testcontainers levanta Oracle Free, crea ambos usuarios, corre Flyway como `MEDITRIAJE_OWNER`, ejecuta la app como `MEDITRIAJE_APP` con sus `GRANT`s y `mvn clean verify` pasa en local y en CI.
 **Puerta de salida M1:** la app arranca, conecta a ATP, migra, `mvn clean verify` pasa en local y en CI. Etiqueta `v0.1`.
 
 ---

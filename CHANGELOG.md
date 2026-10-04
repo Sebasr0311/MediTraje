@@ -1,0 +1,578 @@
+# Changelog
+
+Todos los cambios notables en este proyecto serán documentados en este archivo.
+
+El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
+y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0-mvp] - 2026-10-03
+
+### Added
+- **Documentación Técnica Consolidada y Guion de Demostración del MVP (M8.6)**:
+  - Documento de arquitectura `docs/architecture/ARCHITECTURE.md` y `ARCHITECTURE.md` con especificación de capas, principios rectores (ADR-001 a ADR-013), diagrama C4 de contenedores en Mermaid, arquitectura de frontend y modelo de seguridad.
+  - Catálogo exhaustivo de API REST `docs/api/API.md` y `API.md` con especificación de los 17 controladores, endpoints, cookies `HttpOnly`, cabecera obligatoria CSRF (`X-Requested-With`), contratos DTO y colecciones interactivas `.http`.
+  - Actualización de `docs/database/DATABASE.md` y `DATABASE.md` con el inventario de las 9 migraciones Flyway (`V001` a `V009`), matriz de 24 tablas en 3FN, triggers PL/SQL de inmutabilidad clínica (`ORA-20000` a `ORA-20009`) y permisos de runtime de `MEDITRIAJE_APP`.
+  - Documento rector de seguridad `docs/security/SECURITY.md` y `SECURITY.md` con el modelo de amenazas, criptografía Argon2id, defensas CSRF/XSS, aislamiento asistencial y matriz de mitigación OWASP Top 10 (2021).
+  - Guion de demostración interactivo `docs/demo/GUION_DEMO.md` con datos 100% ficticios para reproducir los 7 pasos de la demo del MVP (§8 de `docs/MVP.md`): registro con consentimiento Ley 1581, triaje de baja prioridad y cita, corte de emergencia con síntoma de alarma, atención médica con signos vitales y CIE-10, receta con snapshot histórico, prueba de acceso cruzado denegado y auditoría inmutable.
+  - Actualización completa de `README.md` como presentación formal del proyecto con instrucciones de inicio rápido en local, perfiles y credenciales de prueba.
+  - Cumplimiento de la Puerta de Salida M8: checklist de `docs/MVP.md` §7 verificado al 100%, demo ejecutable y 501 pruebas automatizadas pasando exitosamente.
+- **Endurecimiento y Revisión Final de Seguridad (M8.5, ADR-002, ADR-007, ADR-011, ADR-012)**:
+  - Informe exhaustivo de auditoría y hardening documentado en `docs/security/REVISION_FINAL.md`.
+  - Configuración explícita de cabeceras HTTP de seguridad en `SecurityConfig.java`:
+    - `Content-Security-Policy`: Directivas estrictas `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none';`.
+    - `Referrer-Policy`: `strict-origin-when-cross-origin` para prevenir fuga de identificadores en rutas externas.
+    - `Permissions-Policy`: Restricción total de APIs de navegador innecesarias (`camera=(), microphone=(), geolocation=()`).
+    - `X-Frame-Options`: `DENY` contra ataques de Clickjacking.
+  - Endurecimiento del perfil de producción en `backend/src/main/resources/application-prod.yml`:
+    - `security.cookie.secure: true`: Forzado obligatorio de la bandera Secure en cookies JWT en entornos productivos.
+    - `management.endpoint.health.show-details: when-authorized`: Ocultamiento de metadatos internos del pool Hikari y base de datos a usuarios anónimos en Actuator Health.
+  - Nueva prueba de integración en `PingControllerTest.java` para verificar la presencia de las cabeceras HTTP de seguridad en cada respuesta.
+  - Verificación integral de 501 pruebas unitarias y de integración pasando al 100% sin regresiones.
+- **Pantallas de Administración y Generador de Slots (M8.4, HU-10, ADR-002, ADR-003, ADR-005, ADR-007, ADR-011, ADR-012)**:
+  - Panel Centralizado de Administración `frontend/js/views/admin-views.js`:
+    - Interfaz estructurada en pestañas accesibles (`.admin-tabs`, `.admin-tab`) sincronizadas con la URL (`#/admin/institutions`, `#/admin/sites`, `#/admin/specialties`, `#/admin/professionals`, `#/admin/slots`).
+    - CERO exposición de contenido clínico: banner permanente y aislamiento estricto de roles que limita la visibilidad exclusivamente a la oferta asistencial, infraestructura y cuentas asistenciales (ADR-007).
+  - Pestaña de Instituciones:
+    - Listado paginado de instituciones de salud (`GET /api/v1/admin/institutions`) con filtros por estado y badges accesibles.
+    - Formulario colapsable para alta de instituciones (`POST /api/v1/admin/institutions`) con validación de NIT y razón social.
+    - Edición de razón social vía diálogo modal (`PUT /api/v1/admin/institutions/{id}`).
+    - Desactivación y activación con modal de confirmación (`PATCH /api/v1/admin/institutions/{id}/deactivate` / `activate`).
+  - Pestaña de Sedes:
+    - Listado paginado de sedes asistenciales (`GET /api/v1/admin/sites`) con filtros por institución activa y estado.
+    - Formulario colapsable para alta de sedes (`POST /api/v1/admin/sites`) asociadas a una institución activa preexistente.
+    - Edición de nombre, dirección y ciudad (`PUT /api/v1/admin/sites/{id}`).
+    - Activación y desactivación lógica sin borrado físico.
+  - Pestaña de Especialidades:
+    - Listado paginado de especialidades médicas (`GET /api/v1/admin/specialties`) con duración configurable de turno (minutos).
+    - Formulario para registro de especialidades (`POST /api/v1/admin/specialties`) con validación de rango (5 a 240 minutos).
+    - Edición de especialidad (`PUT /api/v1/admin/specialties/{id}`).
+    - Transición de estados ACTIVO/INACTIVO.
+  - Pestaña de Profesionales Asistenciales:
+    - Listado paginado de profesionales médicos (`GET /api/v1/admin/professionals`) con filtro dinámico por especialidad médica.
+    - Formulario de alta asistencial (`POST /api/v1/admin/professionals`) validando registro médico, correo institucional y especialidad activa.
+    - Modal de éxito prominente tras la creación que entrega al administrador la contraseña temporal segura generada por el backend (Argon2id), con advertencia de que no volverá a mostrarse y botón de copia al portapapeles (`navigator.clipboard`).
+    - Edición de datos del profesional (`PUT /api/v1/admin/professionals/{id}`).
+    - Desactivación y activación de cuentas asistenciales.
+  - Pestaña de Slots de Disponibilidad (Generador Masivo y Gestión de Turnos):
+    - Generador masivo de turnos (`POST /api/v1/admin/slots/generate`) calculando intervalos continuos en zona horaria `America/Bogota` (ADR-005) por rango de fechas, franja horaria diaria, selector de días de la semana (Lunes a Sábado) y modalidad (Presencial / Telemedicina), con prevención atómica de solapes.
+    - Buscador y gestión de turnos (`GET /api/v1/admin/slots`) con filtros por profesional, sede, estado (Libre, Bloqueado, Ocupado) y rango de fechas.
+    - Acciones directas sobre turnos: bloqueo de slots libres (`PATCH /api/v1/admin/slots/{id}/block`), desbloqueo (`PATCH /api/v1/admin/slots/{id}/unblock`) y eliminación física condicional de slots libres (`DELETE /api/v1/admin/slots/{id}`).
+  - Estilos y Verificación Visual con Playwright:
+    - Componente CSS `.admin-tabs` y `.admin-tab` con scroll horizontal táctil y soporte responsivo.
+    - Pruebas end-to-end de navegación entre todas las pestañas, validaciones, creación de instituciones, sedes, especialidades, alta de médico con modal de clave temporal, generación de turnos y bloqueo.
+    - Comprobación de cero desbordamiento horizontal en 375 px (móvil), 768 px (tablet) y 1280 px (desktop).
+- **Pantallas del Profesional Asistencial: Agenda, Atención Clínica y Recetas Médicas (M8.3, HU-06, HU-07, HU-08, ADR-007, ADR-008)**:
+  - Módulo de Agenda del Profesional `frontend/js/views/professional-agenda.js`:
+    - Listado cronológico de citas asignadas del día (`GET /api/v1/professionals/me/agenda`) en zona horaria `America/Bogota`.
+    - Filtros reactivos por fecha y estado (Todas, Programada, Confirmada, Atendida, Cancelada, No asistió) y botón de acceso rápido "Hoy".
+    - Tarjeta de cita con hora en formato 12h, sede o telemedicina, paciente, badges accesibles de estado y presencia de triaje clínico.
+    - Acción directa "Iniciar atención" que crea la atención médica en estado `ABIERTA` (`POST /api/v1/attentions`) y navega directamente a la consulta.
+  - Módulo de Atención Clínica `frontend/js/views/professional-attention.js`:
+    - Vista dual (Atención ABIERTA editable vs. Atención CERRADA solo lectura e inmutable).
+    - Secciones colapsables mediante `<details>` accesibles: signos vitales opcionales con validación fisiológica (presión sistólica > diastólica y rangos biológicos para FC, FR, temperatura, SaO2, peso y talla), motivo de consulta, evolución clínica con contador en vivo (0/4000 caracteres), buscador dinámico con debounce de códigos diagnósticos CIE-10 (`GET /api/v1/catalogs/icd10`) e indicaciones médicas.
+    - Cierre irreversible de atención médica con diálogo modal accesible de confirmación (`ui.showModal`) advirtiendo la inmutabilidad del registro y la transición de la cita a `ATENDIDA` (`POST /api/v1/attentions/{id}/close`).
+    - Vista cerrada inmutable con presentación de diagnóstico CIE-10, motivo, evolución, indicaciones y cuadrícula de signos vitales registrados.
+    - Registro de aclaraciones y enmiendas clínicas append-only (`POST /api/v1/attentions/{id}/amendments`) con profesional autor, motivo y timestamp en Bogotá.
+  - Módulo de Emisión de Recetas Médicas `frontend/js/views/professional-prescription.js`:
+    - Emisión farmacológica exclusiva del profesional de la salud asociada a la atención médica.
+    - Búsqueda en catálogo maestro de medicamentos (`GET /api/v1/catalogs/medications`) por nombre comercial, principio activo o código con debounce de 250 ms.
+    - Agregación dinámica de fármacos a la receta (máximo 20) con inputs individuales de dosis, frecuencia, duración en días, cantidad e indicaciones.
+    - Configuración de vigencia de la receta (1 a 365 días, por defecto 30).
+    - Confirmación modal accesible antes de la emisión atómica (`POST /api/v1/prescriptions`).
+    - Pantalla de éxito con código de receta, resumen de medicamentos, vigencia y botones de retorno a la atención o a la agenda.
+  - Sanitización XSS y Seguridad:
+    - Función utilitaria `esc(value)` en `frontend/js/ui.js` para escapar caracteres HTML peligrosos (`&`, `<`, `>`, `"`, `'`) en datos renderizados dinámicamente.
+    - Autorización estricta en frontend (`requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL'`) respaldada por autorización en backend (403 para pacientes y administradores).
+  - Verificación visual y funcional con Playwright:
+    - Pruebas end-to-end de agenda con citas, filtros y acción de inicio.
+    - Pruebas de atención con validación de signos vitales, selección CIE-10 y modal de cierre irreversible.
+    - Pruebas de registro de enmiendas append-only en atención cerrada.
+    - Pruebas de prescripción con catálogo de fármacos, agregación de ítems, vigencia y emisión atómica.
+    - Verificación responsive a 375 px (móvil), 768 px (tablet) y 1280 px (desktop) con cero desbordamiento horizontal (`scrollWidth <= innerWidth`).
+- **Mis Citas, Historia Clínica y Recetas Médicas del Paciente (M8.2c, HU-04, HU-05, HU-08, HU-09, ADR-006, ADR-007, ADR-008)**:
+  - Módulo de Mis Citas `frontend/js/views/patient-appointments.js`:
+    - Listado paginado de citas (`GET /api/v1/patients/me/appointments`) con filtros rápidos por estado (Todas, Próximas y Activas, Finalizadas y Canceladas).
+    - Tarjetas completas con fecha/hora colombiana, médico, especialidad, sede, modalidad y badge accesible de estado.
+    - Mecanismo de cancelación anticipada con validación estricta de la regla de las 2 horas (ADR-006, HU-05): para citas a menos de 120 minutos se deshabilita la cancelación con mensaje explicativo; para citas con anticipación superior, despliega modal accesible (`ui.showModal`) solicitando motivo opcional y ejecuta `PATCH /api/v1/appointments/{id}/cancel` actualizando la vista inmediatamente sin recargar.
+  - Módulo de Historia Clínica `frontend/js/views/patient-history.js`:
+    - Línea de tiempo vertical (`.timeline`, `.timeline-item`) de atenciones médicas cerradas inmutables (`GET /api/v1/patients/me/history`).
+    - Diagnóstico principal CIE-10 (código + descripción), motivo de consulta, evolución médica e indicaciones terapéuticas.
+    - Cuadrícula de parámetros fisiológicos (`.vitals-grid`, `.vital-card`) con presión arterial sistólica/diastólica, frecuencia cardíaca, respiratoria, temperatura, saturación de oxígeno, peso y talla.
+    - Sección destacada de aclaraciones y enmiendas clínicas append-only (quién, cuándo, contenido y motivo de la aclaración).
+    - Botón de impresión o guardado a PDF del historial clínico.
+  - Módulo de Recetas Médicas `frontend/js/views/patient-prescriptions.js`:
+    - Listado de fórmulas farmacológicas digitales (`GET /api/v1/patients/me/prescriptions`).
+    - Cálculo automático de estado de vigencia (Vigente / Vencida) a partir de la fecha de emisión y los días de vigencia.
+    - Tabla estructurada de medicamentos prescritos leyendo de los snapshots inmutables: nombre comercial, principio activo, concentración, presentación, dosificación, frecuencia, duración, cantidad e indicaciones.
+    - Botón para imprimir recetas individuales o el consolidado de fórmulas médicas.
+  - Componentes de diseño en `frontend/css/components.css`:
+    - Estilos de línea de tiempo `.timeline`, `.timeline-marker`, `.timeline-marker--amendment`.
+    - Componente de signos vitales `.vitals-grid` y `.vital-card`.
+    - Reglas de estilo para impresión `@media print` que ocultan menús, barras de navegación, botones y optimizan el documento para hojas impresas o PDF.
+  - Verificación visual y funcional con Playwright:
+    - Validación de flujo de listado de citas y cancelación con regla de 2 horas.
+    - Validación de línea de tiempo clínica con signos vitales y enmiendas.
+    - Validación de prescripciones con medicamentos y badges de vigencia.
+    - Comprobación de cero desbordamiento horizontal en 375 px (móvil), 768 px (tablet) y 1280 px (desktop).
+- **Triaje Clínico, Corte de Emergencia y Agendamiento de Citas (M8.2b, HU-02, HU-03, HU-04, ADR-006, ADR-009)**:
+  - Módulo de Triaje Clínico del Paciente `frontend/js/views/patient-triage.js`:
+    - Asistente por pasos accesible y sereno (Paso 1: selección de síntomas con búsqueda en tiempo real, filtro por categorías y chips táctiles ≥ 44 px; Paso 2: escala táctil de 0 a 10 para intensidad del dolor, selector de duración en horas con presets rápidos de 2h a 72h y observaciones opcionales con contador de caracteres).
+    - Aviso legal sereno y permanente de prototipo: orienta el nivel asistencial sin sustituir la valoración clínica de un profesional de la salud.
+    - Pantalla de CORTE DE EMERGENCIA infalible para síntomas de alarma (ej. dolor torácico opresivo, dificultad respiratoria severa) o Nivel I: banner destacado `.alert--emergency` con fondo y borde de triaje 1, resumen de síntomas de alarma detectados, recomendaciones de primeros auxilios, botón prominente "Llamar al 123" (`<a href="tel:123">`) y CERO opciones o botones de agendamiento.
+    - Pantalla de RESULTADO NO URGENTE para niveles II al V: badge accesible con icono, color y texto explícito (Nivel II Atención Prioritaria, Nivel III Cita Presencial Prioritaria, Nivel IV Telemedicina / No Urgente, Nivel V Consulta General Programada), ruta sugerida, tabla resumen de síntomas evaluados y botón primario para consultar horarios disponibles vinculando el triaje (`#/patient/book?triageId=...`).
+  - Módulo de Disponibilidad y Reserva de Citas `frontend/js/views/patient-booking.js`:
+    - Consulta reactiva y en tiempo real de slots libres futuros (`GET /api/v1/availability`) agrupados por día con chips de hora táctiles.
+    - Filtros dinámicos por especialidad médica, sede asistencial, modalidad (Presencial en Sede / Telemedicina) y fecha.
+    - Tarjeta de confirmación previa a la reserva con resumen exhaustivo (fecha y hora local en Colombia, profesional, especialidad, sede y triaje vinculado).
+    - Agendamiento transaccional consumiendo `POST /api/v1/appointments` con manejo cálido y amigable de colisiones por concurrencia 409 Conflict ("Ese horario acaba de ser tomado. Elige otro, por favor.") y recarga automática.
+    - Pantalla de éxito con código de reserva, indicaciones para el paciente y accesos rápidos a mis citas o al panel principal.
+  - Componentes de diseño en `frontend/css/components.css`:
+    - Chips interactivos (`.chip`, `.chip--alarm`, `.chip-group`) con objetivo táctil ≥ 44 px y estado de selección accesible.
+    - Selector de escala numérica 0–10 táctil (`.scale-selector`, `.scale-btn`) con respuesta visual instantánea.
+    - Cuadrícula de turnos y chips de horario (`.slot-grid`, `.slot-chip`) con subtítulos de sede/modalidad y médico.
+    - Indicador de pasos accesible (`.wizard-stepper`, `.wizard-progress-bar`).
+  - Verificación visual y funcional con Playwright:
+    - Validación de flujo de corte de emergencia y ausencia absoluta de botones de agendamiento.
+    - Validación de flujo no urgente hasta reserva confirmada y manejo de colisión 409.
+    - Comprobación de cero desbordamiento horizontal en 375 px (móvil), 768 px (tablet) y 1280 px (desktop).
+- **Pantallas del Paciente: Registro, Login y Dashboard (M8.2a, HU-04, HU-08, HU-09)**:
+  - Backend asistencial:
+    - Repositorio `CitaRepository`: métodos `listarPorPacienteId` y `contarPorPacienteId` con SQL 100% parametrizado, JOINs a citas, slots, pacientes, profesionales, especialidades y sedes, orden cronológico descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`.
+    - Servicio `AppointmentService.obtenerMisCitas`: validación de paciente autenticado, saneamiento de parámetros de paginación (0..100) y mapeo inmutable a `CitaResponse`.
+    - Controlador REST `PacienteController`: endpoint `GET /api/v1/patients/me/appointments` protegido exclusivamente con `@PreAuthorize("hasAuthority('ROLE_PACIENTE')")` (403 para otros roles, 401 sin sesión).
+    - 11 pruebas automatizadas nuevas en `CitaRepositoryTest`, `AppointmentServiceTest` y `PacienteControllerTest` (suite consolidada en 500 pruebas verdes al 100%).
+  - Módulo de vistas de autenticación `frontend/js/views/auth-views.js`:
+    - Vista de Login con botón toggle para alternar visibilidad de contraseña, validación de campos en cliente accesible mediante `aria-describedby` y feedback visual ante credenciales erróneas (401) o bloqueo temporal por 15 minutos (423).
+    - Vista de Registro de paciente en 2 pasos visuales e interactivos: Paso 1 (tipo y número de documento, nombres, apellidos, fecha de nacimiento no futura y teléfono) con validación previa al avance; Paso 2 (correo, contraseña con toggle, confirmación y consentimiento informado explícito v1.0 bajo Ley 1581 de 2012 no premarcado) con modal accesible para lectura de términos completos.
+  - Módulo de Dashboard del Paciente `frontend/js/views/patient-dashboard.js`:
+    - Carga reactiva y en paralelo (`Promise.allSettled`) de perfil demográfico, citas, historial clínico y recetas médicas con estados de skeleton animados.
+    - Saludo personalizado con nombre completo y número de documento, tarjeta destacada para inicio de triaje clínico, tarjeta de próxima cita activa con gestión o estado vacío sugerente, lista de atenciones con diagnósticos CIE-10 y lista de fórmulas farmacológicas con medicamentos prescritos.
+  - Optimizaciones de accesibilidad y diseño responsive:
+    - Reglas compactas en `frontend/css/components.css` y `frontend/js/app.js` para la barra de navegación en pantallas móviles (< 640 px).
+    - Verificación visual con Playwright en resoluciones de 375 px (móvil), 768 px (tablet) y 1280 px (desktop) con cero desbordamiento horizontal.
+- **Base del Frontend y Arquitectura SPA (M8.1, ADR-002, ADR-003)**:
+  - Cliente API centralizado `frontend/js/api.js` sobre `fetch` nativo con transmisión de cookies HttpOnly (`credentials: 'include'`), cabecera de protección CSRF (`X-Requested-With: XMLHttpRequest`), mapeo a excepción `ApiError` estructurada e interceptor de refresco de token ante 401 con cola de reintento automático.
+  - Servicio de autenticación `frontend/js/auth.js` reactivo (`EventTarget`) con estado exclusivamente en memoria (sin tokens en `localStorage`, ADR-002) y métodos para login, registro, logout, cambio de contraseña y comprobación silenciosa de sesión.
+  - Módulo UI `frontend/js/ui.js` con gestor de notificaciones toast accesibles, modal de confirmación con captura de foco y soporte de tecla Escape, skeletons de carga, vistas de estado vacío y alertas de error con acción de reintento.
+  - Enrutador SPA `frontend/js/router.js` hash-based sin dependencias externas, con soporte de rutas dinámicas con parámetros, query strings y guardias de navegación para rutas privadas, invitadas y roles específicos.
+  - Punto de entrada `frontend/js/app.js` y página principal `frontend/index.html` con estructura semántica, barra superior dinámica según sesión, barra inferior móvil para pacientes, enlace skip-link accesible y vistas base probadas con Playwright.
+- **Sistema de Diseño y Componentes Base (M8.0, ADR-002, docs/DISENO_UI_UX.md)**:
+  - Creación de 26 iconos SVG inline estilo Lucide en `frontend/assets/icons/` (check, alert-triangle, alert-circle, info, calendar, clock, file-text, pill, activity, phone, hospital, shield, user, etc.).
+  - Hoja de estilos base `frontend/css/base.css` con enlace de salto accesible (`.skip-link`), contenedores (`.container`, `.container-narrow`), utilidades semánticas flex/grid, tipografía, utilidades de espaciado y soporte para `prefers-reduced-motion`.
+  - Hoja de componentes `frontend/css/components.css` estructurada 100% sobre `tokens.css`:
+    - Botones (`.btn`): primario (teal), secundario, terciario/ghost, peligro y emergencia (Llamar al 123), tamaños pequeño y grande, y estado de carga animado (`.btn--loading`) con objetivo táctil mínimo de 44 px.
+    - Campos de formulario: etiquetas siempre visibles, textos de ayuda, estados de error con icono y descripción vinculados con `aria-describedby`, inputs de 16 px (prevención de zoom en iOS) y casillas/radios accesibles.
+    - Tarjetas (`.card`): contenedor base, variante destacada (`.card--highlight`) con `--primary-soft` e interactivas.
+    - Badges de estado: citas (PROGRAMADA, CONFIRMADA, ATENDIDA, CANCELADA, REPROGRAMADA) y niveles de triaje I al V cumpliendo la regla de no depender exclusivamente del color (icono + texto explícito).
+    - Alertas (`.alert`): informativas, de éxito, advertencia, peligro y banner crítico de emergencia para triaje I.
+    - Feedback y diálogos: toasts interactivos (`role="status"`), modal de confirmación con backdrop accesible y trampa de teclado (Esc y click fuera), skeletons de carga con animación shimmer y estados vacíos (`.empty-state`) con siguiente acción sugerida.
+    - Navegación: barra superior (`.navbar`), barra lateral (`.sidebar`) y barra inferior móvil (`.bottom-nav`) con indicadores activos.
+    - Tablas de datos responsivas con scroll horizontal y soporte para apilamiento en pantallas pequeñas.
+  - Catálogo interactivo `frontend/styleguide.html` con demostración de todos los componentes, variantes y estados interactivos, con alternancia de tema claro/oscuro persistente en `localStorage` y verificado en 375, 768 y 1280 px sin desbordamiento horizontal.
+
+## [0.7.0] - 2026-10-03
+
+### Added
+- **Consulta de Recetas Médicas del Paciente y Colección M7.http (M7.3, HU-08, HU-09, ADR-007, ADR-008, ADR-011)**:
+  - Repositorio `RecetaRepository`: métodos `listarPorPacienteId` (con JOINs relacionales a ATENCION, PACIENTE, PROFESIONAL, CITA, DISPONIBILIDAD_SLOT y ESPECIALIDAD, recuperación de detalles con snapshots históricos inmutables, orden cronológico descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y `contarPorPacienteId`.
+  - Servicio `PrescriptionService.obtenerMisRecetas`:
+    - Identificación del paciente autenticado a partir de su identidad (`UsuarioRepository` y `PacienteRepository`).
+    - Paginación segura con saneamiento de parámetros (0-indexed, tamaño acotado entre 1 y 100).
+    - Auditoría inmutable obligatoria `CONSULTA_HISTORIA` (`recurso = "RECETA"`, `recursoPublicId = paciente.publicId()`) sin nombres de fármacos, dosis ni datos clínicos en bitácora ni logs (ADR-011).
+    - Cero exposición de identificadores numéricos autonuméricos de base de datos (ADR-003).
+  - Controlador REST `PacienteController`: endpoint `GET /api/v1/patients/me/prescriptions` blindado exclusivamente para pacientes (`@PreAuthorize("hasAuthority('ROLE_PACIENTE')")`). Administradores y profesionales reciben 403 Forbidden.
+  - Colección de pruebas HTTP `docs/api/M7.http`: 7 secciones exhaustivas con 19 escenarios para la puerta de salida de la Fase M7 (healthcheck, login de roles, catálogo maestro de medicamentos, agendamiento previo y atención médica, emisión de receta con snapshot inmutable, consulta individual con control de relación asistencial y consulta del historial de recetas del paciente).
+  - Pruebas automatizadas (11 pruebas nuevas, suite consolidada en 489 pruebas al 100% de éxito):
+    - `RecetaRepositoryTest` (3 pruebas): listado paginado por paciente con snapshots inmutables, manejo de paciente nulo y conteo.
+    - `PrescriptionServiceTest` (4 pruebas): consulta exitosa con auditoría CONSULTA_HISTORIA, usuario inexistente (404), usuario no paciente (403) y usuario nulo/blanco (403).
+    - `PacienteControllerTest` (4 pruebas MockMvc): 200 OK para paciente con recetas paginadas, 403 Forbidden para profesional, 403 Forbidden para administrador y 401 Unauthorized sin autenticación.
+- **Creación de Receta Médica y Catálogo de Medicamentos (M7.2, HU-08, ADR-003, ADR-007, ADR-008, ADR-011)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`:
+    - `Medicamento`: record con id, publicId, codigo, nombreComercial, principioActivo, presentacion, concentracion y estado.
+    - `Receta`: record con id, publicId, atencionId, pacienteId, profesionalId, vigenciaDias y createdAt.
+    - `RecetaDetalle`: record con id, recetaId, medicamentoId, snapshotNombre, snapshotPrincipioActivo, snapshotPresentacion, snapshotConcentracion, dosis, frecuencia, duracionDias, cantidad e indicaciones.
+  - DTOs en `com.meditriaje.dto.prescription`:
+    - `MedicamentoResponse`: representación limpia de fármacos sin IDs numéricos internos.
+    - `CrearRecetaDetalleRequest`: validación Bean Validation con `@NotBlank`, `@Size(max = 100)`, `@Min(1)` para duración y cantidad, y `@Size(max = 300)` para indicaciones.
+    - `CrearRecetaRequest`: `@NotBlank` para atención, vigencia entre 1 y 365 días (default 30) y `@NotEmpty` con `@Size(max = 20)` en detalles validados.
+    - `RecetaDetalleResponse`: detalle con lectura de snapshots históricos de inmutabilidad.
+    - `RecetaResponse`: cabecera relacional completa con nombres de paciente, profesional y especialidad, sin exposición de secuencias de BD (ADR-003).
+  - Repositorios en `com.meditriaje.repository`:
+    - `MedicamentoRepository`: búsqueda por publicId, por ID, conteo y listado de fármacos activos con búsqueda ILIKE / UPPER y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`.
+    - `RecetaRepository`: persistencia de receta con `GeneratedKeyHolder`, inserción por lotes con `batchUpdate` congelando snapshots, consulta por publicId con JOINs a ATENCION, PACIENTE, PROFESIONAL, CITA, DISPONIBILIDAD_SLOT y ESPECIALIDAD, búsqueda inmutable de detalles y verificación de existencia por atención.
+  - Servicio `PrescriptionService`:
+    - `emitirReceta`: emisión atómica transaccional validando profesional asistencial, atención médica y relación asistencial activa según ADR-007 (autor o `AccesoClinicoService`). Congela snapshots de medicamentos activos y registra auditoría inmutable obligatoria `CREACION_RECETA` sin datos clínicos en logs ni bitácora (ADR-011).
+    - `obtenerPorPublicId`: control de acceso estricto por rol: rechazo categórico a administradores (403), consulta permitida a pacientes únicamente para sus propias recetas (403 ante pacientes ajenos), y validación de médico autor o relación asistencial activa para profesionales (403 sin relación).
+    - `listarCatalogo`: paginación y filtrado seguro de medicamentos activos.
+  - Controladores REST en `com.meditriaje.controller`:
+    - `PrescriptionController`: `POST /api/v1/prescriptions` (201 Created con cabecera Location para `ROLE_PROFESIONAL`) y `GET /api/v1/prescriptions/{publicId}` (`isAuthenticated()`).
+    - `MedicationCatalogController`: `GET /api/v1/catalogs/medications` (`isAuthenticated()`) con parámetros `q`, `page` y `size`.
+  - Pruebas automatizadas (39 pruebas nuevas, suite consolidada en 478 pruebas al 100%):
+    - `MedicamentoRepositoryTest` (8 pruebas): búsquedas por publicId, por ID, nulos, listado con filtro y conteo.
+    - `RecetaRepositoryTest` (10 pruebas): inserción con KeyHolder, batchUpdate de detalles, JOINs relacionales y snapshots inmutables.
+    - `PrescriptionServiceTest` (10 pruebas): emisión exitosa y auditoría, rechazo por medicamento inexistente o inactivo (400), rechazo si usuario no es médico (403), rechazo sin relación asistencial (403), consulta autor y con relación (200), consulta paciente propio (200), rechazo admin (403), rechazo paciente ajeno (403), y catálogo paginado.
+    - `PrescriptionControllerTest` (7 pruebas MockMvc): 201 Created con Location, 403 Forbidden para paciente y admin, 401 sin auth, 400 Bad Request por validación DTO, 200 OK y 403 Forbidden.
+    - `MedicationCatalogControllerTest` (4 pruebas MockMvc): 200 OK para paciente, profesional y admin, y 401 Unauthorized sin autenticación.
+- **Migración Flyway V009 para Recetas Médicas, Medicamentos y Snapshot Inmutable (M7.1, HU-08, ADR-008, ADR-012)**:
+  - Migración `database/migrations/V009__recetas_medicamentos.sql`:
+    - `MEDICAMENTO`: Catálogo maestro de fármacos con código, nombre comercial, principio activo, presentación, concentración y estado.
+    - `RECETA`: Cabecera de prescripción médica vinculada a ATENCION, PACIENTE y PROFESIONAL, con vigencia configurable (default 30 días) y trigger de inmutabilidad `TR_RECETA_INMUTABILIDAD` (bloquea UPDATE con ORA-20007 y DELETE con ORA-20006).
+    - `RECETA_DETALLE`: Detalle farmacológico con copias snapshot de inmutabilidad histórica (`SNAPSHOT_NOMBRE`, `SNAPSHOT_PRINCIPIO_ACTIVO`, `SNAPSHOT_PRESENTACION`, `SNAPSHOT_CONCENTRACION`), dosis, frecuencia, duración en días, cantidad e indicaciones. Trigger de inmutabilidad `TR_RECETA_DETALLE_INMUTABILIDAD` (bloquea UPDATE con ORA-20009 y DELETE con ORA-20008).
+    - Concesión de privilegios mínimos a `MEDITRIAJE_APP`: solo SELECT en `MEDICAMENTO`, y SELECT, INSERT en `RECETA` y `RECETA_DETALLE` (sin DELETE, sin UPDATE).
+    - Semillas de medicamentos: 16 fármacos genéricos comunes (Acetaminofén, Ibuprofeno, Amoxicilina, Loratadina, Salbutamol, Omeprazol, Losartán, Enalapril, Metformina, Atorvastatina, Cetirizina, Dipirona, Dextrometorfano, SRO, Ciprofloxacino, Naproxeno) con UUIDs fijos y deterministas, sin dosificaciones preestablecidas.
+  - Pruebas en `OracleIntegrationTest` actualizadas (>= V9, permisos SELECT en catálogo, SELECT/INSERT en recetas, y validación empírica de triggers de inmutabilidad en BD).
+
+## [0.6.0] - 2026-10-03
+
+### Added
+- **Consulta de Historia Clínica del Paciente y Colección M6.http (M6.5, HU-09, ADR-007, ADR-008, ADR-011)**:
+  - Repositorio `AtencionRepository`: métodos `listarHistoriaPaciente` (con JOINs relacionales a CITA, PACIENTE, PROFESIONAL, DISPONIBILIDAD_SLOT, ESPECIALIDAD, DIAGNOSTICO_CIE10, signos vitales y enmiendas, ordenación cronológica descendente y paginación ANSI SQL/Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y `contarHistoriaPaciente`.
+  - Servicio `ClinicalAttentionService.obtenerMiHistoriaClinica`:
+    - Resolución de paciente autenticado a partir de su identidad (`UsuarioRepository` y `PacienteRepository`).
+    - Paginación segura con saneamiento de parámetros.
+    - Auditoría inmutable obligatoria `CONSULTA_HISTORIA` (`recurso = "HISTORIA_CLINICA"`, `recursoPublicId = paciente.publicId()`) sin exponer datos clínicos ni diagnósticos en logs ni bitácora (ADR-011).
+    - Cero exposición de identificadores numéricos autonuméricos de base de datos (ADR-003).
+  - Controlador REST `PacienteController`: endpoint `GET /api/v1/patients/me/history` blindado exclusivamente para pacientes (`@PreAuthorize("hasAuthority('ROLE_PACIENTE')")`). Administradores y profesionales reciben 403 Forbidden.
+  - Colección de pruebas HTTP `docs/api/M6.http`: 8 secciones exhaustivas con 18 escenarios para la puerta de salida de la Fase M6 (healthcheck, login de roles, catálogo CIE-10, agendamiento previo, ciclo de atención médica, enmiendas append-only, aislamiento de acceso clínico y consulta de historia clínica del paciente).
+  - Pruebas automatizadas (10 pruebas nuevas, suite consolidada en 439 pruebas al 100%):
+    - `AtencionRepositoryTest` (3 pruebas): consulta y conteo con filtros nulos y registros.
+    - `ClinicalAttentionServiceTest` (3 pruebas): consulta exitosa con paginación y auditoría, rechazo si usuario no es paciente (403), y rechazo si usuario no existe (404).
+    - `PacienteControllerTest` (4 pruebas MockMvc): 200 OK para paciente con historial paginado, 403 Forbidden para profesional, 403 Forbidden para administrador, y 401 Unauthorized sin autenticación.
+- **Enmiendas Médicas a Atenciones Cerradas (M6.4, HU-07, ADR-007, ADR-008, ADR-011)**:
+  - Modelo de dominio inmutable en `com.meditriaje.model`: `AtencionEnmienda` (id, atencionId, profesionalId, motivo, contenido, fechaEnmienda).
+  - DTOs en `com.meditriaje.dto.clinical`: `CrearEnmiendaRequest` con validaciones `@NotBlank` y `@Size`, y `EnmiendaResponse` (profesionalPublicId, profesionalNombre, motivo, contenido, fechaEnmienda) protegiendo IDs numéricos internos.
+  - Actualización de `AtencionResponse` para incluir `List<EnmiendaResponse> enmiendas` con sobrecarga de compatibilidad hacia atrás.
+  - Ampliación de `AtencionRepository`: métodos `crearEnmienda` (KeyHolder) y `buscarEnmiendasPorAtencionId`, integrando las enmiendas cronológicamente en `buscarDetallePorPublicId`.
+  - Ampliación de `AccesoClinicoService`: método `validarRelacionAsistencial(Long profesionalId, Long pacienteId)`.
+  - Servicio `ClinicalAttentionService.crearEnmienda`:
+    - Valida inmutabilidad exigiendo que la atención esté estrictamente `CERRADA` (ADR-008).
+    - Valida autorización exigiendo que el médico sea el autor de la atención o cuente con una relación asistencial activa (ADR-007).
+    - Registra auditoría inmutable obligatoria `ENMIENDA_ATENCION` sin incluir datos clínicos ni motivos en logs ni bitácora (ADR-011).
+  - Controlador REST `ClinicalAttentionController`: endpoint `POST /api/v1/attentions/{publicId}/amendments` restringido a `ROLE_PROFESIONAL` retornando 201 Created con cabecera `Location`.
+  - Pruebas automatizadas (11 pruebas nuevas, suite consolidada en 429 pruebas al 100%):
+    - `AtencionRepositoryTest`: prueba de búsqueda de enmiendas.
+    - `ClinicalAttentionServiceTest` (5 pruebas): creación por autor, por médico con relación activa, rechazo si atención está abierta (400), rechazo si usuario no es médico (403), y rechazo si médico ajeno no tiene relación (403).
+    - `ClinicalAttentionControllerTest` (5 pruebas MockMvc): control de acceso por rol (médico 201, paciente 403, admin 403, anónimo 401) y validaciones de request.
+- **Crear y Cerrar Atención Médica Inmutable y Catálogo CIE-10 (M6.3, HU-07, HU-09, ADR-007, ADR-008, ADR-011, ADR-013)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`: `Atencion`, `SignoVital` y `DiagnosticoCie10`.
+  - DTOs en `com.meditriaje.dto.clinical`: `IniciarAtencionRequest`, `CerrarAtencionRequest`, `SignosVitalesDto`, `AtencionResponse` y `DiagnosticoCie10Response`.
+  - Repositorio `DiagnosticoCie10Repository`: búsqueda por código, por ID y listado de diagnósticos activos con filtro textual parametrizado.
+  - Ampliación de `AtencionRepository`: métodos `crear` (KeyHolder), `cerrarAtencion`, `guardarSignosVitales`, `buscarEntidadPorPublicId`, `buscarEntidadPorCitaId`, `existePorCitaId` y `buscarDetallePorPublicId` consolidando signos vitales y datos asistenciales.
+  - Servicio `ClinicalAttentionService`:
+    - `iniciarAtencion`: valida asignación médica del profesional a la cita, valida estado de cita (PROGRAMADA/CONFIRMADA), transición atómica a CONFIRMADA, creación de atención ABIERTA y auditoría inmutable `CREACION_ATENCION`.
+    - `cerrarAtencion`: valida que la atención esté ABIERTA (inmutabilidad ADR-008), valida asignación del profesional, valida código CIE-10 activo, valida rangos y consistencia de signos vitales (presión sistólica > diastólica), persiste signos antes del cierre, cierra atención en BD, transiciona cita a ATENDIDA mediante `CitaStateMachine` y audita `CIERRE_ATENCION` sin incluir datos clínicos ni diagnósticos en logs ni bitácora (ADR-011).
+    - `obtenerPorPublicId`: valida relación asistencial o paciente dueño mediante `AccesoClinicoService` y audita `CONSULTA_HISTORIA`.
+  - Controladores REST:
+    - `ClinicalAttentionController`: `POST /api/v1/attentions` (201 Created + Location), `POST /api/v1/attentions/{id}/close` (200 OK) restringidos a `ROLE_PROFESIONAL`, y `GET /api/v1/attentions/{id}` para usuarios autenticados con verificación asistencial.
+    - `Cie10CatalogController`: `GET /api/v1/catalogs/icd10` para usuarios autenticados con búsqueda opcional `?q=`.
+  - Pruebas automatizadas (26 pruebas nuevas, suite consolidada en 418 pruebas al 100%):
+    - `DiagnosticoCie10RepositoryTest` (3 pruebas): búsqueda por código, ID y listado con filtro.
+    - `ClinicalAttentionServiceTest` (11 pruebas): inicio, cierres con y sin signos vitales, validaciones clínicas, inmutabilidad y auditoría.
+    - `ClinicalAttentionControllerTest` (10 pruebas MockMvc): control de acceso por rol (médico 201/200, paciente 403, admin 403, anónimo 401) y validaciones.
+    - `Cie10CatalogControllerTest` (2 pruebas MockMvc): consulta y seguridad del catálogo.
+- **Servicio Centralizado de Acceso Clínico y Relación Asistencial (M6.2, HU-07, HU-09, ADR-007)**:
+  - Implementación con TDD de `AccesoClinicoService` en `com.meditriaje.service`, blindando el acceso a todo el contenido clínico del sistema:
+    - Paciente dueño: acceso permitido únicamente a sus propios datos clínicos; intento de consultar a otro paciente rechazado con 403 (`AccesoNoAutorizadoException`).
+    - Administrador: acceso a contenido clínico bloqueado incondicionalmente con 403 (ADR-007).
+    - Profesional asistencial: acceso condicionado a relación asistencial activa:
+      - Cita activa futura (`PROGRAMADA` o `CONFIRMADA` con inicio posterior al instante actual), O
+      - Atención previa propia realizada dentro de la ventana configurable (`meditriaje.clinical.access-window-months`, por defecto 12 meses).
+      - Sin relación asistencial: rechazado categóricamente con 403 (`AccesoNoAutorizadoException`).
+  - Repositorio `AtencionRepository` en `com.meditriaje.repository`: método `existeAtencionPreviaEnVentana` con SQL 100% parametrizado.
+  - Ampliación de `CitaRepository`: método `existeCitaActivaFutura` con JOIN a `DISPONIBILIDAD_SLOT` y filtro de estados activos y tiempo futuro.
+  - Ampliación de `PacienteRepository`: método `buscarPorPublicId`.
+  - Suite de pruebas exhaustiva: `AccesoClinicoServiceTest` (10 pruebas unitarias deterministas con `Clock.fixed`), `AtencionRepositoryTest` (2 pruebas) y ampliación de `PacienteRepositoryTest` (4 pruebas), elevando la suite a 392 pruebas verdes al 100%.
+- **Migraciones Clínicas e Inmutabilidad de Historia Clínica (M6.1, HU-07, HU-09, ADR-008, ADR-012)**:
+  - Migración Flyway `V008__atencion_historia_clinica.sql` incorporando las entidades nucleares de la historia clínica según el modelo relacional:
+    - `DIAGNOSTICO_CIE10`: catálogo maestro con 21 patologías ambulatorias estándar sembradas (J00, J20, I10, E11, K29, M54, R10, R51, N39, etc.).
+    - `ATENCION`: cabecera del acto médico asistencial con relación 1:1 estricta con `CITA`, campos clínicos obligatorios al cierre (`FECHA_CIERRE`, `MOTIVO_CONSULTA`, `EVOLUCION`, `DIAGNOSTICO_PRINCIPAL_ID`, `INDICACIONES`) y trigger `TR_ATENCION_INMUTABILIDAD` que bloquea categoricamente `UPDATE` tras el cierre (ORA-20002) y prohíbe `DELETE` (ORA-20001).
+    - `SIGNO_VITAL`: parámetros fisiológicos (presión arterial sistólica/diastólica, frecuencia cardíaca, respiratoria, temperatura, saturación, peso, talla) con validaciones de rango médico y trigger `TR_SIGNO_VITAL_INMUTABILIDAD` que bloquea modificaciones e inserciones si la atención está CERRADA (ORA-20003).
+    - `ATENCION_ENMIENDA`: aclaraciones clínicas append-only (ADR-008) sobre atenciones cerradas con trigger `TR_ENMIENDA_INMUTABILIDAD` que prohíbe `UPDATE` y `DELETE` (ORA-20004) y exige que la atención vinculada esté CERRADA (ORA-20005).
+    - `ALERGIA`: registro de hipersensibilidades del paciente con niveles de severidad ('LEVE', 'MODERADA', 'GRAVE').
+  - Segregación y privilegios mínimos (ADR-012): el usuario de runtime `MEDITRIAJE_APP` no posee privilegio `DELETE` sobre ninguna tabla clínica, ni `UPDATE` sobre `ATENCION_ENMIENDA` (append-only), ni permisos DML sobre `DIAGNOSTICO_CIE10` (solo lectura).
+  - Pruebas de integración en `OracleIntegrationTest` actualizadas (>= V8, permisos SELECT/INSERT/UPDATE, prohibición de DELETE y verificación empírica de triggers de inmutabilidad).
+
+## [0.5.0] - 2026-10-03
+
+### Added
+- **Endpoints de Triaje Clínico, Vinculación con Citas y Colección M5.http (M5.4, HU-02, HU-04, HU-11, ADR-002, ADR-003, ADR-007, ADR-009, ADR-011)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`: `Triaje`, `TriajeSintoma` y `Sintoma`.
+  - DTOs en `com.meditriaje.dto.triage`: `SintomaItemRequest` (validaciones `@NotBlank`, `@DecimalMin`, `@Min`, `@Max`), `CrearTriajeRequest` (`@NotEmpty`, `@Size(max=20)`), `SintomaItemResponse`, `TriajeResponse` y `CatalogoSintomaResponse`.
+  - Repositorio `TriajeRepository` en `com.meditriaje.repository`:
+    - Persistencia de triajes con `KeyHolder` y obtención de ID autogenerado.
+    - Inserción en lote de síntomas reportados mediante `batchUpdate`.
+    - Consulta consolidada de triaje y síntomas en una sola consulta relacional (`buscarPorPublicId`).
+    - Búsqueda de entidades por ID y publicId, catálogo de síntomas activos y mapa de códigos a IDs.
+  - Servicio `TriajeService` en `com.meditriaje.service`:
+    - Evaluación transaccional mediante `TriajeMotorFactory`.
+    - Detección y rechazo de síntomas duplicados o desconocidos (`DatosInvalidosException`).
+    - Auditoría inmutable obligatoria (`TRIAJE_REALIZADO` y `TRIAJE_EMERGENCIA` cuando aplique) sin incluir datos clínicos ni síntomas (ADR-011).
+    - Aislamiento estricto de pacientes: un paciente solo puede consultar su propio triaje; el personal administrativo tiene acceso bloqueado a contenido clínico (ADR-007).
+  - Vinculación Triaje-Cita en `AppointmentService.reservarCita`:
+    - Validación de correspondencia del triaje al mismo paciente de la cita (`DatosInvalidosException`).
+    - Prohibición estricta de agendamiento para triajes clasificados como emergencia (`DatosInvalidosException`).
+    - Persistencia de `triaje_id` en `CITA` y mapeo en `CitaResponse` y `CitaRepository`.
+  - Controlador REST `TriajeController` en `com.meditriaje.controller`:
+    - `POST /api/v1/triage`: creación de triaje restringida exclusivamente a pacientes (`ROLE_PACIENTE`), retornando 201 Created con cabecera `Location`.
+    - `GET /api/v1/triage/{publicId}`: consulta de triaje para usuarios autenticados con verificación de aislamiento.
+    - `GET /api/v1/triage/symptoms`: catálogo para usuarios autenticados.
+  - Colección de pruebas HTTP `docs/api/M5.http`: 6 secciones con 15 escenarios que validan healthcheck, login de roles, catálogo, triaje no urgente, corte de emergencia, aislamiento entre pacientes, exclusión de admin, y vinculación/rechazos en agendamiento de citas.
+  - Pruebas automatizadas (34 pruebas nuevas, suite consolidada en 379 pruebas al 100%):
+    - `TriajeRepositoryTest` (9 pruebas): inserción individual y por lote, consultas consolidadas, mapeo y catálogo.
+    - `TriajeServiceTest` (11 pruebas): evaluación, auditoría simple y de emergencia, aislamiento entre pacientes y roles, validación de duplicados y catálogo.
+    - `TriajeControllerTest` (8 pruebas): autorización declarativa, 201 Created con Location, 403 Forbidden para profesionales/admins en creación, 403 Forbidden en triaje ajeno, 401 Unauthorized sin sesión, 400 Bad Request en validación.
+    - `AppointmentServiceTest` (4 pruebas nuevas): reserva con triaje propio, rechazo ante triaje ajeno, rechazo ante triaje de emergencia, y rechazo ante triaje inexistente.
+- **Corte de Emergencia Infalible por Síntomas de Alarma (M5.3, HU-02, ADR-009, ADR-011)**:
+  - Definición de corte de emergencia: si algún síntoma reportado tiene `esAlarma = true` o si la evaluación de prioridad resulta en Nivel I, se activa inmediatamente la condición de emergencia.
+  - Comportamiento de emergencia: fuerza `nivel = NivelPrioridad.I`, `ruta = RutaSugerida.URGENCIAS`, omite cualquier asignación de cita y emite el mensaje mandatario: "Llama al 123 o acude a urgencias de inmediato.".
+  - Identificación explícita de `sintomasAlarma` en `ResultadoTriaje` para retroalimentación clínica transparente.
+  - Registro de auditoría reservado: adición de `AccionAuditable.TRIAJE_EMERGENCIA` en el modelo inmutable de auditoría (sin datos clínicos ni síntomas).
+  - Suite de pruebas exhaustiva `CorteEmergenciaTest` (12 pruebas): extracción directa desde `V007__triaje.sql` comprobando que cada uno de los 6 síntomas de alarma del catálogo (`DOLOR_TORACICO_OPRESIVO`, `DIFICULTAD_RESP_SEVERA`, `PERDIDA_CONCIENCIA`, `CONVULSIONES`, `SANGRADO_INCONTROLABLE`, `PARALISIS_FACIAL_SUBITA`), solo o mezclado con síntomas leves, con intensidad 0 y duración 0, activa indefectiblemente el corte de emergencia.
+- **Motor de Reglas Puro y Determinista de Triaje (M5.2, HU-02, ADR-009)**:
+  - Dominio puro e inmutable en `com.meditriaje.triage`: `EntradaTriaje`, `SintomaReportado`, `SintomaTriaje`, `ReglaTriaje`, `ResultadoTriaje`, y enums `NivelPrioridad` (I–V con orden natural de urgencia) y `RutaSugerida` (`URGENCIAS`, `ATENCION_PRIORITARIA`, `CITA_PRESENCIAL`, `CITA_TELEMEDICINA`, `CONSULTA_PROGRAMADA`).
+  - Interfaz `MotorTriaje` e implementación pura `MotorTriajeBasadoEnReglas` sin dependencias de base de datos ni HTTP:
+    - Evaluación de rango de duración `[min, max)` (mínimo inclusivo, máximo exclusivo) y rango de intensidad cerrado `[min, max]`.
+    - Regla de combinación multisíntoma: el nivel final corresponde al más urgente entre todos los síntomas reportados.
+    - Nivel por defecto conservador: ante síntomas sin regla tipificada, asigna estrictamente Nivel III (nunca Nivel V).
+    - Aviso legal obligatorio: "Esta orientación es un prototipo, no sustituye la valoración de un profesional de la salud.".
+  - Repositorio `TriajeReglasRepository` en `com.meditriaje.repository`: carga con `JdbcTemplate` parametrizado del catálogo de síntomas y reglas activas por versión.
+  - Proveedor `TriajeMotorFactory`: construcción e instanciación de motores de triaje con caché en memoria por versión y configuración de versión activa (`meditriaje.triage.rules-version`).
+  - Suite de pruebas unitarias `MotorTriajeBasadoEnReglasTest` (33 pruebas) con tablas parametrizadas cubriendo límites, solapes, determinismo de permutación y descarte de síntomas inexistentes.
+- **Migración V007 de triaje (M5.1, ADR-009, ADR-012)**: tablas `SINTOMA`, `REGLA_TRIAJE`, `TRIAJE`, `TRIAJE_SINTOMA`; FK compuesta `FK_CITA_TRIAJE_PACIENTE` en `CITA`; GRANTs mínimos (catálogos solo lectura, triaje inmutable); semillas de PROTOTIPO no validadas clínicamente (20 síntomas, 6 de alarma, reglas `v1-prototipo`). Pruebas de integración ampliadas en `OracleIntegrationTest`.
+
+## [0.4.0] - 2026-10-03
+
+### Added
+- **Agenda del Profesional Asistencial y Colección de Pruebas HTTP M4 (M4.6, HU-06, ADR-003, ADR-005, ADR-006, ADR-007, ADR-011)**:
+  - Repositorio `CitaRepository`:
+    - `listarAgendaProfesional(Long profesionalId, Instant fechaDesde, Instant fechaHasta, String estado, int page, int size)` con SQL 100% parametrizado, JOINs asistenciales completos, filtro de propiedad estricta del profesional (`s.PROFESIONAL_ID = ?`), ordenación `ORDER BY s.FECHA_HORA_INICIO ASC, c.ID ASC` y paginación ANSI SQL/Oracle (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`).
+    - `contarAgendaProfesional(Long profesionalId, Instant fechaDesde, Instant fechaHasta, String estado)` para cálculo exacto del total de citas según filtros.
+  - Lógica de negocio en `AppointmentService.obtenerMiAgenda(...)`:
+    - Validación rigurosa de paginación (`page >= 0`, `1 <= size <= 100`) y validación de enum `EstadoCita`.
+    - Aislamiento de acceso por rol (ADR-007): resolución de `profesionalRepository.buscarPorUsuarioId(usuario.id())` asegurando que solo profesionales registrados acceden a su agenda.
+    - Conversión de `LocalDate` a rango de instantes en zona horaria `America/Bogota` (ADR-005) cubriendo el inicio (00:00:00) y fin de día (23:59:59.999999999).
+    - Retorno estructurado como `PaginatedResponse<CitaResponse>`.
+  - Controlador REST `ProfessionalAgendaController` en `backend/src/main/java/com/meditriaje/controller/ProfessionalAgendaController.java`:
+    - Mapeo en `GET /api/v1/professionals/me/agenda`.
+    - Autorización estricta `@PreAuthorize("hasAuthority('ROLE_PROFESIONAL')")` (rechaza pacientes y administradores con 403 Forbidden y anónimos con 401 Unauthorized).
+    - Parámetros `@RequestParam` opcionales: `fecha` (`@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)`), `estado`, `page` (default 0), `size` (default 10).
+  - Colección de pruebas HTTP `docs/api/M4.http`:
+    - 6 secciones con escenarios integrales para la puerta de salida de Fase M4:
+      - 1. Ping / Healthcheck.
+      - 2. Autenticación y credenciales de prueba (Admin, Paciente 1, Paciente 2, Médico).
+      - 3. Consulta de disponibilidad con filtros (general, especialidad, fecha, sede, modalidad, combinada).
+      - 4. Reserva transaccional (201 Created), conflicto de doble reserva (409 Conflict) y aislamiento de rol (403 con profesional).
+      - 5. Agenda del profesional (200 OK), filtros por fecha y estado, y aislamiento de agenda (403 paciente, 403 admin, 401 anónimo).
+      - 6. Cancelación de cita (200 OK con liberación de slot), aislamiento de cancelación entre pacientes (403), máquina de estados (400) y regla de las 2 horas (400).
+  - Pruebas automatizadas (16 pruebas nuevas, suite consolidada en 297 pruebas al 100%):
+    - `CitaRepositoryTest` (4 pruebas nuevas): validación de consultas paginadas con y sin filtros de fecha y estado, y conteos agregados.
+    - `AppointmentServiceTest` (7 pruebas nuevas): consulta exitosa de agenda, conversión de instantes Bogota (UTC-5), aislamiento estricto (médico A solo consulta sus citas), rechazo ante usuario inexistente (404), rechazo si no es profesional (403), validación de parámetros de paginación (400) y validación de estado inválido (400).
+    - `ProfessionalAgendaControllerTest` (5 pruebas nuevas): 200 OK para profesional con deserialización paginada, 403 Forbidden para paciente, 403 Forbidden para administrador, 401 Unauthorized sin sesión, y propagación correcta de filtros de fecha y estado.
+- **Máquina de Estados y Cancelación de Citas Médicas (M4.5, HU-05, ADR-002, ADR-003, ADR-006, ADR-011)**:
+  - Enum de dominio `EstadoCita` en `com.meditriaje.model`: modelado de los 6 estados del ciclo de vida (`PROGRAMADA`, `CONFIRMADA`, `ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`).
+  - Máquina de estados `CitaStateMachine` en `com.meditriaje.model`:
+    - Transiciones controladas desde `PROGRAMADA` (`CONFIRMADA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`) y desde `CONFIRMADA` (`ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`).
+    - Inmutabilidad terminal en estados finales (`ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`) sin transiciones salientes permitidas.
+    - Métodos deterministas: `esTransicionValida(origen, destino)`, `validarTransicion(origen, destino)` (lanza `DatosInvalidosException`), y `esEstadoFinal(estado)`.
+  - DTO `CancelarCitaRequest` en `com.meditriaje.dto.appointment` con validación `@Size(max = 255)` para motivo y soporte de cuerpo vacío o nulo.
+  - Lógica de negocio transaccional `AppointmentService.cancelarCita(...)`:
+    - Verificación rigurosa de transición válida según `CitaStateMachine`.
+    - Reglas de autorización y anticipación según rol (ADR-002, ADR-006):
+      - Paciente: valida pertenencia de la cita y anticipación de al menos 2 horas (`Instant.now(clock).isAfter(slot.fechaHoraInicio().minus(2, ChronoUnit.HOURS))`).
+      - Profesional: valida asignación del slot al profesional autenticado sin restricción horaria.
+      - Administrador: autorización irrestricta sobre cualquier cita activa sin restricción horaria.
+    - Actualización de estado a `CANCELADA` y motivo en `CitaRepository.actualizarEstado`.
+    - Liberación atómica del slot asociado cambiándolo a estado `LIBRE` mediante `DisponibilidadSlotRepository.liberarSlot`.
+    - Registro inmutable en bitácora de auditoría (`CANCELACION_CITA`) sin datos clínicos (ADR-011).
+  - Controlador `AppointmentController`: endpoint `PATCH /api/v1/appointments/{publicId}/cancel` protegido con `@PreAuthorize("isAuthenticated()")`, afinando `@PreAuthorize("hasAnyAuthority('ROLE_PACIENTE', 'ROLE_ADMINISTRADOR')")` en el método `POST /api/v1/appointments`.
+  - Pruebas automatizadas (40 pruebas nuevas, 281 totales en suite):
+    - `CitaStateMachineTest` (18 pruebas): validación exhaustiva de estados terminales, transiciones permitidas e inválidas, y validación de mensajes de error.
+    - `AppointmentServiceTest` (13 pruebas nuevas): cancelación exitosa por paciente (> 2h), rechazo por cancelación tardía (< 2h o pasada), rechazo por cita ajena (403), rechazo por transición inválida desde estados terminales (400), cancelación por profesional (slot propio vs ajeno 403), cancelación por admin, ausencia de recursos (404) y cuerpo nulo.
+    - `AppointmentControllerTest` (9 pruebas nuevas): 200 OK para paciente, profesional y admin; 403 Forbidden para cita ajena; 400 Bad Request ante cancelación tardía, transición inválida y motivo > 255 caracteres; 401 Unauthorized sin autenticación.
+- **Prueba Determinista de Concurrencia Multihilo en Reserva de Citas (M4.4, HU-04, ADR-006)**:
+  - Creación de suite determinista `AppointmentConcurrencyTest` en `com.meditriaje.service`:
+    - Simulación multihilo con 12 hilos concurrentes compitiendo en el mismo instante (`CountDownLatch` + `ExecutorService`) sobre el mismo slot de disponibilidad.
+    - Modelado atómico exacto del `UPDATE ... WHERE ESTADO = 'LIBRE'` mediante `AtomicReference.compareAndSet` y del índice único `UQ_CITA_SLOT_ACTIVA` mediante `ConcurrentHashMap.newKeySet`.
+    - Validación empírica determinista: exactamente 1 hilo logra la reserva (201 / `CitaResponse`) y los 11 hilos restantes son rechazados con `CitaNoDisponibleException` (409 Conflict), con el slot pasando a `OCUPADO` y registrándose una sola cita activa.
+    - Repetición determinista (`@RepeatedTest(5)`) sin ningún indicio de *flakiness*, apto para ejecución continua en CI y sin dependencias externas.
+  - Actualización de `OracleIntegrationTest.java`: adición de prueba de integración `db_concurrenciaMultihilo_diezHilosMismoSlot_exactamenteUnoGana()` ejecutando 10 hilos concurrentes reales contra Oracle en Testcontainers, validando que el motor de base de datos impone la exclusión mutua atómica a nivel de fila e índice relacional.
+- **Reserva y Agendamiento Transaccional de Citas Médicas (M4.3, HU-04, ADR-002, ADR-003, ADR-006, ADR-011)**:
+  - Enum `AccionAuditable`: agregado valor `RESERVA_CITA` para trazabilidad inmutable de agendamientos asistenciales.
+  - Modelo de dominio `Cita`: record inmutable en `com.meditriaje.model.Cita` alineado a la tabla relacional `CITA`.
+  - Modelo de dominio `Paciente`: record inmutable en `com.meditriaje.model.Paciente` y método `buscarPorUsuarioId` en `PacienteRepository`.
+  - DTOs en `com.meditriaje.dto.appointment`:
+    - `ReservarCitaRequest`: validación `@NotBlank` sobre `slotPublicId` y soporte para `triajePublicId` opcional.
+    - `CitaResponse`: respuesta consolidada con claves públicas UUID, nombres de profesional, paciente, especialidad, sede, dirección, horarios, modalidad, estado y trazabilidad.
+  - Excepciones de dominio: constructores sobrecargados con mensaje personalizado en `CitaNoDisponibleException` y `AccesoNoAutorizadoException`.
+  - Repositorio `DisponibilidadSlotRepository`: actualización atómica `reservarSlot(Long slotId)` (`UPDATE DISPONIBILIDAD_SLOT SET ESTADO = 'OCUPADO' WHERE ID = ? AND ESTADO = 'LIBRE'`) y método `liberarSlot(Long slotId)`.
+  - Repositorio `CitaRepository`: persistencia 100% parametrizada con `JdbcTemplate` (`crear`, `buscarPorPublicId` con JOINs asistenciales y cita origen, `buscarEntidadPorPublicId`, `buscarEntidadPorId`, `actualizarEstado`, `existeCitaActivaEnSlot`).
+  - Servicio de negocio `AppointmentService`: método transaccional `@Transactional CitaResponse reservarCita(...)` con validación estricta de paciente autenticado (`autenticado != autorizado`), slot no expirado en el pasado, concordancia profesional-especialidad, reserva atómica de slot, control de concurrencia y captura de `DataIntegrityViolationException` (índice único `UQ_CITA_SLOT_ACTIVA`), registro inmutable en auditoría (`RESERVA_CITA`) y retorno de la vista de cita.
+  - Controlador REST `AppointmentController`: endpoint `POST /api/v1/appointments` protegido con `@PreAuthorize("hasAnyAuthority('ROLE_PACIENTE', 'ROLE_ADMINISTRADOR')")`, extracción segura de IP cliente con `IpUtil` y retorno HTTP 201 Created con cabecera `Location`.
+  - Pruebas automatizadas: `CitaRepositoryTest` (7 pruebas), `AppointmentServiceTest` (8 pruebas), `AppointmentControllerTest` (5 pruebas), `PacienteRepositoryTest` (3 pruebas) y actualización de `DisponibilidadSlotRepositoryTest` (11 pruebas), totalizando 235 pruebas pasando al 100%.
+- **Consulta de Disponibilidad de Citas (M4.2, HU-03, ADR-002, ADR-003, ADR-005, ADR-006)**:
+  - DTO `DisponibilidadSlotResponse` en `com.meditriaje.dto.availability` con claves públicas UUID, nombres de profesional/especialidad/sede, dirección, ciudad, inicio, fin, modalidad y cálculo de duración en minutos.
+  - Repositorio `DisponibilidadSlotRepository`: métodos `consultarDisponibles` y `contarDisponibles` con filtros dinámicos asistenciales, ordenación `ORDER BY s.FECHA_HORA_INICIO ASC, s.ID ASC`, paginación ANSI SQL/Oracle (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) y filtros estrictos de estado activo en profesionales (`USUARIO.ESTADO = 'ACTIVO'`), sedes y especialidades.
+  - Servicio de negocio `AvailabilityService`: manejo temporal en `America/Bogota`, cálculo estricto de rangos futuros (`FECHA_HORA_INICIO > Instant.now()`), retorno inmediato de lista vacía ante días pasados, y validaciones de modalidad (`PRESENCIAL`/`TELEMEDICINA`), página (>= 0) y tamaño (1-100).
+  - Controlador REST `AvailabilityController` en `GET /api/v1/availability` protegido con `@PreAuthorize("isAuthenticated()")` para cualquier usuario autenticado (pacientes, profesionales y administradores), con soporte y resolución inteligente de parámetros redundantes (`especialidad`/`especialidadPublicId`, `sede`/`sedePublicId`).
+  - Pruebas unitarias y de integración MockMvc: `AvailabilityServiceTest` (9 pruebas), `AvailabilityControllerTest` (10 pruebas) y actualización de `DisponibilidadSlotRepositoryTest` (9 pruebas), alcanzando 210 pruebas totales pasando al 100%.
+- **Migración V006 (`database/migrations/V006__citas.sql`) e Índice Funcional de Concurrencia (M4.1, HU-03, HU-04, ADR-003, ADR-006, ADR-012)**:
+  - Tabla `CITA`: clave pública UUID expuesta en API (`PUBLIC_ID`), relaciones FK con `DISPONIBILIDAD_SLOT`, `PACIENTE` y recursiva opcional `CITA_ORIGEN_ID` para trazabilidad de reprogramaciones.
+  - Columna `TRIAJE_ID` desacoplada temporalmente (se vinculará mediante constraint `FK_CITA_TRIAJE_PACIENTE` en M5.1 al crearse la tabla `TRIAJE`).
+  - Restricción de estados válidos (`CHECK ESTADO IN ('PROGRAMADA', 'CONFIRMADA', 'ATENDIDA', 'CANCELADA', 'NO_ASISTIO', 'REPROGRAMADA')`).
+  - Índice funcional único `UQ_CITA_SLOT_ACTIVA` sobre `CASE WHEN ESTADO IN ('PROGRAMADA', 'CONFIRMADA') THEN SLOT_ID END`: garantiza a nivel del motor Oracle que dos citas activas jamás puedan reservar el mismo slot simultáneamente, mitigando carreras concurrentes y permitiendo múltiples registros históricos inactivos o cancelados.
+  - Índices secundarios de rendimiento: `IX_CITA_PACIENTE`, `IX_CITA_SLOT`, `IX_CITA_ORIGEN`.
+  - Privilegios mínimos a `MEDITRIAJE_APP` (ADR-012): `SELECT, INSERT, UPDATE` (sin `DELETE`).
+  - Pruebas de integración en `OracleIntegrationTest.java`: verificación de versión Flyway (>= V6), validación de acceso de `MEDITRIAJE_APP` a la tabla `CITA` y prueba empírica `db_rechazaDobleCitaActivaEnMismoSlot()` comprobando el rechazo por `DataIntegrityViolationException` de dos reservas activas sobre un mismo slot y la posterior liberación tras cancelación.
+
+## [0.3.0] - 2026-10-03
+
+### Added
+- **Migración V004 (`database/migrations/V004__oferta_administracion.sql`) (M3.1)**:
+  - Tablas: `INSTITUCION`, `SEDE`, `ESPECIALIDAD`, `PROFESIONAL`, `DISPONIBILIDAD_SLOT`.
+  - Restricciones relacionales: FKs, checks de estados (`ACTIVO`/`INACTIVO`, `LIBRE`/`OCUPADO`/`BLOQUEADO`), modalidades (`PRESENCIAL`/`TELEMEDICINA`), coherencia horaria (`FECHA_HORA_FIN > FECHA_HORA_INICIO`) y unicidad (`UQ_SLOT_PROFESIONAL_INICIO`).
+  - Índices de rendimiento: `IX_SEDE_INSTITUCION`, `IX_PROFESIONAL_ESPECIALIDAD`, `IX_SLOT_BUSQUEDA` e `IX_SLOT_SEDE`.
+  - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (ADR-012): `SELECT`, `INSERT`, `UPDATE` en instituciones, sedes, especialidades y profesionales; y `SELECT`, `INSERT`, `UPDATE`, `DELETE` en slots de disponibilidad.
+  - Actualización de pruebas de integración en `OracleIntegrationTest.java` para verificar V004 y acceso de `MEDITRIAJE_APP` a las 5 tablas de oferta.
+- **CRUD de Especialidades, Instituciones y Sedes (M3.2, HU-10, ADR-002, ADR-003, ADR-011)**:
+  - Modelos de dominio inmutables en `com.meditriaje.model`: `Especialidad`, `Institucion`, `Sede`.
+  - DTOs y paginación en `com.meditriaje.dto.admin` y `com.meditriaje.dto.common`: `CrearEspecialidadRequest`, `ActualizarEspecialidadRequest`, `EspecialidadResponse`, `CrearInstitucionRequest`, `ActualizarInstitucionRequest`, `InstitucionResponse`, `CrearSedeRequest`, `ActualizarSedeRequest`, `SedeResponse`, `PaginatedResponse<T>`.
+  - Repositorios JDBC con SQL 100% parametrizado y paginación Oracle (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`): `EspecialidadRepository`, `InstitucionRepository`, `SedeRepository`.
+  - Servicio de negocio `AdminCatalogService`: validaciones de unicidad de nombre de especialidad y NIT de institución, verificación de institución activa para sedes, transiciones de estado (`ACTIVO`/`INACTIVO`, sin borrado físico) y registro inmutable obligatorio de auditoría (`CAMBIO_ADMINISTRATIVO`) vía `AuditoriaService`.
+  - Controladores REST protegidos con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`:
+    - `AdminSpecialtyController` en `/api/v1/admin/specialties` (POST, GET paginado, GET por id, PUT, PATCH deactivate/activate).
+    - `AdminInstitutionController` en `/api/v1/admin/institutions` (POST, GET paginado, GET por id, PUT, PATCH deactivate/activate).
+    - `AdminSiteController` en `/api/v1/admin/sites` (POST, GET paginado con filtro de institución, GET por id, PUT, PATCH deactivate/activate).
+  - Pruebas unitarias completas de negocio y auditoría en `AdminCatalogServiceTest` (22 pruebas).
+  - Pruebas de integración MockMvc con seguridad en `AdminSpecialtyControllerTest`, `AdminInstitutionControllerTest` y `AdminSiteControllerTest` validando permisos para ADMINISTRADOR, rechazo 403 para PACIENTE/PROFESIONAL, 401 sin autenticación, 400 datos inválidos y 404 recursos inexistentes.
+- **Alta y Gestión de Profesionales Asistenciales (M3.3, HU-10, ADR-002, ADR-003, ADR-011, ADR-012)**:
+  - Migración Flyway V005 (`database/migrations/V005__usuario_cambio_password.sql`):
+    - Columna `DEBE_CAMBIAR_PASSWORD NUMBER(1) DEFAULT 0 NOT NULL` y restricción `CK_USUARIO_CAMBIO_PASS` en tabla `USUARIO`.
+  - Modelos de dominio en `com.meditriaje.model`:
+    - `Usuario`: soporte para `debeCambiarPassword` y sobrecarga de constructor retrocompatible.
+    - `Profesional`: modelo inmutable para profesional asistencial.
+    - `AccionAuditable`: incorporación de acción `CAMBIO_PASSWORD`.
+  - DTOs en `com.meditriaje.dto`:
+    - `CrearProfesionalRequest`, `ActualizarProfesionalRequest`, `ProfesionalResponse`, `CrearProfesionalResponse`, `CambiarPasswordRequest` y actualización retrocompatible de `AuthSessionResponse`.
+  - Repositorios JDBC con SQL 100% parametrizado:
+    - `UsuarioRepository`: mapeo de `DEBE_CAMBIAR_PASSWORD`, sobrecarga de creación, actualización de contraseña y de estado.
+    - `ProfesionalRepository`: creación, actualización, búsquedas por IDs y clave pública, validación de duplicidad de registro médico, listado paginado con filtros (`especialidadPublicId`, `estado`) y conteo.
+  - Servicios de negocio:
+    - `AdminProfessionalService`: alta con generación criptográfica segura de contraseña temporal de un solo uso (Argon2id), asignación de `ROLE_PROFESIONAL`, validación de especialidad activa, unicidad de correo y registro médico, actualización de datos asistenciales, activación/desactivación y auditoría inmutable obligatoria (`CAMBIO_ADMINISTRATIVO`).
+    - `AuthService`: soporte para `debeCambiarPassword` en login/refresh y método `cambiarPassword` con validación de credenciales actuales, no reuso de la clave anterior, actualización a `debeCambiarPassword = false` y auditoría (`CAMBIO_PASSWORD`).
+  - Controladores REST y seguridad (Spring Security):
+    - `AdminProfessionalController` en `/api/v1/admin/professionals` protegido con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")` (POST, GET paginado, GET por id, PUT, PATCH deactivate/activate).
+    - `AuthController` en `/api/v1/auth/change-password` para usuarios autenticados.
+    - Configuración en `SecurityConfig` delimitando endpoints públicos e integrando autenticación para el cambio de credenciales.
+  - Pruebas unitarias y de integración:
+    - `AdminProfessionalServiceTest` (16 pruebas), `AdminProfessionalControllerTest` (11 pruebas), pruebas de cambio de contraseña en `AuthServiceTest` y `AuthControllerTest`, pruebas de repositorio en `ProfesionalRepositoryTest` y `UsuarioRepositoryTest` (147 pruebas en total pasando exitosamente).
+- **Generador de Slots de Disponibilidad (M3.4, HU-10, ADR-002, ADR-003, ADR-005, ADR-006, ADR-011, ADR-012)**:
+  - Manejo temporal centralizado con zona horaria `America/Bogota` (ADR-005) y persistencia en `TIMESTAMP WITH TIME ZONE` (`Instant`).
+  - Modelo de dominio inmutable en `com.meditriaje.model`: `DisponibilidadSlot` (id, publicId, profesionalId, sedeId, especialidadId, fechaHoraInicio, fechaHoraFin, modalidad, estado).
+  - DTOs en `com.meditriaje.dto.admin`: `GenerarSlotsRequest`, `GenerarSlotsResponse`, `SlotResponse`.
+  - Repositorio JDBC `DisponibilidadSlotRepository` con SQL 100% parametrizado:
+    - Inserción unitaria y por lotes (`guardarLote` con `BatchPreparedStatementSetter`).
+    - Búsqueda por `publicId` (con JOINs a `PROFESIONAL`, `SEDE` y `ESPECIALIDAD`), por `id` y por entidad.
+    - Detección de solapes de agenda mediante consulta relacional de intervalos: `FECHA_HORA_INICIO < fin AND FECHA_HORA_FIN > inicio`.
+    - Transición de estados (`cambiarEstado`) y borrado físico condicional (`eliminar` solo en estado `LIBRE`).
+    - Consulta paginada dinámica con filtros (`profesionalPublicId`, `sedePublicId`, `especialidadPublicId`, `fechaDesde`, `fechaHasta`, `estado`) y conteo total.
+  - Servicio de negocio `SlotGeneratorService`:
+    - Validaciones estrictas: profesional existente con usuario activo, sede activa, coherencia de rango de fechas (máx. 90 días, no anterior a hoy en Bogotá), hora fin > hora inicio, duración de turno (5-120 min, default de especialidad o 20 min) y modalidad (`PRESENCIAL` o `TELEMEDICINA`).
+    - Algoritmo generador de turnos: iteración por fechas, filtrado opcional por días de la semana (`diasSemana`), generación de intervalos sin superar la ventana diaria y verificación transaccional de colisiones contra agenda previa del profesional (`DatosInvalidosException`).
+    - Gestión de turnos: bloqueo de slots (`LIBRE` -> `BLOQUEADO`), desbloqueo (`BLOQUEADO` -> `LIBRE`), eliminación física condicionada y auditoría inmutable obligatoria (`CAMBIO_ADMINISTRATIVO`) vía `AuditoriaService`.
+  - Controlador REST `AdminSlotController` en `/api/v1/admin/slots` protegido con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`:
+    - `POST /generate` (201 Created), `GET` paginado (200 OK), `GET /{publicId}` (200 OK), `PATCH /{publicId}/block` (200 OK), `PATCH /{publicId}/unblock` (200 OK), `DELETE /{publicId}` (204 No Content).
+  - Pruebas unitarias y de integración exhaustivas:
+    - `DisponibilidadSlotRepositoryTest` (8 pruebas), `SlotGeneratorServiceTest` (21 pruebas), `AdminSlotControllerTest` (14 pruebas) con verificación de permisos, CSRF (`X-Requested-With`), casos de borde y 190 pruebas en total pasando exitosamente.
+- **Seeds Ficticios y Colección HTTP de Pruebas (M3.5, HU-10, ADR-004, ADR-012)**:
+  - Script SQL de datos ficticios para desarrollo en `database/seeds/dev_seeds_m3.sql`:
+    - 1 usuario administrador (`admin@meditriaje.com` / `Admin12345*`).
+    - 1 institución prestadora de salud (`IPS MediSalud Valledupar S.A.S.`).
+    - 2 sedes asistenciales (`Sede Centro Valledupar`, `Sede Norte Valledupar`).
+    - 4 especialidades médicas (`Medicina General`, `Pediatria`, `Medicina Interna`, `Odontologia`).
+    - 4 profesionales asistenciales con sus usuarios, contraseñas temporales iniciales (`Temporal12345*`) y rol `ROLE_PROFESIONAL`.
+    - Slots de disponibilidad distribuidos en días hábiles de los próximos 14 días en zona `America/Bogota`.
+  - Documentación de advertencia y guía de ejecución en `database/seeds/README.md` (prohibido en producción).
+  - Script PowerShell de conveniencia `database/seeds/cargar_seeds_dev.ps1`.
+  - Colección completa de pruebas de integración HTTP en formato REST Client en `docs/api/M3.http`: 11 escenarios cubriendo login de admin, CRUD de especialidades, instituciones, sedes, alta de profesional, primer login con clave temporal, cambio obligatorio de contraseña, generación masiva de slots, gestión de slots y aislamiento de roles (403 Forbidden para paciente/profesional, 401 Unauthorized sin token y 400 Bad Request en solapes).
+  - Puerta de salida M3 completada con éxito.
+
+## [0.2.0] - 2026-10-03
+
+### Added
+- **Migración V002 (`database/migrations/V002__seguridad.sql`) (M2.1)**:
+  - Tablas: `USUARIO`, `ROL`, `USUARIO_ROL`, `REFRESH_TOKEN`, `CONSENTIMIENTO`, `AUDITORIA`.
+  - Triggers de inmutabilidad: `TR_CONSENTIMIENTO_INMUTABILIDAD` (restringe updates y bloquea delete) y `TR_AUDITORIA_INMUTABILIDAD` (insert-only estricto).
+  - Semillas de roles: `ROLE_PACIENTE`, `ROLE_PROFESIONAL`, `ROLE_ADMINISTRADOR`.
+  - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (ADR-012): sin DELETE clínico ni UPDATE/DELETE en `AUDITORIA`.
+  - Pruebas de integración actualizadas en `OracleIntegrationTest.java` para verificar V002, 3 roles y segregación de auditoría.
+- **Servicio y Repositorio de Auditoría (M2.2)**:
+  - `AuditoriaService`: servicio centralizado para registrar eventos inmutables sin datos clínicos ni secretos (ADR-011, HU-11).
+  - `AuditoriaRepository`: repositorio estrictamente insert-only usando `JdbcTemplate` y SQL parametrizado.
+  - `AccionAuditable` y `ResultadoAuditoria`: enums tipados alineados con restricciones relacionales.
+  - `EventoAuditoria`: record de dominio con validaciones de campos obligatorios.
+  - Pruebas unitarias para `AuditoriaService` y `AuditoriaRepository` (verificación de exclusión de datos clínicos y ausencia de métodos de modificación).
+- **Registro de Paciente y Migración V003 (M2.3)**:
+  - Migración `database/migrations/V003__paciente.sql`: tabla `PACIENTE` con constraints de documento, clave pública UUID y permisos mínimos para `MEDITRIAJE_APP`.
+  - Endpoint `POST /api/v1/auth/register` con DTOs `RegistroPacienteRequest` y `RegistroPacienteResponse`.
+  - Transacción atómica en `AuthService` creando `USUARIO`, asociando `ROLE_PACIENTE`, creando `PACIENTE` y registrando `CONSENTIMIENTO`.
+  - Hashing de contraseñas con Argon2id (OWASP v5.8) vía `bcprov-jdk18on` (ADR-002).
+  - Auditoría automática `REGISTRO_PACIENTE` tanto para eventos exitosos como fallidos.
+  - Manejo de `NoResourceFoundException` en `GlobalExceptionHandler` retornando 404 estandarizado.
+  - Pruebas unitarias y de integración para `AuthService`, `AuthController` y `OracleIntegrationTest`.
+- **Login, Rotación de Refresh Tokens y Logout (M2.4)**:
+  - `JwtService`: Emisión y validación HMAC-SHA256 de access JWTs (15 min) con claims de `sub=publicId`, `email` y `roles`.
+  - `TokenHashUtil`: Hashing criptográfico unidireccional SHA-256 para persistencia de refresh tokens opacos en BD.
+  - `RefreshTokenRepository`: Repositorio para creación, revocación individual y revocación masiva de sesiones por usuario.
+  - `UsuarioRepository`: Métodos de búsqueda por email/publicId/ID, obtención de roles y gestión de bloqueos por intentos fallidos.
+  - `AuthService`:
+    - Flujo de login con validación de bloqueo temporal (15 min) tras 5 intentos fallidos consecutivos y reseteo al éxito.
+    - Mensaje de error genérico (`Credenciales invalidas.`) ante usuario inexistente, clave errónea o cuenta bloqueada para evitar enumeración.
+    - Rotación de refresh token de 7 días y detección de reuso con revocación preventiva total de sesiones ante tokens ya revocados.
+    - Logout con invalidación de sesión en BD y auditoría de eventos.
+    - Auditoría automática de `LOGIN_EXITOSO`, `LOGIN_FALLIDO` (con resultado `FALLO` o `BLOQUEADO`) y `LOGOUT`.
+  - `AuthController`: Endpoints `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh` y `POST /api/v1/auth/logout` con cookies `HttpOnly; Secure; SameSite=Strict` (tokens nunca en el body según ADR-002).
+  - Manejadores de `CredencialesInvalidasException` y `TokenInvalidoException` en `GlobalExceptionHandler` mapeados a HTTP 401.
+  - 31 pruebas unitarias pasando al 100% (cobertura completa de casos de uso y edge cases).
+- **Spring Security, Autorización por Rol y Endpoint /me (M2.5)**:
+  - `SecurityConfig`: Configuración declarativa con `@EnableMethodSecurity(prePostEnabled = true)`. Rutas públicas (`/api/v1/ping`, `/api/v1/auth/**`), resto autenticado.
+  - `JwtAuthenticationFilter`: Extracción de token de cookie HttpOnly `access_token` (o header `Authorization: Bearer`), validación y poblado de `SecurityContextHolder`.
+  - `CsrfHeaderFilter`: Defensa en profundidad contra CSRF (ADR-002) exigiendo cabecera personalizada `X-Requested-With` o `X-CSRF-Protection` en operaciones mutantes (`POST`, `PUT`, `DELETE`, `PATCH`).
+  - `CustomAuthenticationEntryPoint` y `CustomAccessDeniedHandler`: Retornan JSON estructurado con `ApiError` para 401 y 403 respectivamente sin stack traces.
+  - Manejo de `AccessDeniedException` y `AuthenticationException` de Spring Security en `GlobalExceptionHandler`.
+  - `CorsConfig`: Permitidas las cabeceras `X-Requested-With` y `X-CSRF-Protection` en preflights CORS.
+  - `PacienteController` y `PacienteService`: Endpoint `GET /api/v1/patients/me` protegido para rol `ROLE_PACIENTE`.
+  - `PacienteRepository`: Consulta de perfil demográfico y contacto por UUID expuesto `publicId` (ADR-003, sin exponer IDs internos).
+  - 48 pruebas unitarias y de controladores pasando al 100%.
+- **Revisión de Seguridad de la Fase M2 y Colección HTTP (M2.6)**:
+  - Auditoría exhaustiva de seguridad documentada en `docs/security/REVISION_M2.md`: verificación de cero secretos en repositorio, ausencia de datos clínicos en logs, SQL parametrizado, políticas de contraseñas (Argon2id), mitigación de robo de sesión y defensa en profundidad CSRF.
+  - Colección de pruebas de integración HTTP en formato estándar REST Client en `docs/api/M2.http` cubriendo ping, registro, login (éxito/fallo), perfil `/patients/me`, refresh rotativo y logout con validación de CSRF y cookies.
+  - Puerta de salida M2 lista para revisión y aprobación por Juan.
+
+## [0.1.0] - 2026-10-01
+
+### Added
+- **Proyecto Base Spring Boot 3 con Java 21**:
+  - Arquitectura modular por capas y perfiles `dev`, `test`, `prod`.
+  - Endpoint de salud y conectividad `GET /api/v1/ping`.
+- **Conexión a Oracle ATP**:
+  - DataSource HikariCP con configuración de zona horaria (`America/Bogota`) y esquema por defecto (`MEDITRIAJE_OWNER`) en `connectionInitSql`.
+  - Health check en Spring Actuator.
+  - Documentación de configuración y despliegue en `docs/database/DATABASE.md`.
+- **Migraciones Flyway**:
+  - Migración base `V001__baseline.sql` con tabla `CONTROL_SISTEMA`.
+  - Empaquetado automático en classpath y plugin Maven.
+- **Manejo Global de Errores y Seguridad Web**:
+  - DTO `ApiError` estructurado sin exposición de stack traces ni datos sensibles.
+  - `@RestControllerAdvice` con mapeo a excepciones de dominio (`RecursoNoEncontrado`, `DatosInvalidos`, `AccesoNoAutorizado`, `CitaNoDisponible`).
+  - Configuración centralizada de CORS vía variable de entorno `CORS_ORIGINS`.
+- **Pruebas y CI**:
+  - Suite de integración con Testcontainers Oracle Free (`OracleIntegrationTest`).
+  - Pipeline de GitHub Actions en `.github/workflows/ci.yml`.
+
+## [0.0.0] - 2026-10-01
+
+### Added
+- Estructura inicial del repositorio y cimientos de arquitectura.
+- Especificación formal de requisitos, casos de uso (CU-01 a CU-11) y reglas de negocio (RB-01 a RB-25).
+- Modelo de dominio y Diagrama Entidad-Relación (MER).
+- Modelo Relacional normalizado en 3FN para Oracle ATP (25 entidades) y catálogo de decisiones ADR-001 a ADR-013.
