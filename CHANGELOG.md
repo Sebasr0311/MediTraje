@@ -8,6 +8,24 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Repositorio y Lógica de Tokens Temporales Criptográficos QR (F2.3.2, ADR-010, §5.17, §5.18)**:
+  - Modelo de dominio inmutable `AccesoTemporalQr.java` con métodos de resolución de estado temporal (`estaActivo`, `requierePin`, `resolverEstado`) y enum `EstadoAccesoQr.java` (`ACTIVO`, `EXPIRADO`, `AGOTADO`, `REVOCADO`).
+  - DTOs de emergencia en `com.meditriaje.dto.emergency`: `GenerarQrRequest`, `GenerarQrResponse`, `AccesoQrResponse`, `VerificarQrResponse`, `ConsultarResumenRequest`.
+  - Repositorio `AccesoTemporalQrRepository.java` con JDBC 100% parametrizado:
+    - Inserción con `GeneratedKeyHolder`.
+    - Búsqueda indexada por hash de token SHA-256 (`IX_ACCESO_QR_TOKEN`).
+    - Búsqueda por `publicId` y listado por paciente (`IX_ACCESO_QR_PACIENTE`).
+    - Registro de lectura concurrente atómico con incremento de accesos condicional (`ACCESOS_REALIZADOS + 1`) y validación de vigencia.
+    - Revocación atómica por paciente titular.
+  - Servicio `EmergencyQrService.java`:
+    - Generación de token criptográfico opaco de 256 bits (32 bytes con `SecureRandom`, `Base64Url`).
+    - Hashing SHA-256 en reposo vía `TokenHashUtil`.
+    - Soporte para PIN numérico opcional de 4 dígitos hasheado con Argon2id (`PasswordEncoder`).
+    - Regla de negocio de vigencia estricta de 15 minutos exactos y máximo 3 lecturas.
+    - Revocación inmediata por el paciente titular con validación de aislamiento (403 si es ajeno).
+    - Verificación pública preliminar de vigencia y si requiere PIN.
+    - Auditoría inmutable con `GENERACION_QR_EMERGENCIA` y `REVOCACION_QR_EMERGENCIA`.
+  - 14 pruebas unitarias nuevas en `AccesoTemporalQrRepositoryTest` y `EmergencyQrServiceTest`.
 - **Migración Flyway V012: Acceso Temporal QR y Resumen de Emergencia (F2.3.1, ADR-010, §5.17, §5.18)**:
   - Archivo de migración `database/migrations/V012__acceso_temporal_qr.sql` creando:
     - Tabla `ACCESO_TEMPORAL_QR` para registro de tokens temporales de acceso criptográfico (256 bits, hash SHA-256 en reposo), soporte de PIN opcional con hash, flags booleanos de alcance (`INCLUIR_ALERGIAS`, `INCLUIR_MEDICAMENTOS`, `INCLUIR_ATENCIONES`, `INCLUIR_CONTACTO`), límite estricto de 3 lecturas (`MAX_ACCESOS`, `ACCESOS_REALIZADOS`), expiración a 15 minutos (`EXPIRA_AT`) y soporte de revocación (`REVOCADO`).

@@ -39,5 +39,11 @@ public enum AccionAuditable {
     /** Prescripción de seguimiento post-atención médica (F2.2.3, ADR-015). */
     CREACION_SEGUIMIENTO,
     /** Reporte de evolución registrado por el paciente (F2.2.3, ADR-015, §5.16). */
-    REPORTE_EVOLUCION_SEGUIMIENTO
+    REPORTE_EVOLUCION_SEGUIMIENTO,
+    /** Generación de acceso temporal QR para resumen de emergencia (F2.3, ADR-010). */
+    GENERACION_QR_EMERGENCIA,
+    /** Revocación de acceso temporal QR por el paciente (F2.3, ADR-010). */
+    REVOCACION_QR_EMERGENCIA,
+    /** Lectura/consulta pública de resumen de salud por QR de emergencia (F2.3, ADR-010). */
+    ACCESO_EMERGENCIA_QR
 }

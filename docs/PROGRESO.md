@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** F2.3.2 — Repositorio y lógica de tokens temporales criptográficos
+- **Tarea actual:** F2.3.3 — Servicio de agregación de resumen clínico de salud
 - **Última etiqueta:** v1.2-seguimiento (Fase F2.2 completada)
 - **Rama de trabajo:** feature/f2.3-resumen-qr
 
@@ -96,7 +96,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 ### F2.3 — Resumen de Salud y Acceso por Código QR Temporal
 - [x] F2.3.1 Migración Flyway V012 (Acceso temporal QR)
-- [ ] F2.3.2 Repositorio y lógica de tokens temporales criptográficos
+- [x] F2.3.2 Repositorio y lógica de tokens temporales criptográficos
 - [ ] F2.3.3 Servicio de agregación de resumen clínico de salud
 - [ ] F2.3.4 Endpoints REST de resumen y QR de emergencia
 - [ ] F2.3.5 Pantallas en Frontend (Generador en portal del paciente y visor público)
@@ -193,6 +193,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · F2.2.4 · Pantallas en Frontend para Seguimiento Post-Atención y Reporte del Paciente (ADR-015, F2.2, §5.16): creación de frontend/js/views/patient-follow-ups.js con listado interactivo de seguimientos por estado (PENDIENTE, COMPLETADO), badges accesibles por tipo de tarea (Control Médico, Evolución de Síntomas, Examen Pendiente, Adherencia a Tratamiento), modal accesible con aviso legal §5.16 para reporte de evolución del paciente y consumo de POST /api/v1/patients/me/follow-ups/{id}/report; integración de tarjeta de seguimientos activos en patient-dashboard.js; integración en professional-attention.js de sección 'Plan de Seguimiento Post-Atención' sobre atenciones cerradas con formulario de prescripción médica (tipo, fecha sugerida de control e indicaciones), visualización destacada de reportes del paciente y botón de cancelación de seguimientos pendientes; registro de la ruta /patient/follow-ups en app.js; validación sintáctica limpia con node --check. · feat(frontend): pantallas de seguimiento post-atencion y reporte del paciente (F2.2.4)
 - 2026-10-04 · F2.2.5 · Colección HTTP y Cierre de Seguimiento y Notificaciones (F2.2, ADR-015): creación de docs/api/F2.2.http con 7 secciones y 20 escenarios de prueba cubriendo healthcheck, notificaciones automáticas por correo de citas (reserva y cancelación), prescripción de seguimiento post-atención por el profesional médico (tipos, fecha sugerida de control, validaciones y aislamientos 403), consulta y aislamiento de tareas asistenciales (admin 403, paciente ajeno 403), portal del paciente con reporte de evolución clínica sin diagnóstico automático (§5.16), y cancelación asistencial; verificación completa de la suite Maven con 594 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.2. · test(api): coleccion f2.2.http y verificacion de seguimiento y notificaciones (F2.2.5)
 - 2026-10-04 · F2.3.1 · Migración Flyway V012 Acceso Temporal QR y Resumen de Emergencia (ADR-010, F2.3): creación de database/migrations/V012__acceso_temporal_qr.sql con tabla ACCESO_TEMPORAL_QR (token hash SHA-256, PIN hash opcional, flags de alcance, límite de 3 lecturas, expiración a 15 min, revocación), índices y concesión de privilegios mínimos a MEDITRIAJE_APP; actualización de OracleIntegrationTest a V12; suite de 594 pruebas verdes al 100%. · feat(database): migracion flyway v012 acceso temporal qr y resumen de emergencia (F2.3.1)
+- 2026-10-04 · F2.3.2 · Repositorio y lógica de tokens temporales criptográficos (ADR-010, §5.17, §5.18): creación de AccesoTemporalQr, EstadoAccesoQr, DTOs de emergencia, repositorio AccesoTemporalQrRepository con SQL parametrizado, control de vigencia (15 min) e incremento atómico de lecturas; servicio EmergencyQrService con generación de token seguro de 256 bits, hash SHA-256 en reposo (TokenHashUtil), PIN opcional hasheado con PasswordEncoder (Argon2id), revocación por paciente titular, verificación pública de tokens y auditoría inmutable de GENERACION_QR_EMERGENCIA y REVOCACION_QR_EMERGENCIA; 14 pruebas unitarias nuevas en AccesoTemporalQrRepositoryTest y EmergencyQrServiceTest elevando el backend a 601 pruebas verdes al 100%. · feat(emergency): repositorio y logica de tokens temporales criptograficos qr (F2.3.2)
 
 
 
