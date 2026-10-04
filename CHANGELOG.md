@@ -8,6 +8,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Endurecimiento y Revisión Final de Seguridad (M8.5, ADR-002, ADR-007, ADR-011, ADR-012)**:
+  - Informe exhaustivo de auditoría y hardening documentado en `docs/security/REVISION_FINAL.md`.
+  - Configuración explícita de cabeceras HTTP de seguridad en `SecurityConfig.java`:
+    - `Content-Security-Policy`: Directivas estrictas `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none';`.
+    - `Referrer-Policy`: `strict-origin-when-cross-origin` para prevenir fuga de identificadores en rutas externas.
+    - `Permissions-Policy`: Restricción total de APIs de navegador innecesarias (`camera=(), microphone=(), geolocation=()`).
+    - `X-Frame-Options`: `DENY` contra ataques de Clickjacking.
+  - Endurecimiento del perfil de producción en `backend/src/main/resources/application-prod.yml`:
+    - `security.cookie.secure: true`: Forzado obligatorio de la bandera Secure en cookies JWT en entornos productivos.
+    - `management.endpoint.health.show-details: when-authorized`: Ocultamiento de metadatos internos del pool Hikari y base de datos a usuarios anónimos en Actuator Health.
+  - Nueva prueba de integración en `PingControllerTest.java` para verificar la presencia de las cabeceras HTTP de seguridad en cada respuesta.
+  - Verificación integral de 501 pruebas unitarias y de integración pasando al 100% sin regresiones.
 - **Pantallas de Administración y Generador de Slots (M8.4, HU-10, ADR-002, ADR-003, ADR-005, ADR-007, ADR-011, ADR-012)**:
   - Panel Centralizado de Administración `frontend/js/views/admin-views.js`:
     - Interfaz estructurada en pestañas accesibles (`.admin-tabs`, `.admin-tab`) sincronizadas con la URL (`#/admin/institutions`, `#/admin/sites`, `#/admin/specialties`, `#/admin/professionals`, `#/admin/slots`).
