@@ -8,6 +8,21 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Autenticación Multifactor (MFA TOTP RFC 6238) en Backend (F2.1.4, ADR-014)**:
+  - Utilidad criptográfica pura `Base32Util.java` conforme a RFC 4648 con codificación, decodificación tolerante a espacios/guiones y generación segura de secretos.
+  - Servicio `TotpService.java` conforme a RFC 6238 con HMAC-SHA1, paso de 30 segundos, truncamiento dinámico a 6 dígitos, ventana de tolerancia temporal de ±30s (±1 paso) y generación de URIs `otpauth://totp/`.
+  - Modelo inmutable `MfaBackupCode.java` y repositorio `MfaBackupCodeRepository.java` con JDBC parametrizado para persistencia en lote de códigos hasheados con SHA-256, consumo uniuso atómico, conteo y depuración por usuario.
+  - Extensiones en `Usuario.java` y `UsuarioRepository.java` para persistir `mfaHabilitado`, `mfaSecret` y `mfaConfiguradoAt`.
+  - Nuevas acciones en `AccionAuditable`: `MFA_SETUP`, `MFA_VERIFY`, `MFA_LOGIN_EXITOSO` y `MFA_LOGIN_FALLIDO`.
+  - DTOs en `com.meditriaje.dto.auth`: `MfaSetupResponse`, `MfaVerifyRequest`, `MfaVerifyResponse` y `MfaAuthenticateRequest`, además de adaptación en `AuthSessionResponse` para soportar `mfaRequerido` y `mfaChallengeToken`.
+  - Gestión de tokens de desafío en `JwtService`: generación de `mfaChallengeToken` de 5 minutos firmado con claim `type: "mfa_challenge"`, validación de desafíos (`esMfaChallengeValido`) y discriminación en `esValido` para impedir que tokens de desafío operen como sesiones en `JwtAuthenticationFilter`.
+  - Lógica de autenticación en dos factores en `AuthService`:
+    - Bifurcación en `login`: si el usuario tiene `mfaHabilitado = true`, retorna 200 con `mfaRequerido: true` y el token de desafío firmado, sin emitir cookies de sesión `access_token` ni `refresh_token`.
+    - Método `setupMfa`: enrolamiento con generación de secreto Base32 y URI otpauth.
+    - Método `verifyMfa`: verificación del primer código TOTP para activación y generación de 8 códigos de respaldo uniuso hasheados.
+    - Método `autenticarMfa`: validación del desafío temporal con TOTP de 6 dígitos o consumo de código de respaldo, emitiendo cookies de sesión HttpOnly y doble auditoría.
+  - Endpoints en `AuthController`: `POST /api/v1/auth/mfa/setup`, `POST /api/v1/auth/mfa/verify` y `POST /api/v1/auth/mfa/authenticate` (abierto en `SecurityConfig`).
+  - Suite de 35 pruebas automatizadas nuevas en `Base32UtilTest`, `TotpServiceTest`, `MfaBackupCodeRepositoryTest`, `AuthServiceTest`, `AuthControllerTest` y `JwtServiceTest` elevando la suite completa a 556 pruebas pasando al 100%.
 - **Recuperación de Contraseña con Código OTP por Correo (F2.1.3, ADR-014)**:
   - Modelo de dominio inmutable `CodigoVerificacion.java` con métodos de expiración (`estaExpirado`), intentos máximos (`alcanzoMaxIntentos`) y validez (`esValido`).
   - Repositorio `CodigoVerificacionRepository.java` con JDBC parametrizado para inserción atómica con `KeyHolder`, búsqueda del último código pendiente por usuario y tipo, incremento de intentos fallidos, marcado como usado e invalidación de códigos previos.

@@ -9,12 +9,17 @@ import com.meditriaje.dto.CambiarPasswordRequest;
 import com.meditriaje.dto.LoginRequest;
 import com.meditriaje.dto.RegistroPacienteRequest;
 import com.meditriaje.dto.RegistroPacienteResponse;
+import com.meditriaje.dto.auth.MfaAuthenticateRequest;
+import com.meditriaje.dto.auth.MfaSetupResponse;
+import com.meditriaje.dto.auth.MfaVerifyRequest;
+import com.meditriaje.dto.auth.MfaVerifyResponse;
 import com.meditriaje.dto.auth.RestablecerPasswordRequest;
 import com.meditriaje.dto.auth.RestablecerPasswordResponse;
 import com.meditriaje.dto.auth.SolicitarRecuperacionRequest;
 import com.meditriaje.dto.auth.SolicitarRecuperacionResponse;
 import com.meditriaje.exception.CredencialesInvalidasException;
 import com.meditriaje.exception.GlobalExceptionHandler;
+import com.meditriaje.exception.TokenInvalidoException;
 import com.meditriaje.security.CsrfHeaderFilter;
 import com.meditriaje.security.CustomAccessDeniedHandler;
 import com.meditriaje.security.CustomAuthenticationEntryPoint;
@@ -264,6 +269,7 @@ class AuthControllerTest {
         CambiarPasswordRequest request = new CambiarPasswordRequest("PasswordActual123*", "PasswordNuevo123*");
 
         when(jwtService.esValido(tokenValido)).thenReturn(true);
+        when(jwtService.esAccessToken(tokenValido)).thenReturn(true);
         when(jwtService.extraerPublicId(tokenValido)).thenReturn(userPubId);
         when(jwtService.extraerRoles(tokenValido)).thenReturn(List.of("ROLE_PACIENTE"));
         doNothing().when(authService).cambiarPassword(eq(userPubId), any(), anyString());
@@ -281,6 +287,7 @@ class AuthControllerTest {
     void changePassword_conContrasenaCorta_retorna400BadRequest() throws Exception {
         String tokenValido = "jwt.usuario.valido";
         when(jwtService.esValido(tokenValido)).thenReturn(true);
+        when(jwtService.esAccessToken(tokenValido)).thenReturn(true);
         when(jwtService.extraerPublicId(tokenValido)).thenReturn("user-pub-id-1");
         when(jwtService.extraerRoles(tokenValido)).thenReturn(List.of("ROLE_PACIENTE"));
 
@@ -369,5 +376,156 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACION_FALLIDA"));
+    }
+
+    // -------------------------------------------------------------------------
+    // AUTENTICACIÓN MULTIFACTOR (MFA)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void login_conMfaHabilitado_retorna200ConMfaRequeridoYSinCookiesDeSesion() throws Exception {
+        LoginRequest request = new LoginRequest("dr.garcia@hospital.com", "PasswordSeguro123*");
+        AuthSessionResponse session = AuthSessionResponse.mfaRequerido(
+                "usr-medico-1",
+                "dr.garcia@hospital.com",
+                List.of("ROLE_PROFESIONAL"),
+                "challenge-jwt-123"
+        );
+        AuthTokens tokens = new AuthTokens(null, null, session);
+
+        when(authService.login(any(LoginRequest.class), anyString())).thenReturn(tokens);
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mfaRequerido").value(true))
+                .andExpect(jsonPath("$.mfaChallengeToken").value("challenge-jwt-123"))
+                .andExpect(jsonPath("$.publicId").value("usr-medico-1"))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    }
+
+    @Test
+    void setupMfa_conTokenValido_retorna200ConSecretYQrUri() throws Exception {
+        String tokenValido = "jwt.usuario.valido";
+        String userPubId = "usr-medico-1";
+
+        when(jwtService.esValido(tokenValido)).thenReturn(true);
+        when(jwtService.esAccessToken(tokenValido)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenValido)).thenReturn(userPubId);
+        when(jwtService.extraerRoles(tokenValido)).thenReturn(List.of("ROLE_PROFESIONAL"));
+
+        MfaSetupResponse mockResponse = new MfaSetupResponse(
+                "JBSWY3DPEHPK3PXP",
+                "otpauth://totp/MediTriaje:dr.garcia@hospital.com?secret=JBSWY3DPEHPK3PXP&issuer=MediTriaje",
+                "MediTriaje",
+                "dr.garcia@hospital.com"
+        );
+
+        when(authService.setupMfa(eq(userPubId), anyString())).thenReturn(mockResponse);
+
+        mockMvc.perform(post("/api/v1/auth/mfa/setup")
+                        .cookie(new Cookie("access_token", tokenValido))
+                        .header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.secret").value("JBSWY3DPEHPK3PXP"))
+                .andExpect(jsonPath("$.qrUri").value(containsString("otpauth://totp/")));
+    }
+
+    @Test
+    void setupMfa_sinAutenticacion_retorna401Unauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/mfa/setup")
+                        .header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
+    }
+
+    @Test
+    void verifyMfa_conCodigoValido_retorna200ConCodigosRespaldo() throws Exception {
+        String tokenValido = "jwt.usuario.valido";
+        String userPubId = "usr-medico-1";
+        MfaVerifyRequest request = new MfaVerifyRequest("123456");
+
+        when(jwtService.esValido(tokenValido)).thenReturn(true);
+        when(jwtService.esAccessToken(tokenValido)).thenReturn(true);
+        when(jwtService.extraerPublicId(tokenValido)).thenReturn(userPubId);
+        when(jwtService.extraerRoles(tokenValido)).thenReturn(List.of("ROLE_PROFESIONAL"));
+
+        MfaVerifyResponse mockResponse = new MfaVerifyResponse(
+                true,
+                List.of("1111-2222", "3333-4444"),
+                "MFA activado con exito."
+        );
+
+        when(authService.verifyMfa(eq(userPubId), any(MfaVerifyRequest.class), anyString())).thenReturn(mockResponse);
+
+        mockMvc.perform(post("/api/v1/auth/mfa/verify")
+                        .cookie(new Cookie("access_token", tokenValido))
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mfaHabilitado").value(true))
+                .andExpect(jsonPath("$.backupCodes").isArray())
+                .andExpect(jsonPath("$.backupCodes[0]").value("1111-2222"));
+    }
+
+    @Test
+    void verifyMfa_conCodigoInvalido_retorna400BadRequest() throws Exception {
+        String tokenValido = "jwt.usuario.valido";
+        when(jwtService.esValido(tokenValido)).thenReturn(true);
+        when(jwtService.esAccessToken(tokenValido)).thenReturn(true);
+
+        MfaVerifyRequest request = new MfaVerifyRequest("123"); // longitud inválida
+
+        mockMvc.perform(post("/api/v1/auth/mfa/verify")
+                        .cookie(new Cookie("access_token", tokenValido))
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("VALIDACION_FALLIDA"));
+    }
+
+    @Test
+    void authenticateMfa_conDatosValidos_retorna200YCookiesDeSesion() throws Exception {
+        MfaAuthenticateRequest request = new MfaAuthenticateRequest("challenge-jwt-valido", "123456");
+        AuthSessionResponse session = new AuthSessionResponse(
+                "usr-medico-1",
+                "dr.garcia@hospital.com",
+                List.of("ROLE_PROFESIONAL"),
+                "Inicio de sesion completado exitosamente con MFA.",
+                false
+        );
+        AuthTokens tokens = new AuthTokens("access.jwt.valido", "refresh.raw.valido", session);
+
+        when(authService.autenticarMfa(any(MfaAuthenticateRequest.class), anyString())).thenReturn(tokens);
+
+        mockMvc.perform(post("/api/v1/auth/mfa/authenticate")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicId").value("usr-medico-1"))
+                .andExpect(jsonPath("$.email").value("dr.garcia@hospital.com"))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("access_token=access.jwt.valido")))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Strict")));
+    }
+
+    @Test
+    void authenticateMfa_desafioExpiradoOInvalido_retorna401Unauthorized() throws Exception {
+        MfaAuthenticateRequest request = new MfaAuthenticateRequest("challenge-jwt-invalido", "123456");
+
+        when(authService.autenticarMfa(any(MfaAuthenticateRequest.class), anyString()))
+                .thenThrow(new TokenInvalidoException("El desafio de autenticacion MFA ha expirado o es invalido."));
+
+        mockMvc.perform(post("/api/v1/auth/mfa/authenticate")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.codigo").value("TOKEN_INVALIDO"));
     }
 }

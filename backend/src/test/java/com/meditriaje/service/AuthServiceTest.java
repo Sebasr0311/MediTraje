@@ -42,15 +42,21 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import com.meditriaje.dto.auth.MfaAuthenticateRequest;
+import com.meditriaje.dto.auth.MfaSetupResponse;
+import com.meditriaje.dto.auth.MfaVerifyRequest;
+import com.meditriaje.dto.auth.MfaVerifyResponse;
 import com.meditriaje.dto.auth.RestablecerPasswordRequest;
 import com.meditriaje.dto.auth.RestablecerPasswordResponse;
 import com.meditriaje.dto.auth.SolicitarRecuperacionRequest;
 import com.meditriaje.dto.auth.SolicitarRecuperacionResponse;
+import com.meditriaje.exception.AccesoNoAutorizadoException;
 import com.meditriaje.model.CodigoVerificacion;
 import com.meditriaje.model.Paciente;
 import com.meditriaje.repository.CodigoVerificacionRepository;
+import com.meditriaje.repository.MfaBackupCodeRepository;
 import com.meditriaje.repository.ProfesionalRepository;
-import com.meditriaje.security.TokenHashUtil;
+import com.meditriaje.security.TotpService;
 import com.meditriaje.service.email.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -100,6 +106,9 @@ class AuthServiceTest {
     private CodigoVerificacionRepository codigoVerificacionRepository;
 
     @Mock
+    private MfaBackupCodeRepository mfaBackupCodeRepository;
+
+    @Mock
     private AuditoriaService auditoriaService;
 
     @Mock
@@ -107,6 +116,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtService jwtService;
+
+    @Mock
+    private TotpService totpService;
 
     @Mock
     private EmailService emailService;
@@ -122,9 +134,11 @@ class AuthServiceTest {
                 consentimientoRepository,
                 refreshTokenRepository,
                 codigoVerificacionRepository,
+                mfaBackupCodeRepository,
                 auditoriaService,
                 passwordEncoder,
                 jwtService,
+                totpService,
                 emailService,
                 7
         );
@@ -839,5 +853,245 @@ class AuthServiceTest {
                 .hasMessageContaining("no puede ser igual a la anterior");
 
         verify(usuarioRepository, never()).actualizarPassword(anyLong(), anyString(), anyBoolean());
+    }
+
+    // -------------------------------------------------------------------------
+    // AUTENTICACIÓN MULTIFACTOR (MFA TOTP) (ADR-014, F2.1.4)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void login_conMfaHabilitado_retornaDesafioSinTokensDefinitivos() {
+        LoginRequest req = new LoginRequest("dr.garcia@hospital.com", "PasswordSeguro123*");
+        Usuario usuario = new Usuario(
+                20L,
+                "usr-medico-1",
+                "dr.garcia@hospital.com",
+                "$argon2id$hashed",
+                "ACTIVO",
+                0,
+                null,
+                Instant.now(),
+                false,
+                true, // mfaHabilitado
+                "JBSWY3DPEHPK3PXP",
+                Instant.now()
+        );
+
+        when(usuarioRepository.buscarPorEmail("dr.garcia@hospital.com")).thenReturn(Optional.of(usuario));
+        when(passwordEncoder.matches("PasswordSeguro123*", "$argon2id$hashed")).thenReturn(true);
+        when(usuarioRepository.obtenerRoles(20L)).thenReturn(List.of("ROLE_PROFESIONAL"));
+        when(jwtService.generarMfaChallengeToken("usr-medico-1", "dr.garcia@hospital.com", List.of("ROLE_PROFESIONAL")))
+                .thenReturn("mock.challenge.jwt");
+
+        AuthTokens resultado = authService.login(req, "192.168.1.100");
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.accessToken()).isNull();
+        assertThat(resultado.rawRefreshToken()).isNull();
+        assertThat(resultado.sessionResponse().mfaRequerido()).isTrue();
+        assertThat(resultado.sessionResponse().mfaChallengeToken()).isEqualTo("mock.challenge.jwt");
+
+        verify(refreshTokenRepository, never()).crear(anyLong(), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void setupMfa_exito_guardaSecretYRetornaQrUri() {
+        Usuario usuario = new Usuario(
+                25L, "usr-medico-2", "medico@hospital.com", "$hash", "ACTIVO", 0, null, Instant.now(), false
+        );
+
+        when(usuarioRepository.buscarPorPublicId("usr-medico-2")).thenReturn(Optional.of(usuario));
+        when(totpService.generarNuevoSecreto()).thenReturn("JBSWY3DPEHPK3PXP");
+        when(totpService.generarOtpAuthUri("MediTriaje", "medico@hospital.com", "JBSWY3DPEHPK3PXP"))
+                .thenReturn("otpauth://totp/MediTriaje:medico@hospital.com?secret=JBSWY3DPEHPK3PXP&issuer=MediTriaje");
+
+        MfaSetupResponse response = authService.setupMfa("usr-medico-2", "192.168.1.100");
+
+        assertThat(response).isNotNull();
+        assertThat(response.secret()).isEqualTo("JBSWY3DPEHPK3PXP");
+        assertThat(response.qrUri()).startsWith("otpauth://totp/");
+
+        verify(usuarioRepository).guardarMfaSecret(25L, "JBSWY3DPEHPK3PXP");
+        verify(auditoriaService).registrarEvento(
+                eq(25L),
+                eq(AccionAuditable.MFA_SETUP),
+                eq("USUARIO"),
+                eq("usr-medico-2"),
+                eq(ResultadoAuditoria.EXITO),
+                eq("192.168.1.100")
+        );
+    }
+
+    @Test
+    void setupMfa_usuarioInactivo_lanzaAccesoNoAutorizado() {
+        Usuario usuario = new Usuario(
+                25L, "usr-inactivo", "inactivo@hospital.com", "$hash", "INACTIVO", 0, null, Instant.now(), false
+        );
+
+        when(usuarioRepository.buscarPorPublicId("usr-inactivo")).thenReturn(Optional.of(usuario));
+
+        assertThatThrownBy(() -> authService.setupMfa("usr-inactivo", "192.168.1.100"))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("no se encuentra activa");
+    }
+
+    @Test
+    void verifyMfa_codigoValido_activaMfaYGeneraCodigosRespaldo() {
+        Usuario usuario = new Usuario(
+                25L, "usr-medico-2", "medico@hospital.com", "$hash", "ACTIVO", 0, null, Instant.now(),
+                false, false, "JBSWY3DPEHPK3PXP", null
+        );
+
+        when(usuarioRepository.buscarPorPublicId("usr-medico-2")).thenReturn(Optional.of(usuario));
+        when(totpService.validarCodigo(eq("JBSWY3DPEHPK3PXP"), eq("123456"), any(Instant.class))).thenReturn(true);
+
+        MfaVerifyRequest request = new MfaVerifyRequest("123456");
+        MfaVerifyResponse response = authService.verifyMfa("usr-medico-2", request, "192.168.1.100");
+
+        assertThat(response).isNotNull();
+        assertThat(response.mfaHabilitado()).isTrue();
+        assertThat(response.backupCodes()).hasSize(8);
+
+        verify(usuarioRepository).activarMfa(25L, "JBSWY3DPEHPK3PXP");
+        verify(mfaBackupCodeRepository).eliminarPorUsuario(25L);
+        verify(mfaBackupCodeRepository).guardarLote(eq(25L), any());
+        verify(auditoriaService).registrarEvento(
+                eq(25L),
+                eq(AccionAuditable.MFA_VERIFY),
+                eq("USUARIO"),
+                eq("usr-medico-2"),
+                eq(ResultadoAuditoria.EXITO),
+                eq("192.168.1.100")
+        );
+    }
+
+    @Test
+    void verifyMfa_codigoInvalido_lanzaCredencialesInvalidasException() {
+        Usuario usuario = new Usuario(
+                25L, "usr-medico-2", "medico@hospital.com", "$hash", "ACTIVO", 0, null, Instant.now(),
+                false, false, "JBSWY3DPEHPK3PXP", null
+        );
+
+        when(usuarioRepository.buscarPorPublicId("usr-medico-2")).thenReturn(Optional.of(usuario));
+        when(totpService.validarCodigo(eq("JBSWY3DPEHPK3PXP"), eq("000000"), any(Instant.class))).thenReturn(false);
+
+        MfaVerifyRequest request = new MfaVerifyRequest("000000");
+
+        assertThatThrownBy(() -> authService.verifyMfa("usr-medico-2", request, "192.168.1.100"))
+                .isInstanceOf(CredencialesInvalidasException.class)
+                .hasMessageContaining("incorrecto o expirado");
+
+        verify(usuarioRepository, never()).activarMfa(anyLong(), anyString());
+        verify(auditoriaService).registrarEvento(
+                eq(25L),
+                eq(AccionAuditable.MFA_VERIFY),
+                eq("USUARIO"),
+                eq("usr-medico-2"),
+                eq(ResultadoAuditoria.FALLO),
+                eq("192.168.1.100")
+        );
+    }
+
+    @Test
+    void autenticarMfa_desafioInvalido_lanzaTokenInvalidoException() {
+        MfaAuthenticateRequest request = new MfaAuthenticateRequest("token-falso", "123456");
+        when(jwtService.esMfaChallengeValido("token-falso")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.autenticarMfa(request, "192.168.1.100"))
+                .isInstanceOf(TokenInvalidoException.class)
+                .hasMessageContaining("desafio de autenticacion MFA ha expirado o es invalido");
+    }
+
+    @Test
+    void autenticarMfa_conTotpValido_emiteTokensYAudita() {
+        MfaAuthenticateRequest request = new MfaAuthenticateRequest("token-valido", "123456");
+        Usuario usuario = new Usuario(
+                30L, "usr-pub-30", "admin@hospital.com", "$hash", "ACTIVO", 0, null, Instant.now(),
+                false, true, "JBSWY3DPEHPK3PXP", Instant.now()
+        );
+
+        when(jwtService.esMfaChallengeValido("token-valido")).thenReturn(true);
+        when(jwtService.extraerPublicId("token-valido")).thenReturn("usr-pub-30");
+        when(usuarioRepository.buscarPorPublicId("usr-pub-30")).thenReturn(Optional.of(usuario));
+        when(totpService.validarCodigo(eq("JBSWY3DPEHPK3PXP"), eq("123456"), any(Instant.class))).thenReturn(true);
+        when(usuarioRepository.obtenerRoles(30L)).thenReturn(List.of("ROLE_ADMINISTRADOR"));
+        when(jwtService.generarAccessToken(eq("usr-pub-30"), eq("admin@hospital.com"), eq(List.of("ROLE_ADMINISTRADOR"))))
+                .thenReturn("mock.access.jwt");
+
+        AuthTokens tokens = authService.autenticarMfa(request, "192.168.1.100");
+
+        assertThat(tokens).isNotNull();
+        assertThat(tokens.accessToken()).isEqualTo("mock.access.jwt");
+        assertThat(tokens.rawRefreshToken()).isNotBlank();
+        assertThat(tokens.sessionResponse().email()).isEqualTo("admin@hospital.com");
+
+        verify(refreshTokenRepository).crear(eq(30L), anyString(), any(Instant.class));
+        verify(auditoriaService).registrarEvento(
+                eq(30L),
+                eq(AccionAuditable.MFA_LOGIN_EXITOSO),
+                eq("USUARIO"),
+                eq("usr-pub-30"),
+                eq(ResultadoAuditoria.EXITO),
+                eq("192.168.1.100")
+        );
+        verify(auditoriaService).registrarEvento(
+                eq(30L),
+                eq(AccionAuditable.LOGIN_EXITOSO),
+                eq("USUARIO"),
+                eq("usr-pub-30"),
+                eq(ResultadoAuditoria.EXITO),
+                eq("192.168.1.100")
+        );
+    }
+
+    @Test
+    void autenticarMfa_conCodigoRespaldoValido_consumeCodigoYEmiteTokens() {
+        MfaAuthenticateRequest request = new MfaAuthenticateRequest("token-valido", "1234-5678");
+        Usuario usuario = new Usuario(
+                30L, "usr-pub-30", "admin@hospital.com", "$hash", "ACTIVO", 0, null, Instant.now(),
+                false, true, "JBSWY3DPEHPK3PXP", Instant.now()
+        );
+
+        when(jwtService.esMfaChallengeValido("token-valido")).thenReturn(true);
+        when(jwtService.extraerPublicId("token-valido")).thenReturn("usr-pub-30");
+        when(usuarioRepository.buscarPorPublicId("usr-pub-30")).thenReturn(Optional.of(usuario));
+        when(mfaBackupCodeRepository.consumirCodigo(eq(30L), anyString())).thenReturn(true);
+        when(usuarioRepository.obtenerRoles(30L)).thenReturn(List.of("ROLE_ADMINISTRADOR"));
+        when(jwtService.generarAccessToken(eq("usr-pub-30"), eq("admin@hospital.com"), eq(List.of("ROLE_ADMINISTRADOR"))))
+                .thenReturn("mock.access.jwt");
+
+        AuthTokens tokens = authService.autenticarMfa(request, "192.168.1.100");
+
+        assertThat(tokens).isNotNull();
+        assertThat(tokens.accessToken()).isEqualTo("mock.access.jwt");
+        verify(mfaBackupCodeRepository).consumirCodigo(eq(30L), anyString());
+    }
+
+    @Test
+    void autenticarMfa_conCodigoInvalido_lanzaCredencialesInvalidasException() {
+        MfaAuthenticateRequest request = new MfaAuthenticateRequest("token-valido", "999999");
+        Usuario usuario = new Usuario(
+                30L, "usr-pub-30", "admin@hospital.com", "$hash", "ACTIVO", 0, null, Instant.now(),
+                false, true, "JBSWY3DPEHPK3PXP", Instant.now()
+        );
+
+        when(jwtService.esMfaChallengeValido("token-valido")).thenReturn(true);
+        when(jwtService.extraerPublicId("token-valido")).thenReturn("usr-pub-30");
+        when(usuarioRepository.buscarPorPublicId("usr-pub-30")).thenReturn(Optional.of(usuario));
+        when(totpService.validarCodigo(eq("JBSWY3DPEHPK3PXP"), eq("999999"), any(Instant.class))).thenReturn(false);
+        when(mfaBackupCodeRepository.consumirCodigo(eq(30L), anyString())).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.autenticarMfa(request, "192.168.1.100"))
+                .isInstanceOf(CredencialesInvalidasException.class)
+                .hasMessageContaining("invalido");
+
+        verify(auditoriaService).registrarEvento(
+                eq(30L),
+                eq(AccionAuditable.MFA_LOGIN_FALLIDO),
+                eq("USUARIO"),
+                eq("usr-pub-30"),
+                eq(ResultadoAuditoria.FALLO),
+                eq("192.168.1.100")
+        );
     }
 }

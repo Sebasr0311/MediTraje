@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** F2.1.4 — Autenticación Multifactor (MFA TOTP) en Backend
+- **Tarea actual:** F2.1.5 — Pantallas en Frontend (Login, Recuperación y Enrolamiento MFA)
 - **Última etiqueta:** v1.0-mvp (MVP completado)
 - **Rama de trabajo:** feature/f2.1-mfa-recuperacion
 
@@ -83,7 +83,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] F2.1.1 Migración Flyway V010 (columnas MFA, CODIGO_VERIFICACION, MFA_BACKUP_CODE)
 - [x] F2.1.2 Servicio de correo y plantilla HTML institucional
 - [x] F2.1.3 Endpoints y lógica de recuperación de contraseña con código OTP
-- [ ] F2.1.4 Autenticación Multifactor (MFA TOTP) en Backend
+- [x] F2.1.4 Autenticación Multifactor (MFA TOTP) en Backend
 - [ ] F2.1.5 Pantallas en Frontend (Login, Recuperación y Enrolamiento MFA)
 - [ ] F2.1.6 Pruebas, colección HTTP y cierre F2.1
 
@@ -168,6 +168,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · F2.1.1 · Migración Flyway V010__mfa_y_recuperacion_password.sql: soporte TOTP en USUARIO (MFA_HABILITADO, MFA_SECRET, MFA_CONFIGURADO_AT), tabla CODIGO_VERIFICACION para OTP de 6 dígitos con hash SHA-256 y contador de intentos, tabla MFA_BACKUP_CODE para códigos de respaldo uniuso y privilegios mínimos a MEDITRIAJE_APP (ADR-012, ADR-014); OracleIntegrationTest actualizado a V10; 501 pruebas verdes · feat(database): migracion flyway v010 mfa y recuperacion de password (F2.1.1)
 - 2026-10-03 · F2.1.2 · Servicio de correo y plantilla HTML institucional: creación de resources/templates/email/recuperacion-password.html con diseño alineado a tokens.css, caja destacada de código de 6 dígitos, expiración a 15 min y advertencia de seguridad; implementación de EmailTemplateService y DefaultEmailService con buffer en memoria para pruebas y trazabilidad; suite de pruebas unitarias EmailServiceTest verde · feat(email): servicio de correo y plantilla html institucional para recuperacion (F2.1.2)
 - 2026-10-03 · F2.1.3 · Endpoints y lógica de recuperación de contraseña con código OTP (ADR-014, F2.1): modelo CodigoVerificacion, repositorio CodigoVerificacionRepository con JDBC parametrizado, DTOs SolicitarRecuperacionRequest/Response y RestablecerPasswordRequest/Response con validación de código numérico de 6 dígitos (^[0-9]{6}$); lógica transaccional en AuthService (generación SecureRandom, hash SHA-256 con TokenHashUtil, envío de correo con plantilla institucional, mitigación de enumeración de usuarios, control de expiración a 15 min y máximo 3 intentos, actualización segura de contraseña con Argon2id, revocación total de sesiones previas en RefreshTokenRepository y auditoría inmutable de SOLICITUD_RECUPERACION_PASSWORD, RECUPERACION_PASSWORD_EXITO y RECUPERACION_PASSWORD_FALLO); endpoints públicos /api/v1/auth/forgot-password y /api/v1/auth/reset-password en AuthController y SecurityConfig; 20 pruebas unitarias y de integración nuevas en CodigoVerificacionRepositoryTest, AuthServiceTest y AuthControllerTest elevando la suite a 521 pruebas pasando al 100% · feat(auth): recuperacion de password con codigo otp y plantilla de correo (F2.1.3)
+- 2026-10-03 · F2.1.4 · Autenticación Multifactor (MFA TOTP RFC 6238) en Backend (ADR-014, F2.1): utilitarios Base32Util y TotpService (HMAC-SHA1, ventana ±30s, URI otpauth://); modelos MfaBackupCode y Usuario extendido; repositorio MfaBackupCodeRepository y actualización de UsuarioRepository; acciones auditables MFA_SETUP, MFA_VERIFY, MFA_LOGIN_EXITOSO, MFA_LOGIN_FALLIDO; DTOs MfaSetupResponse, MfaVerifyRequest, MfaVerifyResponse, MfaAuthenticateRequest y AuthSessionResponse con desafío MFA; JwtService con generación de mfaChallengeToken firmado (5 min, claim type=mfa_challenge), validación en JwtAuthenticationFilter (aislamiento estricto de tokens de desafío); bifurcación en AuthService.login (retorna desafío sin emitir cookies de sesión si mfaHabilitado=true); métodos setupMfa (secreto Base32), verifyMfa (activación y generación de 8 códigos de respaldo uniuso hasheados con SHA-256) y autenticarMfa (emisión de tokens definitivos tras validar TOTP o backup code); endpoints en AuthController (/mfa/setup, /mfa/verify, /mfa/authenticate); 35 pruebas automatizadas nuevas en Base32UtilTest, TotpServiceTest, MfaBackupCodeRepositoryTest, AuthServiceTest, AuthControllerTest y JwtServiceTest elevando la suite completa a 556 pruebas pasando al 100% · feat(auth): autenticacion multifactor mfa totp rfc 6238 (F2.1.4)
 
 
 

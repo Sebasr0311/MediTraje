@@ -68,12 +68,12 @@ public class JwtService {
     }
 
     /**
-     * Retorna true si el token es válido y no ha expirado.
+     * Retorna true si el token es válido, no ha expirado y no es un token temporal de desafío MFA.
      */
     public boolean esValido(String token) {
         try {
-            extraerClaims(token);
-            return true;
+            Claims claims = extraerClaims(token);
+            return !"mfa_challenge".equals(claims.get("type", String.class));
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
@@ -86,5 +86,47 @@ public class JwtService {
     @SuppressWarnings("unchecked")
     public List<String> extraerRoles(String token) {
         return extraerClaims(token).get("roles", List.class);
+    }
+
+    /**
+     * Genera un token temporal de desafío MFA firmado con duración de 5 minutos (ADR-014, F2.1.4).
+     */
+    public String generarMfaChallengeToken(String publicId, String email, List<String> roles) {
+        Instant now = Instant.now();
+        Instant exp = now.plus(5, ChronoUnit.MINUTES);
+
+        return Jwts.builder()
+                .subject(publicId)
+                .claim("email", email)
+                .claim("roles", roles)
+                .claim("type", "mfa_challenge")
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(exp))
+                .signWith(signingKey)
+                .compact();
+    }
+
+    /**
+     * Valida si el token corresponde a un desafío MFA vigente (ADR-014, F2.1.4).
+     */
+    public boolean esMfaChallengeValido(String token) {
+        try {
+            Claims claims = extraerClaims(token);
+            return "mfa_challenge".equals(claims.get("type", String.class));
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Valida que el token corresponda a un access token operativo y no a un desafío MFA.
+     */
+    public boolean esAccessToken(String token) {
+        try {
+            Claims claims = extraerClaims(token);
+            return !"mfa_challenge".equals(claims.get("type", String.class));
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 }
