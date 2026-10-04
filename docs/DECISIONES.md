@@ -151,6 +151,25 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
    - Interfaz `EmailService` con carga de plantillas HTML desde `resources/templates/email/`.
    - En perfiles `dev` y `test`, si no hay servidor SMTP configurado, registra el correo renderizado en logs de forma segura para permitir pruebas funcionales y automatizadas. En perfil `prod`, utiliza `JavaMailSender` con TLS/STARTTLS.
 
+## ADR-015 Seguimiento post-atención y recordatorios de citas por correo
+**Estado:** APROBADO por Juan (2026-10-04).
+**Decisión:**
+1. **Notificaciones de Citas por Correo Institucional:**
+   - Confirmación inmediata al reservar cita (`POST /api/v1/appointments`): envía correo con plantilla `confirmacion-cita.html` indicando fecha, hora local en `America/Bogota`, profesional, especialidad, sede/modalidad, preparación previa y enlace a la plataforma.
+   - Notificación de cancelación de cita (`PATCH /api/v1/appointments/{id}/cancel`): envía correo con plantilla `cancelacion-cita.html` informando la liberación del slot y el motivo (si fue indicado).
+   - Trazabilidad en tabla `RECORDATORIO_CITA` con estado de envío (`ENVIADO`, `FALLIDO`), fecha y destinatario.
+2. **Seguimiento Post-Atención y Tareas de Control:**
+   - Al cerrarse una atención médica (`POST /api/v1/attentions/{id}/close`), o como acción médica posterior sobre una atención cerrada propia o con relación asistencial activa, el profesional asistencial puede prescribir tareas de seguimiento en `POST /api/v1/attentions/{id}/follow-ups`.
+   - Tipos de seguimiento permitidos: `CONTROL_MEDICO`, `EVOLUCION_SINTOMAS`, `EXAMEN_PENDIENTE`, `ADHERENCIA_TRATAMIENTO`.
+   - Se notifica al paciente vía correo electrónico con plantilla `resumen-atencion-seguimiento.html` con las indicaciones del profesional y fecha sugerida de control.
+   - El paciente puede consultar sus tareas de seguimiento en `GET /api/v1/patients/me/follow-ups` y registrar reportes de evolución en `POST /api/v1/patients/me/follow-ups/{id}/report`.
+   - **Regla estricta (§5.16 Documento Maestro):** El reporte de evolución del paciente jamás se convierte automáticamente en un diagnóstico médico. Queda registrado como insumo clínico accesible únicamente por profesionales con relación asistencial activa.
+3. **Resiliencia y Tolerancia a Fallos en el Envío de Notificaciones:**
+   - El despacho de correos no debe interferir con la atomicidad ni la finalización de las transacciones principales de negocio (reserva de cita o cierre de atención médica). En caso de excepción de envío SMTP, se registra el fallo en logs y en `RECORDATORIO_CITA`, pero la transacción principal permanece consolidada.
+4. **Aislamiento y Privacidad (ADR-007 / ADR-011):**
+   - Personal administrativo tiene acceso estrictamente bloqueado (403 Forbidden) a seguimientos post-atención y reportes de evolución.
+   - Cero contenido clínico ni indicaciones en logs ni en la tabla de auditoría.
+
 ---
 
 ## Pendientes reales

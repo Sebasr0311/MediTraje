@@ -8,6 +8,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Migración Flyway V011: Seguimiento Post-Atención y Recordatorios (F2.2.1, ADR-015)**:
+  - Archivo de migración `database/migrations/V011__seguimiento_post_atencion.sql` creando:
+    - Tabla `SEGUIMIENTO_POST_ATENCION` para registro de tareas de control, evolución de síntomas, exámenes pendientes y adherencia a tratamiento, con clave foránea a `ATENCION`, `PACIENTE` y `PROFESIONAL`, e inclusión de reporte del paciente (§5.16).
+    - Tabla `RECORDATORIO_CITA` para trazabilidad y auditoría de notificaciones de citas por correo electrónico (`CONFIRMACION_RESERVA`, `RECORDATORIO_PREVIO`, `CANCELACION`).
+    - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (`SELECT, INSERT, UPDATE`).
+  - Actualización de `OracleIntegrationTest.java` para validar migración V11 y permisos de lectura en las nuevas tablas.
 - **Colección HTTP y Verificación de MFA y Recuperación de Contraseña (F2.1.6, ADR-014)**:
   - Colección interactiva `docs/api/F2.1.http` con 4 secciones y 12 escenarios de prueba cubriendo: healthcheck (`/ping`), recuperación de contraseña por OTP (`/auth/forgot-password` con mitigación de enumeración y `/auth/reset-password` con validación de código de 6 dígitos y contraseña segura), enrolamiento MFA TOTP (`/auth/mfa/setup` y `/auth/mfa/verify` con emisión de 8 códigos de respaldo uniuso) y desafío de segundo factor en login (`/auth/login` con `mfaRequerido` y `/auth/mfa/authenticate` con código TOTP o de respaldo, detección de códigos consumidos y tokens inválidos).
   - Verificación de la suite Maven con 556 pruebas pasando limpiamente (100% de éxito, 0 regresiones).

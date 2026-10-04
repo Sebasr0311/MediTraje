@@ -5,9 +5,9 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** Fase F2.1 completada · Planificación del siguiente módulo (F2.2)
+- **Tarea actual:** F2.2.1 — Migración Flyway V011 (Seguimiento post-atención y recordatorios)
 - **Última etiqueta:** v1.1-mfa (Fase F2.1 completada)
-- **Rama de trabajo:** develop
+- **Rama de trabajo:** feature/f2.2-seguimiento-notificaciones
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -87,11 +87,19 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] F2.1.5 Pantallas en Frontend (Login, Recuperación y Enrolamiento MFA)
 - [x] F2.1.6 Pruebas, colección HTTP y cierre F2.1
 
+### F2.2 — Seguimiento Post-Atención y Recordatorios por Correo
+- [x] F2.2.1 Migración Flyway V011 (Seguimiento post-atención y recordatorios)
+- [ ] F2.2.2 Plantillas HTML y notificaciones por correo de citas y atención
+- [ ] F2.2.3 Lógica de dominio y endpoints de seguimiento post-atención
+- [ ] F2.2.4 Pantallas en Frontend (Seguimiento del paciente y revisión médica)
+- [ ] F2.2.5 Pruebas, colección HTTP y cierre F2.2
+
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
 - 2026-10-01 · Aprobación formal de decisiones de arquitectura ADR-001 a ADR-013, Casos de Uso, Reglas de Negocio, MER y Modelo Relacional · Cierre exitoso de Fase M0 · Todos los ADRs
 - 2026-10-01 · Ajustes finales aprobados de M0: ES_ALARMA exclusivamente en SINTOMA con corte de emergencia (alarma O Nivel I) y default conservador Nivel III; EVOLUCION en VARCHAR2(4000 CHAR) con validación DTO @Size(max=4000) por MAX_STRING_SIZE; segregación dual de usuarios DB (MEDITRIAJE_OWNER y MEDITRIAJE_APP); SIGNO_VITAL trigger bloquea INSERT en atención CERRADA; RECETA emitida sobre atención CERRADA con inmutabilidad desde INSERT; coherencia CITA-TRIAJE por clave foránea compuesta UQ(ID, PACIENTE_ID) y FK(TRIAJE_ID, PACIENTE_ID); TIME_ZONE configurado en connectionInitSql de HikariCP · Robustez técnica y seguridad relacional en Oracle ATP · ADR-005, ADR-008, ADR-009, ADR-012
 - 2026-10-03 · Aprobación de ADR-014: Recuperación de contraseña mediante código numérico de 6 dígitos con expiración a 15 minutos enviado por correo con plantilla HTML institucional de MediTriaje 2.0 y hasheado en BD; MFA TOTP (RFC 6238) con secreto Base32 y códigos de respaldo para profesionales y administradores · Elevación de seguridad en Fase 2 · ADR-014
+- 2026-10-04 · Aprobación de ADR-015: Seguimiento post-atención y tareas de control, reporte de evolución del paciente sin diagnósticos automáticos (§5.16), confirmaciones y cancelaciones de citas con plantillas HTML institucionales y desacoplamiento tolerante a fallos · Robustecimiento clínico y asistencial en Fase 2 · ADR-015
 
 
 ## Pendientes y dudas abiertas
@@ -171,6 +179,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · F2.1.4 · Autenticación Multifactor (MFA TOTP RFC 6238) en Backend (ADR-014, F2.1): utilitarios Base32Util y TotpService (HMAC-SHA1, ventana ±30s, URI otpauth://); modelos MfaBackupCode y Usuario extendido; repositorio MfaBackupCodeRepository y actualización de UsuarioRepository; acciones auditables MFA_SETUP, MFA_VERIFY, MFA_LOGIN_EXITOSO, MFA_LOGIN_FALLIDO; DTOs MfaSetupResponse, MfaVerifyRequest, MfaVerifyResponse, MfaAuthenticateRequest y AuthSessionResponse con desafío MFA; JwtService con generación de mfaChallengeToken firmado (5 min, claim type=mfa_challenge), validación en JwtAuthenticationFilter (aislamiento estricto de tokens de desafío); bifurcación en AuthService.login (retorna desafío sin emitir cookies de sesión si mfaHabilitado=true); métodos setupMfa (secreto Base32), verifyMfa (activación y generación de 8 códigos de respaldo uniuso hasheados con SHA-256) y autenticarMfa (emisión de tokens definitivos tras validar TOTP o backup code); endpoints en AuthController (/mfa/setup, /mfa/verify, /mfa/authenticate); 35 pruebas automatizadas nuevas en Base32UtilTest, TotpServiceTest, MfaBackupCodeRepositoryTest, AuthServiceTest, AuthControllerTest y JwtServiceTest elevando la suite completa a 556 pruebas pasando al 100% · feat(auth): autenticacion multifactor mfa totp rfc 6238 (F2.1.4)
 - 2026-10-03 · F2.1.5 · Pantallas en Frontend (Login, Recuperación y Enrolamiento MFA): integración en auth.js de métodos para recuperación (forgotPassword, resetPassword) y MFA (setupMfa, verifyMfa, authenticateMfa); enlace '¿Olvidaste tu contraseña?' y vista interactiva forgotPasswordView (#/forgot-password) en dos pasos (solicitud de correo y validación de código numérico OTP de 6 dígitos con nueva contraseña segura); soporte de segundo factor en loginView renderizando renderMfaChallengeStep ante mfaRequerido (código TOTP o código de respaldo); modal accesible de enrolamiento TOTP mfa-setup-modal.js con trampa de foco y Escape, visualización formateada de clave secreta, enlace otpauth:// y entrega de los 8 códigos de respaldo uniuso con botón de copiado; botones 'Seguridad MFA' en las cabeceras de agenda profesional y panel administrativo; validación de sintaxis con node --check y compilación exitosa. · feat(frontend): pantallas de recuperacion login con mfa y enrolamiento totp (F2.1.5)
 - 2026-10-04 · F2.1.6 · Colección HTTP y verificación integral de MFA y Recuperación (F2.1, ADR-014): creación de docs/api/F2.1.http con 4 secciones y 12 escenarios de prueba cubriendo healthcheck, recuperación de contraseña por OTP (solicitud, mitigación de enumeración, código inválido 400, restablecimiento exitoso y login), enrolamiento MFA TOTP (setup, verify con emisión de backup codes) y desafío de segundo factor en login (código TOTP de 6 dígitos, código de respaldo, código reusado 401 y token inválido 401); ejecución de suite Maven completa con 556 pruebas verdes al 100% y cero regresiones. Cierre exitoso del módulo F2.1. · test(api): coleccion f2.1.http y verificacion de mfa y recuperacion (F2.1.6)
+- 2026-10-04 · F2.2.1 · Migración Flyway V011 Seguimiento Post-Atención y Recordatorios (ADR-015, F2.2): creación de database/migrations/V011__seguimiento_post_atencion.sql con tabla SEGUIMIENTO_POST_ATENCION (tareas de control, evolución, exámenes y adherencia con reporte del paciente sin diagnóstico automático, §5.16), tabla RECORDATORIO_CITA para auditoría de notificaciones de citas por correo, índices relacionales y concesión de privilegios mínimos a MEDITRIAJE_APP; actualización de OracleIntegrationTest a V11 y verificación de consultas; suite de 556 pruebas pasando al 100%. · feat(database): migracion flyway v011 seguimiento post atencion y recordatorios (F2.2.1)
 
 
 

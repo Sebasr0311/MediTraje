@@ -462,12 +462,51 @@ Colección docs/api/F2.1.http, pruebas de integración y E2E Playwright. Puerta 
 
 ---
 
+## Módulo F2.2 — Seguimiento Post-Atención y Recordatorios por Correo
+
+### F2.2.1 Migración de base de datos V011 (Seguimiento post-atención y recordatorios)
+```
+Crea database/migrations/V011__seguimiento_post_atencion.sql:
+- Tabla SEGUIMIENTO_POST_ATENCION: ID, PUBLIC_ID, ATENCION_ID (FK), PACIENTE_ID (FK), PROFESIONAL_ID (FK), TIPO (CHECK: CONTROL_MEDICO, EVOLUCION_SINTOMAS, EXAMEN_PENDIENTE, ADHERENCIA_TRATAMIENTO), INDICACIONES, FECHA_SUGERIDA_CONTROL, ESTADO (CHECK: PENDIENTE, COMPLETADO, CANCELADO), FECHA_RESPUESTA_PACIENTE, REPORTE_PACIENTE, CREATED_AT, UPDATED_AT.
+- Tabla RECORDATORIO_CITA: ID, PUBLIC_ID, CITA_ID (FK), PACIENTE_ID (FK), TIPO (CHECK: CONFIRMACION_RESERVA, RECORDATORIO_PREVIO, CANCELACION), CANAL (CHECK: EMAIL), DESTINATARIO, ESTADO_ENVIO (CHECK: ENVIADO, FALLIDO, PENDIENTE), ERROR_MENSAJE, ENVIADO_AT.
+- GRANTs mínimos a MEDITRIAJE_APP (ADR-012).
+```
+
+### F2.2.2 Plantillas HTML y notificaciones por correo de citas y atención
+```
+Implementa plantillas y despacho de notificaciones:
+- Plantillas HTML responsivas en resources/templates/email/: confirmacion-cita.html, cancelacion-cita.html, resumen-atencion-seguimiento.html.
+- Integración en AppointmentService (reserva y cancelación) y ClinicalAttentionService (cierre de atención) con desacoplamiento y tolerancia a fallos SMTP.
+```
+
+### F2.2.3 Lógica de dominio y endpoints de seguimiento post-atención
+```
+Implementa servicio FollowUpService y endpoints:
+- POST /api/v1/attentions/{publicId}/follow-ups: creación de tarea de seguimiento por profesional con relación asistencial o autor.
+- GET /api/v1/patients/me/follow-ups: consulta paginada de tareas de seguimiento del paciente.
+- POST /api/v1/patients/me/follow-ups/{publicId}/report: registro de reporte de evolución por el paciente (sin diagnóstico automático, §5.16).
+- Aislamiento estricto de roles (403 para administradores y pacientes ajenos). Pruebas unitarias y MockMvc.
+```
+
+### F2.2.4 Pantallas en Frontend (Seguimiento del paciente y revisión médica)
+```
+Actualiza el frontend Vanilla:
+- Sección de seguimientos y controles en la vista del paciente con formulario interactivo para reporte de evolución.
+- Visualización de seguimientos y reportes del paciente en la ficha médica del profesional.
+```
+
+### F2.2.5 Pruebas, colección HTTP y cierre F2.2
+```
+Colección docs/api/F2.2.http, pruebas completas de integración y verificación. Puerta de salida F2.2: etiqueta v1.2-seguimiento.
+```
+
+---
+
 # Otras iniciativas de Fase 2 (orden sugerido)
-1. Seguimiento post-atención y recordatorios por correo.
-2. Resumen de salud y QR temporal (ADR-010).
-3. Dispensación/reclamación y tratamientos.
-4. Acceso de emergencia *break-glass*.
-5. Asistente y reportes.
+1. Resumen de salud y QR temporal (ADR-010).
+2. Dispensación/reclamación y tratamientos.
+3. Acceso de emergencia *break-glass*.
+4. Asistente y reportes.
 
 ---
 
