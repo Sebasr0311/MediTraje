@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** F2.1.1 — Migración Flyway V010 (MFA y recuperación de contraseña)
+- **Tarea actual:** F2.1.4 — Autenticación Multifactor (MFA TOTP) en Backend
 - **Última etiqueta:** v1.0-mvp (MVP completado)
 - **Rama de trabajo:** feature/f2.1-mfa-recuperacion
 
@@ -82,7 +82,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ### F2.1 — MFA para Profesionales y Recuperación de Contraseña
 - [x] F2.1.1 Migración Flyway V010 (columnas MFA, CODIGO_VERIFICACION, MFA_BACKUP_CODE)
 - [x] F2.1.2 Servicio de correo y plantilla HTML institucional
-- [ ] F2.1.3 Endpoints y lógica de recuperación de contraseña con código OTP
+- [x] F2.1.3 Endpoints y lógica de recuperación de contraseña con código OTP
 - [ ] F2.1.4 Autenticación Multifactor (MFA TOTP) en Backend
 - [ ] F2.1.5 Pantallas en Frontend (Login, Recuperación y Enrolamiento MFA)
 - [ ] F2.1.6 Pruebas, colección HTTP y cierre F2.1
@@ -167,6 +167,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · Cierre M8 / MVP Final · Cumplimiento formal y pleno de la Puerta de Salida M8 (docs/MVP.md §7 y §8): checklist de historias HU-01 a HU-11 verificado, demo ejecutable de principio a fin, repositorio 100% libre de secretos y datos reales, 501 pruebas verdes, suite visual y responsiva con Playwright aprobada, consolidación de la versión 1.0.0-mvp y preparación para merge a develop y tag v1.0-mvp. · release: cierre exitoso de fase m8 y entrega final del mvp v1.0 (v1.0-mvp)
 - 2026-10-03 · F2.1.1 · Migración Flyway V010__mfa_y_recuperacion_password.sql: soporte TOTP en USUARIO (MFA_HABILITADO, MFA_SECRET, MFA_CONFIGURADO_AT), tabla CODIGO_VERIFICACION para OTP de 6 dígitos con hash SHA-256 y contador de intentos, tabla MFA_BACKUP_CODE para códigos de respaldo uniuso y privilegios mínimos a MEDITRIAJE_APP (ADR-012, ADR-014); OracleIntegrationTest actualizado a V10; 501 pruebas verdes · feat(database): migracion flyway v010 mfa y recuperacion de password (F2.1.1)
 - 2026-10-03 · F2.1.2 · Servicio de correo y plantilla HTML institucional: creación de resources/templates/email/recuperacion-password.html con diseño alineado a tokens.css, caja destacada de código de 6 dígitos, expiración a 15 min y advertencia de seguridad; implementación de EmailTemplateService y DefaultEmailService con buffer en memoria para pruebas y trazabilidad; suite de pruebas unitarias EmailServiceTest verde · feat(email): servicio de correo y plantilla html institucional para recuperacion (F2.1.2)
+- 2026-10-03 · F2.1.3 · Endpoints y lógica de recuperación de contraseña con código OTP (ADR-014, F2.1): modelo CodigoVerificacion, repositorio CodigoVerificacionRepository con JDBC parametrizado, DTOs SolicitarRecuperacionRequest/Response y RestablecerPasswordRequest/Response con validación de código numérico de 6 dígitos (^[0-9]{6}$); lógica transaccional en AuthService (generación SecureRandom, hash SHA-256 con TokenHashUtil, envío de correo con plantilla institucional, mitigación de enumeración de usuarios, control de expiración a 15 min y máximo 3 intentos, actualización segura de contraseña con Argon2id, revocación total de sesiones previas en RefreshTokenRepository y auditoría inmutable de SOLICITUD_RECUPERACION_PASSWORD, RECUPERACION_PASSWORD_EXITO y RECUPERACION_PASSWORD_FALLO); endpoints públicos /api/v1/auth/forgot-password y /api/v1/auth/reset-password en AuthController y SecurityConfig; 20 pruebas unitarias y de integración nuevas en CodigoVerificacionRepositoryTest, AuthServiceTest y AuthControllerTest elevando la suite a 521 pruebas pasando al 100% · feat(auth): recuperacion de password con codigo otp y plantilla de correo (F2.1.3)
 
 
 

@@ -5,6 +5,25 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Recuperación de Contraseña con Código OTP por Correo (F2.1.3, ADR-014)**:
+  - Modelo de dominio inmutable `CodigoVerificacion.java` con métodos de expiración (`estaExpirado`), intentos máximos (`alcanzoMaxIntentos`) y validez (`esValido`).
+  - Repositorio `CodigoVerificacionRepository.java` con JDBC parametrizado para inserción atómica con `KeyHolder`, búsqueda del último código pendiente por usuario y tipo, incremento de intentos fallidos, marcado como usado e invalidación de códigos previos.
+  - DTOs en `com.meditriaje.dto.auth`: `SolicitarRecuperacionRequest`, `SolicitarRecuperacionResponse`, `RestablecerPasswordRequest` (validación de código de 6 dígitos numéricos `^[0-9]{6}$` y longitud de clave) y `RestablecerPasswordResponse`.
+  - Acciones de auditoría inmutables en `AccionAuditable`: `SOLICITUD_RECUPERACION_PASSWORD`, `RECUPERACION_PASSWORD_EXITO` y `RECUPERACION_PASSWORD_FALLO`.
+  - Métodos transaccionales en `AuthService`:
+    - `solicitarRecuperacionPassword`: generación criptográfica segura de código numérico de 6 dígitos con `SecureRandom`, hash SHA-256 (`TokenHashUtil`), expiración de 15 minutos, envío de correo con plantilla institucional (`EmailService`), mitigación de enumeración de usuarios retornando respuesta idéntica informativa y auditoría inmutable.
+    - `restablecerPassword`: verificación de hash SHA-256, expiración e intentos máximos (límite de 3 intentos), actualización de clave hasheada con Argon2id, desbloqueo de cuenta, revocación masiva de todas las sesiones previas del usuario (`RefreshTokenRepository.revocarTodosPorUsuario`) y auditoría de éxito/fallo.
+  - Endpoints públicos en `AuthController`: `POST /api/v1/auth/forgot-password` y `POST /api/v1/auth/reset-password` autorizados en `SecurityConfig.java`.
+  - 20 pruebas unitarias y de integración nuevas en `CodigoVerificacionRepositoryTest`, `AuthServiceTest` y `AuthControllerTest`.
+- **Servicio de Correo y Plantilla HTML Institucional (F2.1.2, ADR-014)**:
+  - Plantilla HTML `backend/src/main/resources/templates/email/recuperacion-password.html` con sistema de diseño MediTriaje 2.0 (`tokens.css`), caja destacada para el código de 6 dígitos, expiración de 15 minutos y advertencias de seguridad.
+  - Servicio `EmailTemplateService` y `DefaultEmailService` con buffer en memoria para pruebas.
+- **Migración Flyway V010: MFA y Recuperación de Contraseña (F2.1.1, ADR-014)**:
+  - Archivo `database/migrations/V010__mfa_y_recuperacion_password.sql` con soporte TOTP en `USUARIO`, tabla `CODIGO_VERIFICACION` y tabla `MFA_BACKUP_CODE`.
+
 ## [1.0.0-mvp] - 2026-10-03
 
 ### Added

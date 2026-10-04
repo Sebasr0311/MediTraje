@@ -9,6 +9,10 @@ import com.meditriaje.dto.CambiarPasswordRequest;
 import com.meditriaje.dto.LoginRequest;
 import com.meditriaje.dto.RegistroPacienteRequest;
 import com.meditriaje.dto.RegistroPacienteResponse;
+import com.meditriaje.dto.auth.RestablecerPasswordRequest;
+import com.meditriaje.dto.auth.RestablecerPasswordResponse;
+import com.meditriaje.dto.auth.SolicitarRecuperacionRequest;
+import com.meditriaje.dto.auth.SolicitarRecuperacionResponse;
 import com.meditriaje.exception.CredencialesInvalidasException;
 import com.meditriaje.exception.GlobalExceptionHandler;
 import com.meditriaje.security.CsrfHeaderFilter;
@@ -284,6 +288,82 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/v1/auth/change-password")
                         .cookie(new Cookie("access_token", tokenValido))
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("VALIDACION_FALLIDA"));
+    }
+
+    @Test
+    void forgotPassword_datosValidos_retorna200OkConMensajeGenericoSinAutenticacion() throws Exception {
+        SolicitarRecuperacionRequest request = new SolicitarRecuperacionRequest("paciente@hospital.com");
+        when(authService.solicitarRecuperacionPassword(any(SolicitarRecuperacionRequest.class), anyString()))
+                .thenReturn(SolicitarRecuperacionResponse.defaultResponse());
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mensaje").value(SolicitarRecuperacionResponse.MENSAJE_DEFAULT));
+    }
+
+    @Test
+    void forgotPassword_emailInvalido_retorna400BadRequest() throws Exception {
+        SolicitarRecuperacionRequest request = new SolicitarRecuperacionRequest("correo-no-valido");
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("VALIDACION_FALLIDA"));
+    }
+
+    @Test
+    void resetPassword_datosValidos_retorna200OkSinAutenticacion() throws Exception {
+        RestablecerPasswordRequest request = new RestablecerPasswordRequest(
+                "paciente@hospital.com",
+                "123456",
+                "NuevaClaveSegura123*"
+        );
+        when(authService.restablecerPassword(any(RestablecerPasswordRequest.class), anyString()))
+                .thenReturn(RestablecerPasswordResponse.defaultResponse());
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mensaje").value(RestablecerPasswordResponse.MENSAJE_DEFAULT));
+    }
+
+    @Test
+    void resetPassword_codigoInvalido_retorna400BadRequest() throws Exception {
+        RestablecerPasswordRequest request = new RestablecerPasswordRequest(
+                "paciente@hospital.com",
+                "1234", // menos de 6 dígitos
+                "NuevaClaveSegura123*"
+        );
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("VALIDACION_FALLIDA"));
+    }
+
+    @Test
+    void resetPassword_passwordCorta_retorna400BadRequest() throws Exception {
+        RestablecerPasswordRequest request = new RestablecerPasswordRequest(
+                "paciente@hospital.com",
+                "123456",
+                "corta" // menos de 10 caracteres
+        );
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
                         .header("X-Requested-With", "XMLHttpRequest")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

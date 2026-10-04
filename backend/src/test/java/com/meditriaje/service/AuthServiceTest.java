@@ -42,6 +42,40 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import com.meditriaje.dto.auth.RestablecerPasswordRequest;
+import com.meditriaje.dto.auth.RestablecerPasswordResponse;
+import com.meditriaje.dto.auth.SolicitarRecuperacionRequest;
+import com.meditriaje.dto.auth.SolicitarRecuperacionResponse;
+import com.meditriaje.model.CodigoVerificacion;
+import com.meditriaje.model.Paciente;
+import com.meditriaje.repository.CodigoVerificacionRepository;
+import com.meditriaje.repository.ProfesionalRepository;
+import com.meditriaje.security.TokenHashUtil;
+import com.meditriaje.service.email.EmailService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,10 +88,16 @@ class AuthServiceTest {
     private PacienteRepository pacienteRepository;
 
     @Mock
+    private ProfesionalRepository profesionalRepository;
+
+    @Mock
     private ConsentimientoRepository consentimientoRepository;
 
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private CodigoVerificacionRepository codigoVerificacionRepository;
 
     @Mock
     private AuditoriaService auditoriaService;
@@ -68,6 +108,9 @@ class AuthServiceTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private EmailService emailService;
+
     private AuthService authService;
 
     @BeforeEach
@@ -75,11 +118,14 @@ class AuthServiceTest {
         authService = new AuthService(
                 usuarioRepository,
                 pacienteRepository,
+                profesionalRepository,
                 consentimientoRepository,
                 refreshTokenRepository,
+                codigoVerificacionRepository,
                 auditoriaService,
                 passwordEncoder,
                 jwtService,
+                emailService,
                 7
         );
     }
@@ -588,6 +634,209 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.cambiarPassword(userPubId, req, "192.168.1.10"))
                 .isInstanceOf(CredencialesInvalidasException.class);
+
+        verify(usuarioRepository, never()).actualizarPassword(anyLong(), anyString(), anyBoolean());
+    }
+
+    @Test
+    void solicitarRecuperacionPassword_usuarioExiste_generaCodigoEnviaEmailYAuditaExito() {
+        String email = "carlos@hospital.com";
+        Usuario usuario = new Usuario(
+                10L, "usr-pub-1", email, "$argon2id$hash", "ACTIVO", 0, null, Instant.now(), false
+        );
+        Paciente paciente = new Paciente(
+                5L, 10L, "pac-pub-1", "CC", "12345678", "Carlos", "Perez",
+                LocalDate.of(1990, 1, 1), "3001234567", Instant.now(), null
+        );
+
+        when(usuarioRepository.buscarPorEmail(email)).thenReturn(Optional.of(usuario));
+        when(pacienteRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.of(paciente));
+
+        SolicitarRecuperacionRequest req = new SolicitarRecuperacionRequest(email);
+        SolicitarRecuperacionResponse resp = authService.solicitarRecuperacionPassword(req, "192.168.1.50");
+
+        assertThat(resp.mensaje()).isEqualTo(SolicitarRecuperacionResponse.MENSAJE_DEFAULT);
+
+        verify(codigoVerificacionRepository).invalidarCodigosPrevios(10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD);
+        verify(codigoVerificacionRepository).crear(any(CodigoVerificacion.class));
+        verify(emailService).enviarCodigoRecuperacion(eq(email), eq("Carlos"), anyString(), eq(15));
+        verify(auditoriaService).registrarEvento(
+                eq(10L),
+                eq(AccionAuditable.SOLICITUD_RECUPERACION_PASSWORD),
+                eq("USUARIO"),
+                eq("usr-pub-1"),
+                eq(ResultadoAuditoria.EXITO),
+                eq("192.168.1.50")
+        );
+    }
+
+    @Test
+    void solicitarRecuperacionPassword_usuarioNoExiste_retornaMensajeGenericoSinEnviarEmail() {
+        String email = "fantasma@hospital.com";
+        when(usuarioRepository.buscarPorEmail(email)).thenReturn(Optional.empty());
+
+        SolicitarRecuperacionRequest req = new SolicitarRecuperacionRequest(email);
+        SolicitarRecuperacionResponse resp = authService.solicitarRecuperacionPassword(req, "192.168.1.50");
+
+        assertThat(resp.mensaje()).isEqualTo(SolicitarRecuperacionResponse.MENSAJE_DEFAULT);
+
+        verify(codigoVerificacionRepository, never()).crear(any());
+        verify(emailService, never()).enviarCodigoRecuperacion(anyString(), anyString(), anyString(), anyInt());
+        verify(auditoriaService).registrarEvento(
+                eq(AccionAuditable.SOLICITUD_RECUPERACION_PASSWORD),
+                eq("USUARIO"),
+                isNull(),
+                eq(ResultadoAuditoria.EXITO),
+                eq("192.168.1.50")
+        );
+    }
+
+    @Test
+    void restablecerPassword_exito_actualizaHashRevocaSesionesYAuditaExito() {
+        String email = "carlos@hospital.com";
+        String rawCode = "654321";
+        String codeHash = TokenHashUtil.hash(rawCode);
+        Usuario usuario = new Usuario(
+                10L, "usr-pub-1", email, "$argon2id$oldhash", "ACTIVO", 0, null, Instant.now(), false
+        );
+        CodigoVerificacion codigo = new CodigoVerificacion(
+                1L, "cod-pub-1", 10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD,
+                codeHash, Instant.now().plus(10, ChronoUnit.MINUTES), 0, 3, false, Instant.now()
+        );
+
+        when(usuarioRepository.buscarPorEmail(email)).thenReturn(Optional.of(usuario));
+        when(codigoVerificacionRepository.buscarUltimoPendientePorUsuarioYTipo(10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD))
+                .thenReturn(Optional.of(codigo));
+        when(passwordEncoder.matches("NuevoPasswordSeguro123*", "$argon2id$oldhash")).thenReturn(false);
+        when(passwordEncoder.encode("NuevoPasswordSeguro123*")).thenReturn("$argon2id$newhash");
+
+        RestablecerPasswordRequest req = new RestablecerPasswordRequest(email, rawCode, "NuevoPasswordSeguro123*");
+        RestablecerPasswordResponse resp = authService.restablecerPassword(req, "192.168.1.50");
+
+        assertThat(resp.mensaje()).isEqualTo(RestablecerPasswordResponse.MENSAJE_DEFAULT);
+
+        verify(usuarioRepository).actualizarPassword(10L, "$argon2id$newhash", false);
+        verify(usuarioRepository).restablecerIntentos(10L);
+        verify(codigoVerificacionRepository).marcarComoUsado(1L);
+        verify(refreshTokenRepository).revocarTodosPorUsuario(10L);
+        verify(auditoriaService).registrarEvento(
+                eq(10L),
+                eq(AccionAuditable.RECUPERACION_PASSWORD_EXITO),
+                eq("USUARIO"),
+                eq("usr-pub-1"),
+                eq(ResultadoAuditoria.EXITO),
+                eq("192.168.1.50")
+        );
+    }
+
+    @Test
+    void restablecerPassword_codigoIncorrecto_incrementaIntentosYAuditaFallo() {
+        String email = "carlos@hospital.com";
+        String rawCodeCorrecto = "654321";
+        String rawCodeEnviado = "111111";
+        String codeHash = TokenHashUtil.hash(rawCodeCorrecto);
+        Usuario usuario = new Usuario(
+                10L, "usr-pub-1", email, "$argon2id$oldhash", "ACTIVO", 0, null, Instant.now(), false
+        );
+        CodigoVerificacion codigo = new CodigoVerificacion(
+                1L, "cod-pub-1", 10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD,
+                codeHash, Instant.now().plus(10, ChronoUnit.MINUTES), 0, 3, false, Instant.now()
+        );
+
+        when(usuarioRepository.buscarPorEmail(email)).thenReturn(Optional.of(usuario));
+        when(codigoVerificacionRepository.buscarUltimoPendientePorUsuarioYTipo(10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD))
+                .thenReturn(Optional.of(codigo));
+
+        RestablecerPasswordRequest req = new RestablecerPasswordRequest(email, rawCodeEnviado, "NuevoPasswordSeguro123*");
+
+        assertThatThrownBy(() -> authService.restablecerPassword(req, "192.168.1.50"))
+                .isInstanceOf(CredencialesInvalidasException.class)
+                .hasMessageContaining("Codigo de verificacion incorrecto");
+
+        verify(codigoVerificacionRepository).incrementarIntentos(1L);
+        verify(usuarioRepository, never()).actualizarPassword(anyLong(), anyString(), anyBoolean());
+        verify(auditoriaService).registrarEvento(
+                eq(10L),
+                eq(AccionAuditable.RECUPERACION_PASSWORD_FALLO),
+                eq("USUARIO"),
+                eq("usr-pub-1"),
+                eq(ResultadoAuditoria.FALLO),
+                eq("192.168.1.50")
+        );
+    }
+
+    @Test
+    void restablecerPassword_codigoExpirado_marcaComoUsadoYAuditaFallo() {
+        String email = "carlos@hospital.com";
+        Usuario usuario = new Usuario(
+                10L, "usr-pub-1", email, "$argon2id$oldhash", "ACTIVO", 0, null, Instant.now(), false
+        );
+        CodigoVerificacion codigo = new CodigoVerificacion(
+                1L, "cod-pub-1", 10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD,
+                "somehash", Instant.now().minus(5, ChronoUnit.MINUTES), 0, 3, false, Instant.now().minus(20, ChronoUnit.MINUTES)
+        );
+
+        when(usuarioRepository.buscarPorEmail(email)).thenReturn(Optional.of(usuario));
+        when(codigoVerificacionRepository.buscarUltimoPendientePorUsuarioYTipo(10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD))
+                .thenReturn(Optional.of(codigo));
+
+        RestablecerPasswordRequest req = new RestablecerPasswordRequest(email, "123456", "NuevoPasswordSeguro123*");
+
+        assertThatThrownBy(() -> authService.restablecerPassword(req, "192.168.1.50"))
+                .isInstanceOf(CredencialesInvalidasException.class)
+                .hasMessageContaining("expirado");
+
+        verify(codigoVerificacionRepository).marcarComoUsado(1L);
+        verify(usuarioRepository, never()).actualizarPassword(anyLong(), anyString(), anyBoolean());
+    }
+
+    @Test
+    void restablecerPassword_codigoSuperoMaxIntentos_marcaComoUsadoYAuditaBloqueado() {
+        String email = "carlos@hospital.com";
+        Usuario usuario = new Usuario(
+                10L, "usr-pub-1", email, "$argon2id$oldhash", "ACTIVO", 0, null, Instant.now(), false
+        );
+        CodigoVerificacion codigo = new CodigoVerificacion(
+                1L, "cod-pub-1", 10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD,
+                "somehash", Instant.now().plus(10, ChronoUnit.MINUTES), 3, 3, false, Instant.now()
+        );
+
+        when(usuarioRepository.buscarPorEmail(email)).thenReturn(Optional.of(usuario));
+        when(codigoVerificacionRepository.buscarUltimoPendientePorUsuarioYTipo(10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD))
+                .thenReturn(Optional.of(codigo));
+
+        RestablecerPasswordRequest req = new RestablecerPasswordRequest(email, "123456", "NuevoPasswordSeguro123*");
+
+        assertThatThrownBy(() -> authService.restablecerPassword(req, "192.168.1.50"))
+                .isInstanceOf(CredencialesInvalidasException.class)
+                .hasMessageContaining("superado el numero maximo de intentos");
+
+        verify(codigoVerificacionRepository).marcarComoUsado(1L);
+    }
+
+    @Test
+    void restablecerPassword_passwordNuevoIgualAlActual_lanzaDatosInvalidosException() {
+        String email = "carlos@hospital.com";
+        String rawCode = "654321";
+        String codeHash = TokenHashUtil.hash(rawCode);
+        Usuario usuario = new Usuario(
+                10L, "usr-pub-1", email, "$argon2id$oldhash", "ACTIVO", 0, null, Instant.now(), false
+        );
+        CodigoVerificacion codigo = new CodigoVerificacion(
+                1L, "cod-pub-1", 10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD,
+                codeHash, Instant.now().plus(10, ChronoUnit.MINUTES), 0, 3, false, Instant.now()
+        );
+
+        when(usuarioRepository.buscarPorEmail(email)).thenReturn(Optional.of(usuario));
+        when(codigoVerificacionRepository.buscarUltimoPendientePorUsuarioYTipo(10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD))
+                .thenReturn(Optional.of(codigo));
+        when(passwordEncoder.matches("MismaPassword123*", "$argon2id$oldhash")).thenReturn(true);
+
+        RestablecerPasswordRequest req = new RestablecerPasswordRequest(email, rawCode, "MismaPassword123*");
+
+        assertThatThrownBy(() -> authService.restablecerPassword(req, "192.168.1.50"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("no puede ser igual a la anterior");
 
         verify(usuarioRepository, never()).actualizarPassword(anyLong(), anyString(), anyBoolean());
     }

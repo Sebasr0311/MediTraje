@@ -6,25 +6,39 @@ import com.meditriaje.dto.CambiarPasswordRequest;
 import com.meditriaje.dto.LoginRequest;
 import com.meditriaje.dto.RegistroPacienteRequest;
 import com.meditriaje.dto.RegistroPacienteResponse;
+import com.meditriaje.dto.auth.RestablecerPasswordRequest;
+import com.meditriaje.dto.auth.RestablecerPasswordResponse;
+import com.meditriaje.dto.auth.SolicitarRecuperacionRequest;
+import com.meditriaje.dto.auth.SolicitarRecuperacionResponse;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
 import com.meditriaje.exception.CredencialesInvalidasException;
 import com.meditriaje.exception.DatosInvalidosException;
 import com.meditriaje.exception.TokenInvalidoException;
 import com.meditriaje.model.AccionAuditable;
+import com.meditriaje.model.CodigoVerificacion;
+import com.meditriaje.model.Paciente;
+import com.meditriaje.model.Profesional;
 import com.meditriaje.model.RefreshToken;
 import com.meditriaje.model.ResultadoAuditoria;
 import com.meditriaje.model.Usuario;
+import com.meditriaje.repository.CodigoVerificacionRepository;
 import com.meditriaje.repository.ConsentimientoRepository;
 import com.meditriaje.repository.PacienteRepository;
+import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.RefreshTokenRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import com.meditriaje.security.JwtService;
 import com.meditriaje.security.TokenHashUtil;
+import com.meditriaje.service.email.EmailService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -34,19 +48,49 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Servicio de autenticación, registro de usuarios y ciclo de vida de sesiones (HU-01, ADR-002, ADR-013).
+ * Servicio de autenticación, registro de usuarios y ciclo de vida de sesiones (HU-01, ADR-002, ADR-013, ADR-014).
  */
 @Service
 public class AuthService {
 
     private final UsuarioRepository usuarioRepository;
     private final PacienteRepository pacienteRepository;
+    private final ProfesionalRepository profesionalRepository;
     private final ConsentimientoRepository consentimientoRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final CodigoVerificacionRepository codigoVerificacionRepository;
     private final AuditoriaService auditoriaService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final EmailService emailService;
     private final long refreshExpirationDays;
+
+    @Autowired
+    public AuthService(
+            UsuarioRepository usuarioRepository,
+            PacienteRepository pacienteRepository,
+            ProfesionalRepository profesionalRepository,
+            ConsentimientoRepository consentimientoRepository,
+            RefreshTokenRepository refreshTokenRepository,
+            CodigoVerificacionRepository codigoVerificacionRepository,
+            AuditoriaService auditoriaService,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            EmailService emailService,
+            @Value("${security.jwt.refresh-expiration-days:7}") long refreshExpirationDays
+    ) {
+        this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "UsuarioRepository no puede ser nulo");
+        this.pacienteRepository = Objects.requireNonNull(pacienteRepository, "PacienteRepository no puede ser nulo");
+        this.profesionalRepository = profesionalRepository;
+        this.consentimientoRepository = Objects.requireNonNull(consentimientoRepository, "ConsentimientoRepository no puede ser nulo");
+        this.refreshTokenRepository = Objects.requireNonNull(refreshTokenRepository, "RefreshTokenRepository no puede ser nulo");
+        this.codigoVerificacionRepository = codigoVerificacionRepository;
+        this.auditoriaService = Objects.requireNonNull(auditoriaService, "AuditoriaService no puede ser nulo");
+        this.passwordEncoder = Objects.requireNonNull(passwordEncoder, "PasswordEncoder no puede ser nulo");
+        this.jwtService = Objects.requireNonNull(jwtService, "JwtService no puede ser nulo");
+        this.emailService = emailService;
+        this.refreshExpirationDays = refreshExpirationDays;
+    }
 
     public AuthService(
             UsuarioRepository usuarioRepository,
@@ -56,16 +100,21 @@ public class AuthService {
             AuditoriaService auditoriaService,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            @Value("${security.jwt.refresh-expiration-days:7}") long refreshExpirationDays
+            long refreshExpirationDays
     ) {
-        this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "UsuarioRepository no puede ser nulo");
-        this.pacienteRepository = Objects.requireNonNull(pacienteRepository, "PacienteRepository no puede ser nulo");
-        this.consentimientoRepository = Objects.requireNonNull(consentimientoRepository, "ConsentimientoRepository no puede ser nulo");
-        this.refreshTokenRepository = Objects.requireNonNull(refreshTokenRepository, "RefreshTokenRepository no puede ser nulo");
-        this.auditoriaService = Objects.requireNonNull(auditoriaService, "AuditoriaService no puede ser nulo");
-        this.passwordEncoder = Objects.requireNonNull(passwordEncoder, "PasswordEncoder no puede ser nulo");
-        this.jwtService = Objects.requireNonNull(jwtService, "JwtService no puede ser nulo");
-        this.refreshExpirationDays = refreshExpirationDays;
+        this(
+                usuarioRepository,
+                pacienteRepository,
+                null,
+                consentimientoRepository,
+                refreshTokenRepository,
+                null,
+                auditoriaService,
+                passwordEncoder,
+                jwtService,
+                null,
+                refreshExpirationDays
+        );
     }
 
     /**
@@ -429,5 +478,214 @@ public class AuthService {
                 ResultadoAuditoria.EXITO,
                 ipOrigen
         );
+    }
+
+    /**
+     * Procesa la solicitud de recuperación de contraseña enviando un código OTP de 6 dígitos por correo (ADR-014, F2.1.3).
+     * Siempre retorna una respuesta idéntica informativa para mitigar ataques de enumeración de usuarios.
+     */
+    @Transactional
+    public SolicitarRecuperacionResponse solicitarRecuperacionPassword(SolicitarRecuperacionRequest request, String ipOrigen) {
+        Objects.requireNonNull(request, "La solicitud de recuperacion no puede ser nula");
+        String emailNormalizado = request.email().trim().toLowerCase(Locale.ROOT);
+
+        Optional<Usuario> usuarioOpt = usuarioRepository.buscarPorEmail(emailNormalizado);
+        if (usuarioOpt.isEmpty()) {
+            auditoriaService.registrarEvento(
+                    AccionAuditable.SOLICITUD_RECUPERACION_PASSWORD,
+                    "USUARIO",
+                    null,
+                    ResultadoAuditoria.EXITO,
+                    ipOrigen
+            );
+            return SolicitarRecuperacionResponse.defaultResponse();
+        }
+
+        Usuario usuario = usuarioOpt.get();
+
+        // Si la cuenta está expresamente inactiva, no se emite código
+        if (!"ACTIVO".equalsIgnoreCase(usuario.estado()) && !"BLOQUEADO".equalsIgnoreCase(usuario.estado())) {
+            return SolicitarRecuperacionResponse.defaultResponse();
+        }
+
+        if (codigoVerificacionRepository != null) {
+            // Invalidar códigos de recuperación pendientes anteriores
+            codigoVerificacionRepository.invalidarCodigosPrevios(usuario.id(), CodigoVerificacion.TIPO_RECUPERACION_PASSWORD);
+
+            // Generar código numérico de 6 dígitos con SecureRandom (100000 - 999999)
+            SecureRandom random = new SecureRandom();
+            int codigoNum = 100000 + random.nextInt(900000);
+            String codigo = String.valueOf(codigoNum);
+
+            // Hash criptográfico SHA-256
+            String codigoHash = TokenHashUtil.hash(codigo);
+            Instant expiracion = Instant.now().plus(15, ChronoUnit.MINUTES);
+
+            CodigoVerificacion nuevoCodigo = new CodigoVerificacion(
+                    null,
+                    UUID.randomUUID().toString(),
+                    usuario.id(),
+                    CodigoVerificacion.TIPO_RECUPERACION_PASSWORD,
+                    codigoHash,
+                    expiracion,
+                    0,
+                    3,
+                    false,
+                    null
+            );
+            codigoVerificacionRepository.crear(nuevoCodigo);
+
+            String destinatarioNombre = resolverNombreDestinatario(usuario);
+
+            if (emailService != null) {
+                emailService.enviarCodigoRecuperacion(usuario.email(), destinatarioNombre, codigo, 15);
+            }
+        }
+
+        auditoriaService.registrarEvento(
+                usuario.id(),
+                AccionAuditable.SOLICITUD_RECUPERACION_PASSWORD,
+                "USUARIO",
+                usuario.publicId(),
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        );
+
+        return SolicitarRecuperacionResponse.defaultResponse();
+    }
+
+    /**
+     * Restablece la contraseña del usuario validando el código OTP de 6 dígitos (ADR-014, F2.1.3).
+     * Tras restablecer con éxito, revoca todas las sesiones previas (refresh tokens) del usuario.
+     */
+    @Transactional
+    public RestablecerPasswordResponse restablecerPassword(RestablecerPasswordRequest request, String ipOrigen) {
+        Objects.requireNonNull(request, "La solicitud de restablecimiento no puede ser nula");
+        String emailNormalizado = request.email().trim().toLowerCase(Locale.ROOT);
+
+        Usuario usuario = usuarioRepository.buscarPorEmail(emailNormalizado)
+                .orElseThrow(() -> new CredencialesInvalidasException("Codigo de verificacion invalido o expirado."));
+
+        if (!"ACTIVO".equalsIgnoreCase(usuario.estado()) && !"BLOQUEADO".equalsIgnoreCase(usuario.estado())) {
+            throw new AccesoNoAutorizadoException("La cuenta de usuario se encuentra inactiva.");
+        }
+
+        if (codigoVerificacionRepository == null) {
+            throw new IllegalStateException("CodigoVerificacionRepository no esta disponible.");
+        }
+
+        Optional<CodigoVerificacion> codigoOpt = codigoVerificacionRepository
+                .buscarUltimoPendientePorUsuarioYTipo(usuario.id(), CodigoVerificacion.TIPO_RECUPERACION_PASSWORD);
+
+        if (codigoOpt.isEmpty()) {
+            auditoriaService.registrarEvento(
+                    usuario.id(),
+                    AccionAuditable.RECUPERACION_PASSWORD_FALLO,
+                    "USUARIO",
+                    usuario.publicId(),
+                    ResultadoAuditoria.FALLO,
+                    ipOrigen
+            );
+            throw new CredencialesInvalidasException("Codigo de verificacion invalido o expirado.");
+        }
+
+        CodigoVerificacion codigoVerif = codigoOpt.get();
+        Instant ahora = Instant.now();
+
+        if (codigoVerif.estaExpirado(ahora)) {
+            codigoVerificacionRepository.marcarComoUsado(codigoVerif.id());
+            auditoriaService.registrarEvento(
+                    usuario.id(),
+                    AccionAuditable.RECUPERACION_PASSWORD_FALLO,
+                    "USUARIO",
+                    usuario.publicId(),
+                    ResultadoAuditoria.FALLO,
+                    ipOrigen
+            );
+            throw new CredencialesInvalidasException("Codigo de verificacion expirado.");
+        }
+
+        if (codigoVerif.alcanzoMaxIntentos()) {
+            codigoVerificacionRepository.marcarComoUsado(codigoVerif.id());
+            auditoriaService.registrarEvento(
+                    usuario.id(),
+                    AccionAuditable.RECUPERACION_PASSWORD_FALLO,
+                    "USUARIO",
+                    usuario.publicId(),
+                    ResultadoAuditoria.BLOQUEADO,
+                    ipOrigen
+            );
+            throw new CredencialesInvalidasException("El codigo ha superado el numero maximo de intentos permitidos.");
+        }
+
+        String inputHash = TokenHashUtil.hash(request.codigo());
+        boolean coincide = MessageDigest.isEqual(
+                inputHash.getBytes(StandardCharsets.UTF_8),
+                codigoVerif.codigoHash().getBytes(StandardCharsets.UTF_8)
+        );
+
+        if (!coincide) {
+            codigoVerificacionRepository.incrementarIntentos(codigoVerif.id());
+            int nuevosIntentos = codigoVerif.intentosFallidos() + 1;
+            if (nuevosIntentos >= codigoVerif.maxIntentos()) {
+                codigoVerificacionRepository.marcarComoUsado(codigoVerif.id());
+            }
+
+            auditoriaService.registrarEvento(
+                    usuario.id(),
+                    AccionAuditable.RECUPERACION_PASSWORD_FALLO,
+                    "USUARIO",
+                    usuario.publicId(),
+                    ResultadoAuditoria.FALLO,
+                    ipOrigen
+            );
+            throw new CredencialesInvalidasException("Codigo de verificacion incorrecto.");
+        }
+
+        if (passwordEncoder.matches(request.passwordNuevo(), usuario.passwordHash())) {
+            auditoriaService.registrarEvento(
+                    usuario.id(),
+                    AccionAuditable.RECUPERACION_PASSWORD_FALLO,
+                    "USUARIO",
+                    usuario.publicId(),
+                    ResultadoAuditoria.FALLO,
+                    ipOrigen
+            );
+            throw new DatosInvalidosException("La nueva contrasena no puede ser igual a la anterior.");
+        }
+
+        String nuevoHash = passwordEncoder.encode(request.passwordNuevo());
+        usuarioRepository.actualizarPassword(usuario.id(), nuevoHash, false);
+        usuarioRepository.restablecerIntentos(usuario.id());
+
+        codigoVerificacionRepository.marcarComoUsado(codigoVerif.id());
+        refreshTokenRepository.revocarTodosPorUsuario(usuario.id());
+
+        auditoriaService.registrarEvento(
+                usuario.id(),
+                AccionAuditable.RECUPERACION_PASSWORD_EXITO,
+                "USUARIO",
+                usuario.publicId(),
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        );
+
+        return RestablecerPasswordResponse.defaultResponse();
+    }
+
+    private String resolverNombreDestinatario(Usuario usuario) {
+        if (pacienteRepository != null) {
+            var pacienteOpt = pacienteRepository.buscarPorUsuarioId(usuario.id());
+            if (pacienteOpt.isPresent()) {
+                return pacienteOpt.get().nombres();
+            }
+        }
+        if (profesionalRepository != null) {
+            var profesionalOpt = profesionalRepository.buscarPorUsuarioId(usuario.id());
+            if (profesionalOpt.isPresent()) {
+                return profesionalOpt.get().nombres();
+            }
+        }
+        return usuario.email();
     }
 }

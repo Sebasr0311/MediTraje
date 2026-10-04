@@ -6,6 +6,10 @@ import com.meditriaje.dto.CambiarPasswordRequest;
 import com.meditriaje.dto.LoginRequest;
 import com.meditriaje.dto.RegistroPacienteRequest;
 import com.meditriaje.dto.RegistroPacienteResponse;
+import com.meditriaje.dto.auth.RestablecerPasswordRequest;
+import com.meditriaje.dto.auth.RestablecerPasswordResponse;
+import com.meditriaje.dto.auth.SolicitarRecuperacionRequest;
+import com.meditriaje.dto.auth.SolicitarRecuperacionResponse;
 import com.meditriaje.service.AuthService;
 import com.meditriaje.util.IpUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -104,6 +108,26 @@ public class AuthController {
                 .header(HttpHeaders.SET_COOKIE, clearAccessCookie.toString())
                 .header(HttpHeaders.SET_COOKIE, clearRefreshCookie.toString())
                 .body(Map.of("mensaje", "Sesion cerrada exitosamente."));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<SolicitarRecuperacionResponse> forgotPassword(
+            @Valid @RequestBody SolicitarRecuperacionRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        String ipOrigen = IpUtil.extraerIp(httpRequest);
+        SolicitarRecuperacionResponse response = authService.solicitarRecuperacionPassword(request, ipOrigen);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<RestablecerPasswordResponse> resetPassword(
+            @Valid @RequestBody RestablecerPasswordRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        String ipOrigen = IpUtil.extraerIp(httpRequest);
+        RestablecerPasswordResponse response = authService.restablecerPassword(request, ipOrigen);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/change-password")
