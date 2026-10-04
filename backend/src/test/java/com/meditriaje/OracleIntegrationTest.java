@@ -109,13 +109,23 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV13() {
+    void flyway_schema_history_tieneAlMenosV14() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(13);
+        assertThat(count).isGreaterThanOrEqualTo(14);
+    }
+
+    @Test
+    void app_puedeConsultarTablasAccesoBreakGlass() {
+        // MEDITRIAJE_APP puede consultar tablas de V014 (ACCESO_BREAK_GLASS)
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        for (String tabla : new String[] {"ACCESO_BREAK_GLASS"}) {
+            assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + "." + tabla, Integer.class))
+                    .as("SELECT en " + tabla).isNotNull();
+        }
     }
 
     @Test
@@ -827,6 +837,48 @@ class OracleIntegrationTest {
                 org.springframework.dao.DataAccessException.class,
                 () -> ownerTemplate.update("DELETE FROM " + OWNER_USER + ".RECETA_DETALLE WHERE ID = ?", detalleId),
                 "El trigger debe bloquear DELETE en RECETA_DETALLE (ORA-20008)"
+        );
+    }
+
+    @Test
+    void db_triggersInmutabilidadBreakGlass() {
+        JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
+        String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
+
+        // Precondición: Paciente y profesional
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO) VALUES (?, ?, 'hash', 'ACTIVO')",
+                "usr-bg-pac-" + uid, "bg-pac-" + uid + "@test.com");
+        Long usuarioPacId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "usr-bg-pac-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PACIENTE (PUBLIC_ID, USUARIO_ID, TIPO_DOCUMENTO, NUMERO_DOCUMENTO, NOMBRES, APELLIDOS) "
+                + "VALUES (?, ?, 'CC', ?, 'Paciente', 'Emergencia')", "pac-bg-" + uid, usuarioPacId, "DOC-BG-" + uid);
+        Long pacienteId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PACIENTE WHERE PUBLIC_ID = ?", Long.class, "pac-bg-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO) VALUES (?, ?, 'hash', 'ACTIVO')",
+                "usr-bg-prof-" + uid, "bg-prof-" + uid + "@test.com");
+        Long usuarioProfId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "usr-bg-prof-" + uid);
+        Long espId = ownerTemplate.queryForObject("SELECT MIN(ID) FROM " + OWNER_USER + ".ESPECIALIDAD", Long.class);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PROFESIONAL (PUBLIC_ID, USUARIO_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS) "
+                + "VALUES (?, ?, ?, ?, 'Dr', 'Urgencias')", "prof-bg-" + uid, usuarioProfId, espId, "RM-BG-" + uid);
+        Long profesionalId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PROFESIONAL WHERE PUBLIC_ID = ?", Long.class, "prof-bg-" + uid);
+
+        // 1. Insertar ACCESO_BREAK_GLASS
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".ACCESO_BREAK_GLASS (PUBLIC_ID, PROFESIONAL_ID, PACIENTE_ID, MOTIVO, FECHA_EXPIRACION) "
+                + "VALUES (?, ?, ?, 'Paciente en estado comatoso requiere atencion medica urgente.', CURRENT_TIMESTAMP + INTERVAL '1' DAY)",
+                "bg-" + uid, profesionalId, pacienteId);
+        Long bgId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".ACCESO_BREAK_GLASS WHERE PUBLIC_ID = ?", Long.class, "bg-" + uid);
+
+        // 2. Demostrar que el trigger TR_BREAK_GLASS_INMUTABILIDAD bloquea UPDATE (ORA-20041)
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("UPDATE " + OWNER_USER + ".ACCESO_BREAK_GLASS SET MOTIVO = 'Otro motivo modificado' WHERE ID = ?", bgId),
+                "El trigger debe bloquear UPDATE en ACCESO_BREAK_GLASS (ORA-20041)"
+        );
+
+        // 3. Demostrar que el trigger TR_BREAK_GLASS_INMUTABILIDAD bloquea DELETE (ORA-20040)
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("DELETE FROM " + OWNER_USER + ".ACCESO_BREAK_GLASS WHERE ID = ?", bgId),
+                "El trigger debe bloquear DELETE en ACCESO_BREAK_GLASS (ORA-20040)"
         );
     }
 }

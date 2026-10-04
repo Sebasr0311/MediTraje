@@ -614,9 +614,59 @@ Colección docs/api/F2.4.http, pruebas completas de integración y verificación
 
 ---
 
+## Módulo F2.5 — Acceso Clínico de Emergencia (Break-Glass)
+
+### F2.5.1 ADR-017 y Migración V014 (Acceso Break-Glass)
+```
+Crea database/migrations/V014__acceso_break_glass.sql:
+- Tabla ACCESO_BREAK_GLASS: ID, PUBLIC_ID, PROFESIONAL_ID (FK), PACIENTE_ID (FK), MOTIVO (VARCHAR2(500)), FECHA_EXPIRACION (TIMESTAMP WITH TIME ZONE), CREATED_AT.
+- Trigger TR_BREAK_GLASS_INMUTABILIDAD que bloquea UPDATE y DELETE.
+- Índices IX_BREAK_GLASS_PROF_PAC y IX_BREAK_GLASS_EXPIRACION.
+- GRANTs mínimos a MEDITRIAJE_APP (SELECT, INSERT).
+- Registro de acción auditable ACCESO_BREAK_GLASS en AccionAuditable.
+```
+
+### F2.5.2 Modelos de Dominio, DTOs y Repositorio BreakGlassRepository
+```
+Implementa:
+- Record inmutable AccesoBreakGlass.
+- DTOs ActivarBreakGlassRequest y AccesoBreakGlassResponse.
+- BreakGlassRepository con JdbcTemplate y SQL parametrizado: registrarAcceso, existeAccesoActivo(profesionalId, pacienteId, ahora), listarActivosPorProfesional.
+```
+
+### F2.5.3 Integración con AccesoClinicoService y BreakGlassService
+```
+Implementa BreakGlassService y conecta con AccesoClinicoService:
+- Verificación en AccesoClinicoService: si no hay cita futura ni atención propia en 12 meses, verificar si existe un acceso break-glass activo no expirado.
+- BreakGlassService: validación de profesional asistencial, existencia del paciente, justificación obligatoria (mínimo 20 caracteres), cálculo de vigencia (24 horas) y auditoría reforzada ACCESO_BREAK_GLASS.
+```
+
+### F2.5.4 Endpoints REST de Break-Glass e Historia Clínica para Profesionales
+```
+Implementa controladores REST:
+- POST /api/v1/clinical/break-glass: activación de emergencia por profesional (201 Created).
+- GET /api/v1/clinical/break-glass/active: listado de accesos de emergencia vigentes del profesional.
+- GET /api/v1/clinical/patients/{publicId}/history: consulta de historia clínica del paciente por profesional con relación asistencial activa o break-glass vigente (200 OK con atenciones, signos vitales y enmiendas).
+- Control de seguridad: 403 Forbidden para administradores y pacientes; 401 Unauthorized sin sesión; 400 Bad Request ante datos inválidos.
+```
+
+### F2.5.5 Frontend: Modal de Justificación Legal y Consulta Asistencial Excepcional
+```
+Actualiza el frontend Vanilla:
+- Modal de advertencia legal/ética con confirmación y campo de justificación de urgencia (mínimo 20 caracteres) en la vista profesional.
+- Indicador visual claro (badge/alerta "Acceso de Emergencia Activo") en la vista del paciente.
+- Navegación e integración en router.js y api.js.
+```
+
+### F2.5.6 Pruebas, Colección HTTP y Cierre F2.5
+```
+Colección docs/api/F2.5.http, pruebas completas de integración y verificación. Puerta de salida F2.5: etiqueta v1.5-break-glass.
+```
+
+---
+
 # Otras iniciativas de Fase 2 (orden sugerido)
-1. Acceso de emergencia *break-glass*.
-2. Asistente y reportes.
+1. Asistente y reportes.
 
 ---
 
