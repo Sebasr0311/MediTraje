@@ -80,7 +80,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M8.6 Documentación final y demo
 
 ### F2.1 — MFA para Profesionales y Recuperación de Contraseña
-- [ ] F2.1.1 Migración Flyway V010 (columnas MFA, CODIGO_VERIFICACION, MFA_BACKUP_CODE)
+- [x] F2.1.1 Migración Flyway V010 (columnas MFA, CODIGO_VERIFICACION, MFA_BACKUP_CODE)
 - [ ] F2.1.2 Servicio de correo y plantilla HTML institucional
 - [ ] F2.1.3 Endpoints y lógica de recuperación de contraseña con código OTP
 - [ ] F2.1.4 Autenticación Multifactor (MFA TOTP) en Backend
@@ -165,6 +165,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · M8.5 · Endurecimiento y revisión final de seguridad: informe exhaustivo de auditoría en docs/security/REVISION_FINAL.md; cabeceras HTTP de seguridad explícitas (CSP default-src 'self', Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy y FrameOptions deny) en SecurityConfig.java; forzado de security.cookie.secure: true y restricción de detalles en Actuator Health (show-details: when-authorized) en application-prod.yml; prueba de integración en PingControllerTest; backend 100% verde (501 pruebas) · feat(security): endurecimiento de cabeceras cookies y actuator (M8.5)
 - 2026-10-03 · M8.6 · Documentación técnica integral y guion interactivo de demo: creación y actualización de README.md, docs/architecture/ARCHITECTURE.md, docs/api/API.md, docs/database/DATABASE.md, docs/security/SECURITY.md y docs/demo/GUION_DEMO.md con el sistema real implementado (Java 21, Spring Boot 3.3.4, Oracle ATP, Flyway V1-V9, triggers PL/SQL, SPA ES Modules, 17 controladores, 24 tablas, matriz OWASP y guion paso a paso con datos ficticios); formalización de versión v1.0.0-mvp en CHANGELOG.md; suite completa de 501 pruebas unitarias y de integración pasando al 100% · docs: documentacion integral del sistema y guion de demo mvp (M8.6)
 - 2026-10-03 · Cierre M8 / MVP Final · Cumplimiento formal y pleno de la Puerta de Salida M8 (docs/MVP.md §7 y §8): checklist de historias HU-01 a HU-11 verificado, demo ejecutable de principio a fin, repositorio 100% libre de secretos y datos reales, 501 pruebas verdes, suite visual y responsiva con Playwright aprobada, consolidación de la versión 1.0.0-mvp y preparación para merge a develop y tag v1.0-mvp. · release: cierre exitoso de fase m8 y entrega final del mvp v1.0 (v1.0-mvp)
+- 2026-10-03 · F2.1.1 · Migración Flyway V010__mfa_y_recuperacion_password.sql: soporte TOTP en USUARIO (MFA_HABILITADO, MFA_SECRET, MFA_CONFIGURADO_AT), tabla CODIGO_VERIFICACION para OTP de 6 dígitos con hash SHA-256 y contador de intentos, tabla MFA_BACKUP_CODE para códigos de respaldo uniuso y privilegios mínimos a MEDITRIAJE_APP (ADR-012, ADR-014); OracleIntegrationTest actualizado a V10; 501 pruebas verdes · feat(database): migracion flyway v010 mfa y recuperacion de password (F2.1.1)
 
 
 

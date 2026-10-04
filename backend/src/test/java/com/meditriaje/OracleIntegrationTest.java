@@ -109,13 +109,23 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV9() {
+    void flyway_schema_history_tieneAlMenosV10() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(9);
+        assertThat(count).isGreaterThanOrEqualTo(10);
+    }
+
+    @Test
+    void app_puedeConsultarTablasMfaYRecuperacion() {
+        // MEDITRIAJE_APP puede consultar tablas de V010
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        for (String tabla : new String[] {"CODIGO_VERIFICACION", "MFA_BACKUP_CODE"}) {
+            assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + "." + tabla, Integer.class))
+                    .as("SELECT en " + tabla).isNotNull();
+        }
     }
 
     @Test
