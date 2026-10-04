@@ -8,6 +8,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Migración Flyway V012: Acceso Temporal QR y Resumen de Emergencia (F2.3.1, ADR-010, §5.17, §5.18)**:
+  - Archivo de migración `database/migrations/V012__acceso_temporal_qr.sql` creando:
+    - Tabla `ACCESO_TEMPORAL_QR` para registro de tokens temporales de acceso criptográfico (256 bits, hash SHA-256 en reposo), soporte de PIN opcional con hash, flags booleanos de alcance (`INCLUIR_ALERGIAS`, `INCLUIR_MEDICAMENTOS`, `INCLUIR_ATENCIONES`, `INCLUIR_CONTACTO`), límite estricto de 3 lecturas (`MAX_ACCESOS`, `ACCESOS_REALIZADOS`), expiración a 15 minutos (`EXPIRA_AT`) y soporte de revocación (`REVOCADO`).
+    - Índices `IX_ACCESO_QR_TOKEN` e `IX_ACCESO_QR_PACIENTE`.
+    - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (`SELECT, INSERT, UPDATE`).
+  - Actualización de `OracleIntegrationTest.java` para verificar esquema V12 y lectura sobre `ACCESO_TEMPORAL_QR`.
 - **Colección HTTP y Cierre de Seguimiento y Notificaciones (F2.2.5, ADR-015)**:
   - Creación de la colección interactiva `docs/api/F2.2.http` con 7 secciones y 20 escenarios de prueba:
     - Healthcheck técnico (`/ping`).

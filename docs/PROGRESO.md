@@ -5,9 +5,9 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** Fase F2.2 completada. Próxima fase por definir/planear.
+- **Tarea actual:** F2.3.2 — Repositorio y lógica de tokens temporales criptográficos
 - **Última etiqueta:** v1.2-seguimiento (Fase F2.2 completada)
-- **Rama de trabajo:** develop
+- **Rama de trabajo:** feature/f2.3-resumen-qr
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -93,6 +93,14 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] F2.2.3 Lógica de dominio y endpoints de seguimiento post-atención
 - [x] F2.2.4 Pantallas en Frontend (Seguimiento del paciente y revisión médica)
 - [x] F2.2.5 Pruebas, colección HTTP y cierre F2.2
+
+### F2.3 — Resumen de Salud y Acceso por Código QR Temporal
+- [x] F2.3.1 Migración Flyway V012 (Acceso temporal QR)
+- [ ] F2.3.2 Repositorio y lógica de tokens temporales criptográficos
+- [ ] F2.3.3 Servicio de agregación de resumen clínico de salud
+- [ ] F2.3.4 Endpoints REST de resumen y QR de emergencia
+- [ ] F2.3.5 Pantallas en Frontend (Generador en portal del paciente y visor público)
+- [ ] F2.3.6 Pruebas, colección HTTP y cierre F2.3
 
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
@@ -184,6 +192,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · F2.2.3 · Lógica de Dominio y Endpoints de Seguimiento Post-Atención (ADR-015, F2.2, §5.16): enums TipoSeguimiento y EstadoSeguimiento; modelo SeguimientoPostAtencion; DTOs CrearSeguimientoRequest, ReportarEvolucionRequest y SeguimientoResponse (sin exponer IDs numéricos internos); repositorio SeguimientoRepository con SQL 100% parametrizado, GeneratedKeyHolder y paginación ANSI; servicio FollowUpService con prescripción médica (autor o relación asistencial activa sobre atenciones cerradas), notificación por correo al paciente, reporte de evolución del paciente sin diagnósticos automáticos (§5.16), cancelación y aislamiento estricto de roles (admin 403, paciente ajeno 403); acciones auditables inmutables CREACION_SEGUIMIENTO y REPORTE_EVOLUCION_SEGUIMIENTO; controladores FollowUpController (/api/v1/attentions/{id}/follow-ups, /api/v1/follow-ups/{id}, cancel) y PacienteController (/api/v1/patients/me/follow-ups, report); suite de 26 pruebas automatizadas nuevas en SeguimientoRepositoryTest, FollowUpServiceTest, FollowUpControllerTest y PacienteControllerTest elevando el backend a 594 pruebas verdes al 100%. · feat(followup): logica de dominio y endpoints de seguimiento post-atencion (F2.2.3)
 - 2026-10-04 · F2.2.4 · Pantallas en Frontend para Seguimiento Post-Atención y Reporte del Paciente (ADR-015, F2.2, §5.16): creación de frontend/js/views/patient-follow-ups.js con listado interactivo de seguimientos por estado (PENDIENTE, COMPLETADO), badges accesibles por tipo de tarea (Control Médico, Evolución de Síntomas, Examen Pendiente, Adherencia a Tratamiento), modal accesible con aviso legal §5.16 para reporte de evolución del paciente y consumo de POST /api/v1/patients/me/follow-ups/{id}/report; integración de tarjeta de seguimientos activos en patient-dashboard.js; integración en professional-attention.js de sección 'Plan de Seguimiento Post-Atención' sobre atenciones cerradas con formulario de prescripción médica (tipo, fecha sugerida de control e indicaciones), visualización destacada de reportes del paciente y botón de cancelación de seguimientos pendientes; registro de la ruta /patient/follow-ups en app.js; validación sintáctica limpia con node --check. · feat(frontend): pantallas de seguimiento post-atencion y reporte del paciente (F2.2.4)
 - 2026-10-04 · F2.2.5 · Colección HTTP y Cierre de Seguimiento y Notificaciones (F2.2, ADR-015): creación de docs/api/F2.2.http con 7 secciones y 20 escenarios de prueba cubriendo healthcheck, notificaciones automáticas por correo de citas (reserva y cancelación), prescripción de seguimiento post-atención por el profesional médico (tipos, fecha sugerida de control, validaciones y aislamientos 403), consulta y aislamiento de tareas asistenciales (admin 403, paciente ajeno 403), portal del paciente con reporte de evolución clínica sin diagnóstico automático (§5.16), y cancelación asistencial; verificación completa de la suite Maven con 594 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.2. · test(api): coleccion f2.2.http y verificacion de seguimiento y notificaciones (F2.2.5)
+- 2026-10-04 · F2.3.1 · Migración Flyway V012 Acceso Temporal QR y Resumen de Emergencia (ADR-010, F2.3): creación de database/migrations/V012__acceso_temporal_qr.sql con tabla ACCESO_TEMPORAL_QR (token hash SHA-256, PIN hash opcional, flags de alcance, límite de 3 lecturas, expiración a 15 min, revocación), índices y concesión de privilegios mínimos a MEDITRIAJE_APP; actualización de OracleIntegrationTest a V12; suite de 594 pruebas verdes al 100%. · feat(database): migracion flyway v012 acceso temporal qr y resumen de emergencia (F2.3.1)
 
 
 
