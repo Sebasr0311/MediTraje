@@ -5,9 +5,9 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** Cierre de Fase F2.1 completado (Listo para merge a develop)
-- **Última etiqueta:** v1.0-mvp (MVP completado)
-- **Rama de trabajo:** feature/f2.1-mfa-recuperacion
+- **Tarea actual:** Fase F2.1 completada · Planificación del siguiente módulo (F2.2)
+- **Última etiqueta:** v1.1-mfa (Fase F2.1 completada)
+- **Rama de trabajo:** develop
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
