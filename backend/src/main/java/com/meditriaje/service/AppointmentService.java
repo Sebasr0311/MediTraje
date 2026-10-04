@@ -25,6 +25,7 @@ import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.TriajeRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import com.meditriaje.dto.common.PaginatedResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
@@ -59,6 +60,7 @@ public class AppointmentService {
     private final CitaRepository citaRepository;
     private final TriajeRepository triajeRepository;
     private final AuditoriaService auditoriaService;
+    private final AppointmentNotificationService appointmentNotificationService;
     private final Clock clock;
 
     public AppointmentService(
@@ -78,6 +80,7 @@ public class AppointmentService {
                 citaRepository,
                 triajeRepository,
                 auditoriaService,
+                null,
                 Clock.systemUTC()
         );
     }
@@ -92,6 +95,54 @@ public class AppointmentService {
             AuditoriaService auditoriaService,
             Clock clock
     ) {
+        this(
+                usuarioRepository,
+                pacienteRepository,
+                disponibilidadSlotRepository,
+                profesionalRepository,
+                citaRepository,
+                triajeRepository,
+                auditoriaService,
+                null,
+                clock
+        );
+    }
+
+    @Autowired
+    public AppointmentService(
+            UsuarioRepository usuarioRepository,
+            PacienteRepository pacienteRepository,
+            DisponibilidadSlotRepository disponibilidadSlotRepository,
+            ProfesionalRepository profesionalRepository,
+            CitaRepository citaRepository,
+            TriajeRepository triajeRepository,
+            AuditoriaService auditoriaService,
+            AppointmentNotificationService appointmentNotificationService
+    ) {
+        this(
+                usuarioRepository,
+                pacienteRepository,
+                disponibilidadSlotRepository,
+                profesionalRepository,
+                citaRepository,
+                triajeRepository,
+                auditoriaService,
+                appointmentNotificationService,
+                Clock.systemUTC()
+        );
+    }
+
+    public AppointmentService(
+            UsuarioRepository usuarioRepository,
+            PacienteRepository pacienteRepository,
+            DisponibilidadSlotRepository disponibilidadSlotRepository,
+            ProfesionalRepository profesionalRepository,
+            CitaRepository citaRepository,
+            TriajeRepository triajeRepository,
+            AuditoriaService auditoriaService,
+            AppointmentNotificationService appointmentNotificationService,
+            Clock clock
+    ) {
         this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "UsuarioRepository no puede ser nulo");
         this.pacienteRepository = Objects.requireNonNull(pacienteRepository, "PacienteRepository no puede ser nulo");
         this.disponibilidadSlotRepository = Objects.requireNonNull(disponibilidadSlotRepository, "DisponibilidadSlotRepository no puede ser nulo");
@@ -99,6 +150,7 @@ public class AppointmentService {
         this.citaRepository = Objects.requireNonNull(citaRepository, "CitaRepository no puede ser nulo");
         this.triajeRepository = Objects.requireNonNull(triajeRepository, "TriajeRepository no puede ser nulo");
         this.auditoriaService = Objects.requireNonNull(auditoriaService, "AuditoriaService no puede ser nulo");
+        this.appointmentNotificationService = appointmentNotificationService;
         this.clock = Objects.requireNonNull(clock, "Clock no puede ser nulo");
     }
 
@@ -178,8 +230,9 @@ public class AppointmentService {
                 null
         );
 
+        Long citaIdGenerado;
         try {
-            citaRepository.crear(cita);
+            citaIdGenerado = citaRepository.crear(cita);
         } catch (DataIntegrityViolationException ex) {
             throw new CitaNoDisponibleException("El slot de atencion ya cuenta con una cita activa.");
         }
@@ -195,8 +248,15 @@ public class AppointmentService {
         ));
 
         // 9. Retornar vista consolidada de la cita
-        return citaRepository.buscarPorPublicId(citaPublicId)
+        CitaResponse response = citaRepository.buscarPorPublicId(citaPublicId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada tras creacion."));
+
+        // 10. Despachar notificación asíncrona/desacoplada de confirmación por correo (ADR-015)
+        if (appointmentNotificationService != null) {
+            appointmentNotificationService.enviarConfirmacionReserva(citaIdGenerado, paciente.id(), usuario.email(), response);
+        }
+
+        return response;
     }
 
     /**
@@ -294,8 +354,16 @@ public class AppointmentService {
         ));
 
         // 9. Retornar CitaResponse actualizado
-        return citaRepository.buscarPorPublicId(cita.publicId())
+        CitaResponse response = citaRepository.buscarPorPublicId(cita.publicId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada tras cancelacion."));
+
+        // 10. Despachar notificación asíncrona/desacoplada de cancelación por correo (ADR-015)
+        if (appointmentNotificationService != null) {
+            String emailDestinatario = appointmentNotificationService.resolverEmailPaciente(cita.pacienteId());
+            appointmentNotificationService.enviarNotificacionCancelacion(cita.id(), cita.pacienteId(), emailDestinatario, response, motivoCancelacion);
+        }
+
+        return response;
     }
 
     /**

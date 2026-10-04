@@ -1,9 +1,13 @@
 package com.meditriaje.service;
 
+import com.meditriaje.dto.audit.RegistroAuditoriaResponse;
+import com.meditriaje.dto.common.PaginatedResponse;
+import com.meditriaje.exception.DatosInvalidosException;
 import com.meditriaje.model.AccionAuditable;
 import com.meditriaje.model.EventoAuditoria;
 import com.meditriaje.model.ResultadoAuditoria;
 import com.meditriaje.repository.AuditoriaRepository;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -12,17 +16,25 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
-import java.util.Arrays;
+import java.lang.reflect.RecordComponent;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * Pruebas unitarias para {@link AuditoriaService} y {@link EventoAuditoria}.
- * Verifica el registro de eventos, ausencia de datos clínicos y validación de campos obligatorios.
+ * Pruebas unitarias para {@link AuditoriaService} y modelos de auditoría.
+ * Verifica el registro de eventos, consultas supervisadas (ADR-019),
+ * ausencia de datos clínicos y validación de campos obligatorios.
  */
 @ExtendWith(MockitoExtension.class)
 class AuditoriaServiceTest {
@@ -114,6 +126,68 @@ class AuditoriaServiceTest {
             for (String prohibido : camposProhibidos) {
                 assertThat(fieldNameLower)
                         .as("El modelo de auditoría no debe contener el campo clínico o sensible '%s'", prohibido)
+                        .doesNotContain(prohibido);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("consultarBitacora - lanza DatosInvalidosException con fechas invertidas")
+    void consultarBitacora_conFechasInvertidas_lanzaExcepcion() {
+        LocalDate desde = LocalDate.of(2026, 10, 10);
+        LocalDate hasta = LocalDate.of(2026, 10, 1);
+
+        assertThatThrownBy(() -> auditoriaService.consultarBitacora(desde, hasta, null, null, 0, 20))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("no puede ser posterior");
+    }
+
+    @Test
+    @DisplayName("consultarBitacora - delega a repositorio y mapea respuesta paginada")
+    void consultarBitacora_conParametrosValidos_retornaRespuestaPaginada() {
+        LocalDate desde = LocalDate.of(2026, 10, 1);
+        LocalDate hasta = LocalDate.of(2026, 10, 4);
+
+        RegistroAuditoriaResponse evento = new RegistroAuditoriaResponse(
+                55L,
+                "admin@meditriaje.com",
+                "CAMBIO_ADMINISTRATIVO",
+                "ESPECIALIDAD",
+                "esp-1",
+                "EXITO",
+                "127.0.0.1",
+                Instant.now()
+        );
+
+        when(auditoriaRepository.listarEventos(any(), any(), eq("CAMBIO_ADMINISTRATIVO"), eq("EXITO"), eq(0), eq(15)))
+                .thenReturn(List.of(evento));
+        when(auditoriaRepository.contarEventos(any(), any(), eq("CAMBIO_ADMINISTRATIVO"), eq("EXITO")))
+                .thenReturn(1L);
+
+        PaginatedResponse<RegistroAuditoriaResponse> resultado =
+                auditoriaService.consultarBitacora(desde, hasta, "CAMBIO_ADMINISTRATIVO", "EXITO", 0, 15);
+
+        assertThat(resultado).isNotNull();
+        assertThat(resultado.totalElements()).isEqualTo(1L);
+        assertThat(resultado.content()).hasSize(1);
+        assertThat(resultado.content().get(0).accion()).isEqualTo("CAMBIO_ADMINISTRATIVO");
+    }
+
+    @Test
+    @DisplayName("RegistroAuditoriaResponse - prohíbe exposición de campos clínicos confidenciales")
+    void registroAuditoriaResponse_noContieneCamposDeContenidoClinico() {
+        // ADR-007, ADR-011, ADR-019: La respuesta de auditoría técnica administrativa nunca expone contenido clínico
+        List<String> camposProhibidos = List.of(
+                "diagnostico", "cie10", "evolucion", "motivo", "signovital",
+                "presion", "temperatura", "medicamento", "receta", "dosis", "historia"
+        );
+
+        RecordComponent[] components = RegistroAuditoriaResponse.class.getRecordComponents();
+        for (RecordComponent component : components) {
+            String nameLower = component.getName().toLowerCase();
+            for (String prohibido : camposProhibidos) {
+                assertThat(nameLower)
+                        .as("El DTO de auditoría no debe contener el campo clínico '%s'", prohibido)
                         .doesNotContain(prohibido);
             }
         }

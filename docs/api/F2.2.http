@@ -1,0 +1,378 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase F2.2)
+### Seguimiento Post-Atención y Notificaciones por Correo de Citas
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+### Cumplimiento estricto: ADR-007, ADR-011, ADR-015, §5.16
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With
+@csrfValue = XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Autenticación y Credenciales de Prueba
+### ----------------------------------------------------------------------------
+
+### 2.1 Login como Administrador (ROLE_ADMINISTRADOR)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### 2.2 Registro de Paciente 1 (Carlos Pérez)
+# @name registrarPaciente1
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765432",
+  "nombres": "Carlos",
+  "apellidos": "Perez Gomez",
+  "fechaNacimiento": "1992-08-15",
+  "telefono": "3109876543",
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.3 Login Paciente 1 (Carlos Pérez)
+# @name loginPaciente1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.4 Registro de Paciente 2 (Ana Gómez)
+# @name registrarPaciente2
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+  "tipoDocumento": "CC",
+  "numeroDocumento": "1098765499",
+  "nombres": "Ana",
+  "apellidos": "Gomez Diaz",
+  "fechaNacimiento": "1995-05-20",
+  "telefono": "3119876500",
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*",
+  "consentimientoTextoVersion": "v1.0",
+  "aceptaConsentimiento": true
+}
+
+### 2.5 Login Paciente 2 (Ana Gómez)
+# @name loginPaciente2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "ana.gomez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.6 Login Médico 1 (Dr. Carlos Mendoza - Medicina General / Autor)
+# @name loginMedico1
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.mendoza@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+### 2.7 Login Médico 2 (Dra. Laura Restrepo - Sin relación con Paciente 1)
+# @name loginMedico2
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "laura.restrepo@meditriaje.com",
+  "password": "MiClaveDefinitiva2026*"
+}
+
+### ----------------------------------------------------------------------------
+### 3. Notificaciones por Correo de Citas Médicas (F2.2.2, ADR-015)
+### ----------------------------------------------------------------------------
+
+### 3.1 Consulta de disponibilidad de slots
+# @name consultarDisponibilidad
+GET {{baseUrl}}/availability?page=0&size=5
+Accept: application/json
+
+### 3.2 Agendamiento de cita médica por Paciente 1
+# Despacha asíncronamente plantilla HTML institucional de confirmación
+# y registra trazabilidad en RECORDATORIO_CITA
+# Nota: sustituir slotPublicId por uno LIBRE obtenido en 3.1
+# @name reservarCita
+POST {{baseUrl}}/appointments
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "slotPublicId": "550e8400-e29b-41d4-a716-446655440001"
+}
+
+### 3.3 Cancelación de cita médica por Paciente 1
+# Despacha asíncronamente plantilla HTML de cancelación con motivo
+# y audita el envío en RECORDATORIO_CITA
+# Nota: sustituir citaPublicId por el retornado en 3.2
+# @name cancelarCita
+PATCH {{baseUrl}}/appointments/550e8400-e29b-41d4-a716-446655440010/cancel
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "motivo": "Incompatibilidad de horario laboral imprevista."
+}
+
+### ----------------------------------------------------------------------------
+### 4. Prescripción de Seguimiento Post-Atención por Profesional (F2.2.3, ADR-015)
+### ----------------------------------------------------------------------------
+
+### 4.1 Prescripción médica exitosa (Dr. Carlos Mendoza sobre atención cerrada)
+# Envía correo resumen-atencion-seguimiento.html y retorna 201 Created + Location
+# Tipos: CONTROL_MEDICO, EVOLUCION_SINTOMAS, EXAMEN_PENDIENTE, ADHERENCIA_TRATAMIENTO
+# Nota: sustituir atencionPublicId por una atención cerrada real
+# @name prescribirSeguimientoControl
+POST {{baseUrl}}/attentions/550e8400-e29b-41d4-a716-446655440020/follow-ups
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "tipo": "CONTROL_MEDICO",
+  "indicaciones": "Control médico presencial en 7 días para valorar evolución de síntomas respiratorios y ajuste de tratamiento.",
+  "fechaSugeridaControl": "2026-10-15"
+}
+
+### 4.2 Prescripción de seguimiento de evolución de síntomas
+# @name prescribirSeguimientoEvolucion
+POST {{baseUrl}}/attentions/550e8400-e29b-41d4-a716-446655440020/follow-ups
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "tipo": "EVOLUCION_SINTOMAS",
+  "indicaciones": "Monitorear la temperatura dos veces al día y reportar mediante el portal si persiste fiebre superior a 38°C tras 48 horas.",
+  "fechaSugeridaControl": "2026-10-08"
+}
+
+### 4.3 Error 400 Bad Request: indicaciones vacías
+# @name prescribirIndicacionesVacias
+POST {{baseUrl}}/attentions/550e8400-e29b-41d4-a716-446655440020/follow-ups
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "tipo": "CONTROL_MEDICO",
+  "indicaciones": "",
+  "fechaSugeridaControl": "2026-10-15"
+}
+
+### 4.4 Error 403 Forbidden: Médico 2 sin relación asistencial intentando prescribir
+# Requiere sesión activa de Médico 2 (Dra. Laura Restrepo)
+# @name prescribirMedicoSinRelacion
+POST {{baseUrl}}/attentions/550e8400-e29b-41d4-a716-446655440020/follow-ups
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "tipo": "EXAMEN_PENDIENTE",
+  "indicaciones": "Hemograma completo pendiente.",
+  "fechaSugeridaControl": "2026-10-12"
+}
+
+### 4.5 Error 403 Forbidden: Paciente intentando prescribir seguimiento
+# Requiere sesión activa de Paciente 1
+# @name prescribirPorPaciente
+POST {{baseUrl}}/attentions/550e8400-e29b-41d4-a716-446655440020/follow-ups
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "tipo": "CONTROL_MEDICO",
+  "indicaciones": "Intento de autoprescripción.",
+  "fechaSugeridaControl": "2026-10-15"
+}
+
+### 4.6 Error 403 Forbidden: Administrador intentando prescribir seguimiento
+# Requiere sesión activa de Administrador
+# @name prescribirPorAdmin
+POST {{baseUrl}}/attentions/550e8400-e29b-41d4-a716-446655440020/follow-ups
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "tipo": "CONTROL_MEDICO",
+  "indicaciones": "Intento administrativo.",
+  "fechaSugeridaControl": "2026-10-15"
+}
+
+### ----------------------------------------------------------------------------
+### 5. Consulta y Aislamiento de Tareas de Seguimiento (F2.2.3, ADR-007, ADR-011)
+### ----------------------------------------------------------------------------
+
+### 5.1 Médico autor consulta seguimientos de su atención
+# Retorna lista de tareas de seguimiento con estado, tipo y reporte del paciente
+# @name consultarPorAtencionMedico
+GET {{baseUrl}}/attentions/550e8400-e29b-41d4-a716-446655440020/follow-ups
+Accept: application/json
+
+### 5.2 Paciente dueño consulta seguimientos de su atención
+# Requiere sesión activa de Paciente 1 (dueño de la atención)
+# @name consultarPorAtencionPaciente
+GET {{baseUrl}}/attentions/550e8400-e29b-41d4-a716-446655440020/follow-ups
+Accept: application/json
+
+### 5.3 Error 403 Forbidden: Paciente ajeno intentando consultar seguimientos
+# Requiere sesión activa de Paciente 2 (Ana Gómez)
+# @name consultarPorAtencionPacienteAjeno
+GET {{baseUrl}}/attentions/550e8400-e29b-41d4-a716-446655440020/follow-ups
+Accept: application/json
+
+### 5.4 Error 403 Forbidden: Administrador intentando consultar seguimientos
+# Personal administrativo completamente aislado de datos clínicos (ADR-007)
+# @name consultarPorAtencionAdmin
+GET {{baseUrl}}/attentions/550e8400-e29b-41d4-a716-446655440020/follow-ups
+Accept: application/json
+
+### 5.5 Consulta puntual de seguimiento por ID
+# @name consultarSeguimientoPorId
+GET {{baseUrl}}/follow-ups/550e8400-e29b-41d4-a716-446655440030
+Accept: application/json
+
+### 5.6 Error 403 Forbidden: Administrador intentando consultar seguimiento puntual
+# @name consultarSeguimientoPuntualAdmin
+GET {{baseUrl}}/follow-ups/550e8400-e29b-41d4-a716-446655440030
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 6. Portal del Paciente y Reporte de Evolución Clínica (F2.2.3, F2.2.4, §5.16)
+### ----------------------------------------------------------------------------
+
+### 6.1 Paciente 1 consulta todas sus tareas de seguimiento post-atención
+# Requiere sesión activa de Paciente 1
+# @name listarMisSeguimientos
+GET {{baseUrl}}/patients/me/follow-ups?page=0&size=10
+Accept: application/json
+
+### 6.2 Paciente 1 filtra tareas pendientes de seguimiento
+# @name listarMisSeguimientosPendientes
+GET {{baseUrl}}/patients/me/follow-ups?estado=PENDIENTE&page=0&size=10
+Accept: application/json
+
+### 6.3 Paciente 1 reporta su evolución clínica en una tarea pendiente
+# El reporte queda grabado inmutablemente en SEGUIMIENTO_POST_ATENCION
+# NO genera diagnóstico médico automático (§5.16 Documento Maestro)
+# @name reportarEvolucionPaciente
+POST {{baseUrl}}/patients/me/follow-ups/550e8400-e29b-41d4-a716-446655440030/report
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "reporte": "He tomado el tratamiento según las indicaciones formuladas. La fiebre cedió por completo en las últimas 48 horas y el dolor de garganta ha disminuido significativamente. No he presentado efectos secundarios."
+}
+
+### 6.4 Error 400 Bad Request: reporte de evolución en blanco
+# @name reportarEvolucionVacia
+POST {{baseUrl}}/patients/me/follow-ups/550e8400-e29b-41d4-a716-446655440030/report
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "reporte": ""
+}
+
+### 6.5 Error 403 Forbidden: Paciente ajeno intentando reportar evolución
+# Requiere sesión activa de Paciente 2 sobre seguimiento de Paciente 1
+# @name reportarEvolucionPacienteAjeno
+POST {{baseUrl}}/patients/me/follow-ups/550e8400-e29b-41d4-a716-446655440030/report
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "reporte": "Intento de reporte por paciente ajeno."
+}
+
+### 6.6 Error 400 Bad Request: intento de reporte sobre seguimiento ya COMPLETADO
+# La transición desde COMPLETADO no está permitida
+# @name reportarEvolucionSobreCompletado
+POST {{baseUrl}}/patients/me/follow-ups/550e8400-e29b-41d4-a716-446655440030/report
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "reporte": "Segundo intento de evolución posterior al cierre."
+}
+
+### ----------------------------------------------------------------------------
+### 7. Cancelación de Seguimientos Asistenciales (F2.2.3, ADR-015)
+### ----------------------------------------------------------------------------
+
+### 7.1 Médico 1 cancela una tarea de seguimiento pendiente
+# Exclusivo para profesionales autorizados. Pasa estado a CANCELADO
+# @name cancelarSeguimientoMedico
+PATCH {{baseUrl}}/follow-ups/550e8400-e29b-41d4-a716-446655440031/cancel
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### 7.2 Error 403 Forbidden: Paciente intentando cancelar seguimiento asistencial
+# Requiere sesión activa de Paciente 1
+# @name cancelarSeguimientoPorPaciente
+PATCH {{baseUrl}}/follow-ups/550e8400-e29b-41d4-a716-446655440031/cancel
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### 7.3 Error 403 Forbidden: Administrador intentando cancelar seguimiento asistencial
+# Requiere sesión activa de Administrador
+# @name cancelarSeguimientoPorAdmin
+PATCH {{baseUrl}}/follow-ups/550e8400-e29b-41d4-a716-446655440031/cancel
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+### 7.4 Error 400 Bad Request: cancelar seguimiento ya cancelado o completado
+# @name cancelarSeguimientoYaCancelado
+PATCH {{baseUrl}}/follow-ups/550e8400-e29b-41d4-a716-446655440031/cancel
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}

@@ -6,6 +6,7 @@ import com.meditriaje.model.Paciente;
 import com.meditriaje.model.Profesional;
 import com.meditriaje.model.Usuario;
 import com.meditriaje.repository.AtencionRepository;
+import com.meditriaje.repository.BreakGlassRepository;
 import com.meditriaje.repository.CitaRepository;
 import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
@@ -53,6 +54,7 @@ public class AccesoClinicoService {
     private final ProfesionalRepository profesionalRepository;
     private final CitaRepository citaRepository;
     private final AtencionRepository atencionRepository;
+    private final BreakGlassRepository breakGlassRepository;
     private final Clock clock;
     private final int ventanaMeses;
 
@@ -62,6 +64,7 @@ public class AccesoClinicoService {
             ProfesionalRepository profesionalRepository,
             CitaRepository citaRepository,
             AtencionRepository atencionRepository,
+            BreakGlassRepository breakGlassRepository,
             @Value("${meditriaje.clinical.access-window-months:12}") int ventanaMeses
     ) {
         this(
@@ -70,6 +73,7 @@ public class AccesoClinicoService {
                 profesionalRepository,
                 citaRepository,
                 atencionRepository,
+                breakGlassRepository,
                 Clock.system(ZONE_BOGOTA),
                 ventanaMeses
         );
@@ -84,11 +88,34 @@ public class AccesoClinicoService {
             Clock clock,
             int ventanaMeses
     ) {
+        this(
+                usuarioRepository,
+                pacienteRepository,
+                profesionalRepository,
+                citaRepository,
+                atencionRepository,
+                null,
+                clock,
+                ventanaMeses
+        );
+    }
+
+    public AccesoClinicoService(
+            UsuarioRepository usuarioRepository,
+            PacienteRepository pacienteRepository,
+            ProfesionalRepository profesionalRepository,
+            CitaRepository citaRepository,
+            AtencionRepository atencionRepository,
+            BreakGlassRepository breakGlassRepository,
+            Clock clock,
+            int ventanaMeses
+    ) {
         this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "usuarioRepository no puede ser nulo");
         this.pacienteRepository = Objects.requireNonNull(pacienteRepository, "pacienteRepository no puede ser nulo");
         this.profesionalRepository = Objects.requireNonNull(profesionalRepository, "profesionalRepository no puede ser nulo");
         this.citaRepository = Objects.requireNonNull(citaRepository, "citaRepository no puede ser nulo");
         this.atencionRepository = Objects.requireNonNull(atencionRepository, "atencionRepository no puede ser nulo");
+        this.breakGlassRepository = breakGlassRepository;
         this.clock = Objects.requireNonNull(clock, "clock no puede ser nulo");
         this.ventanaMeses = ventanaMeses > 0 ? ventanaMeses : 12;
     }
@@ -200,7 +227,16 @@ public class AccesoClinicoService {
                 .minusMonths(ventanaMeses)
                 .toInstant();
 
-        return atencionRepository.existeAtencionPreviaEnVentana(profesionalId, pacienteId, fechaLimite);
+        if (atencionRepository.existeAtencionPreviaEnVentana(profesionalId, pacienteId, fechaLimite)) {
+            return true;
+        }
+
+        // 3. Acceso clínico de emergencia Break-Glass activo y no expirado (ADR-017)
+        if (breakGlassRepository != null && breakGlassRepository.existeAccesoActivo(profesionalId, pacienteId, ahora)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

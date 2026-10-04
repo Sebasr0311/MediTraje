@@ -6,17 +6,23 @@
 import { auth } from './auth.js';
 import { router } from './router.js';
 import { ui } from './ui.js';
-import { loginView, registerView } from './views/auth-views.js';
+import { loginView, registerView, forgotPasswordView } from './views/auth-views.js';
 import { patientDashboardView } from './views/patient-dashboard.js';
 import { patientTriageView } from './views/patient-triage.js';
 import { patientBookingView } from './views/patient-booking.js';
 import { patientAppointmentsView } from './views/patient-appointments.js';
 import { patientHistoryView } from './views/patient-history.js';
 import { patientPrescriptionsView } from './views/patient-prescriptions.js';
+import { patientFollowUpsView } from './views/patient-follow-ups.js';
+import { patientEmergencyQrView } from './views/patient-emergency-qr.js';
+import { emergencySummaryView } from './views/emergency-summary-view.js';
 import { professionalAgendaView } from './views/professional-agenda.js';
 import { professionalAttentionView } from './views/professional-attention.js';
 import { professionalPrescriptionView } from './views/professional-prescription.js';
+import { professionalPatientHistoryView } from './views/professional-patient-history.js';
 import { adminDashboardView } from './views/admin-views.js';
+import { pharmacyDispensationView } from './views/pharmacy-dispensation.js';
+import { initSystemAssistantWidget } from './views/system-assistant-widget.js';
 
 // Inicialización de Tema Claro / Oscuro
 function initTheme() {
@@ -66,6 +72,10 @@ function updateNavbar() {
       roleName = 'Administrador';
       roleBadgeClass = 'badge--rescheduled';
       dashboardLink = '#/admin/dashboard';
+    } else if (auth.isFarmaceutico) {
+      roleName = 'Farmacia';
+      roleBadgeClass = 'badge--confirmed';
+      dashboardLink = '#/pharmacy/dispensation';
     }
 
     navContainer.innerHTML = `
@@ -168,6 +178,9 @@ function setupRoutes() {
   // Ruta 2: Login (M8.2a)
   router.addRoute('/login', loginView, { guestOnly: true });
 
+  // Ruta 2.1: Recuperación de contraseña (F2.1.3, F2.1.5)
+  router.addRoute('/forgot-password', forgotPasswordView, { guestOnly: true });
+
   // Ruta 3: Registro de Paciente en 2 pasos (M8.2a)
   router.addRoute('/register', registerView, { guestOnly: true });
 
@@ -184,12 +197,18 @@ function setupRoutes() {
   router.addRoute('/patient/appointments', patientAppointmentsView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
   router.addRoute('/patient/history', patientHistoryView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
   router.addRoute('/patient/prescriptions', patientPrescriptionsView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+  router.addRoute('/patient/follow-ups', patientFollowUpsView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+  router.addRoute('/patient/emergency-qr', patientEmergencyQrView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+
+  // Ruta pública: Resumen de Emergencia por Token QR (ADR-010, F2.3.5)
+  router.addRoute('/emergency-summary/:token', emergencySummaryView);
 
 
   // Rutas M8.3: Agenda, Atención Clínica y Recetas del Profesional Asistencial
   router.addRoute('/professional/agenda', professionalAgendaView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
   router.addRoute('/professional/attention/:id', professionalAttentionView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
   router.addRoute('/professional/prescription/:atencionId', professionalPrescriptionView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
+  router.addRoute('/professional/patient-history/:patientPublicId', professionalPatientHistoryView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
 
   // Rutas M8.4: Administración del Sistema (Oferta Asistencial, Infraestructura y Slots)
   router.addRoute('/admin', adminDashboardView, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
@@ -199,6 +218,12 @@ function setupRoutes() {
   router.addRoute('/admin/specialties', (c) => adminDashboardView(c, { tab: 'specialties' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/professionals', (c) => adminDashboardView(c, { tab: 'professionals' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/slots', (c) => adminDashboardView(c, { tab: 'slots' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/reports', (c) => adminDashboardView(c, { tab: 'reports' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/audit', (c) => adminDashboardView(c, { tab: 'audit' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+
+  // Rutas F2.4: Ventanilla de Dispensación Farmacéutica (ADR-016)
+  router.addRoute('/pharmacy/dispensation', pharmacyDispensationView, { requiresAuth: true, requiredRole: 'ROLE_FARMACEUTICO' });
+  router.addRoute('/pharmacy', pharmacyDispensationView, { requiresAuth: true, requiredRole: 'ROLE_FARMACEUTICO' });
 
   // Manejador 404 No Encontrado
   router.notFound(async (container, { path }) => {
@@ -237,8 +262,12 @@ async function bootstrap() {
   await auth.init();
   updateNavbar();
 
+  // Inicializar widget interactivo del asistente de orientación
+  initSystemAssistantWidget();
+
   // Arrancar el enrutador
   await router.start();
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);
+

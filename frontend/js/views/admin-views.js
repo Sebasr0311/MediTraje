@@ -8,6 +8,9 @@
 import { api } from '../api.js';
 import { router } from '../router.js';
 import { ui, esc } from '../ui.js';
+import { showMfaModal } from './mfa-setup-modal.js';
+import { renderReports } from './admin-reports.js';
+import { renderAudit } from './admin-audit.js';
 
 /** Fecha de hoy en formato YYYY-MM-DD en zona America/Bogota. */
 function todayBogota() {
@@ -60,13 +63,21 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
   else if (hash.includes('/admin/specialties')) activeTab = 'specialties';
   else if (hash.includes('/admin/professionals')) activeTab = 'professionals';
   else if (hash.includes('/admin/slots')) activeTab = 'slots';
+  else if (hash.includes('/admin/reports')) activeTab = 'reports';
+  else if (hash.includes('/admin/audit')) activeTab = 'audit';
   else if (hash.includes('/admin/institutions')) activeTab = 'institutions';
 
   container.innerHTML = `
     <div style="max-width: var(--container); margin: 0 auto; padding-bottom: var(--space-12);">
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold mb-1">Administración del Sistema</h1>
-        <p class="text-sm text-muted m-0">Gestión de infraestructura, profesionales asistenciales y slots de disponibilidad</p>
+      <div class="mb-6 flex justify-between items-center flex-wrap gap-4">
+        <div>
+          <h1 class="text-2xl font-bold mb-1">Administración del Sistema</h1>
+          <p class="text-sm text-muted m-0">Gestión de infraestructura, profesionales asistenciales, slots, reportes y auditoría</p>
+        </div>
+        <button type="button" id="btnAdminMfa" class="btn btn-secondary btn--sm">
+          ${ui.icon('shield', 'icon icon--sm')}
+          <span>Seguridad MFA</span>
+        </button>
       </div>
 
       <div class="alert alert--info mb-6" role="note">
@@ -74,7 +85,7 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
         <div class="alert-content">
           <p class="m-0 text-xs">
             <strong>Aislamiento de Privilegios:</strong> El rol administrativo no tiene acceso a historias clínicas,
-            diagnósticos ni recetas (ADR-007). Gestiona únicamente la oferta asistencial.
+            diagnósticos ni recetas (ADR-007). Gestiona la oferta asistencial, bitácora de eventos e indicadores operativos agregados.
           </p>
         </div>
       </div>
@@ -95,6 +106,12 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
         </button>
         <button type="button" class="admin-tab ${activeTab === 'slots' ? 'is-active' : ''}" data-tab="slots">
           ${ui.icon('calendar', 'icon icon--sm')}<span>Slots de turnos</span>
+        </button>
+        <button type="button" class="admin-tab ${activeTab === 'reports' ? 'is-active' : ''}" data-tab="reports">
+          ${ui.icon('bar-chart', 'icon icon--sm')}<span>Reportes</span>
+        </button>
+        <button type="button" class="admin-tab ${activeTab === 'audit' ? 'is-active' : ''}" data-tab="audit">
+          ${ui.icon('shield', 'icon icon--sm')}<span>Auditoría</span>
         </button>
       </nav>
 
@@ -124,8 +141,14 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
     else if (activeTab === 'specialties') renderSpecialties(contentEl);
     else if (activeTab === 'professionals') renderProfessionals(contentEl);
     else if (activeTab === 'slots') renderSlots(contentEl);
+    else if (activeTab === 'reports') renderReports(contentEl);
+    else if (activeTab === 'audit') renderAudit(contentEl);
     else renderInstitutions(contentEl);
   }
+
+  container.querySelector('#btnAdminMfa')?.addEventListener('click', () => {
+    showMfaModal();
+  });
 
   renderActiveTab();
 }

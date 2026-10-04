@@ -132,8 +132,129 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 - Historia clínica: no eliminación; conservación según Res. 1995 de 1999 (consultar plazo exacto). Interoperabilidad (Ley 2015 de 2020): fuera del MVP, pero no bloquear su evolución.
 - Catálogos: CIE-10 reducido para diagnósticos; tipos de documento CC, TI, RC, CE, PA. Código CUM de medicamentos: fase 2.
 
+## ADR-014 Autenticación multifactor (MFA TOTP) y recuperación de contraseña con código OTP por correo
+**Estado:** APROBADO por Juan (2026-10-03).
+**Decisión:**
+1. **Recuperación de Contraseña con Código OTP y Plantilla de Correo:**
+   - Para restablecer contraseña, el usuario solicita un código ingresando su correo en `POST /api/v1/auth/forgot-password`.
+   - El sistema genera un código numérico de 6 dígitos (`SecureRandom`, rango 100000–999999) con expiración de 15 minutos.
+   - El código se almacena **hasheado con SHA-256** en la tabla `CODIGO_VERIFICACION` con contador de intentos (máximo 3 intentos fallidos antes de invalidarse).
+   - Se envía un correo electrónico formateado con **plantilla HTML institucional** responsiva alineada con el sistema de diseño (`docs/DISENO_UI_UX.md`, tokens de color de `tokens.css`), que destaca el código de 6 dígitos en caja prominente, tiempo de expiración y advertencias de seguridad contra suplantación.
+   - La respuesta HTTP es siempre genérica 200 OK (*"Si el correo se encuentra registrado, recibirás un código de verificación."*) para neutralizar ataques de enumeración.
+   - El endpoint `POST /api/v1/auth/reset-password` valida el correo, el código OTP y la nueva contraseña (mínimo 10 caracteres). Al completarse, hashea con Argon2id, marca el código como usado, audita el evento e invalida de forma inmediata todas las sesiones activas (refresh tokens) de la cuenta.
+2. **Autenticación Multifactor (MFA TOTP) para Profesionales y Administradores:**
+   - Estándar RFC 6238 (TOTP con pasos de 30 segundos, HMAC-SHA1 y secreto Base32) compatible con aplicaciones autenticadoras estándar (Google Authenticator, Microsoft Authenticator).
+   - Enrolamiento en dos pasos: generación de secreto + URI `otpauth://` y confirmación del primer código válido.
+   - Login con desafío de segundo factor: si el usuario tiene MFA habilitado, el login por contraseña devuelve `mfaRequerido: true` y un token temporal de desafío (`mfaChallengeToken`, vida útil de 5 minutos). Las cookies definitivas `access_token` y `refresh_token` solo se emiten tras validar el código TOTP en `POST /api/v1/auth/mfa/authenticate`.
+   - Generación de 8 códigos de respaldo (backup codes) alfanuméricos uniuso, almacenados hasheados con SHA-256 en la tabla `MFA_BACKUP_CODE`.
+3. **Servicio de Correo Electrónico:**
+   - Interfaz `EmailService` con carga de plantillas HTML desde `resources/templates/email/`.
+   - En perfiles `dev` y `test`, si no hay servidor SMTP configurado, registra el correo renderizado en logs de forma segura para permitir pruebas funcionales y automatizadas. En perfil `prod`, utiliza `JavaMailSender` con TLS/STARTTLS.
+
+## ADR-015 Seguimiento post-atención y recordatorios de citas por correo
+**Estado:** APROBADO por Juan (2026-10-04).
+**Decisión:**
+1. **Notificaciones de Citas por Correo Institucional:**
+   - Confirmación inmediata al reservar cita (`POST /api/v1/appointments`): envía correo con plantilla `confirmacion-cita.html` indicando fecha, hora local en `America/Bogota`, profesional, especialidad, sede/modalidad, preparación previa y enlace a la plataforma.
+   - Notificación de cancelación de cita (`PATCH /api/v1/appointments/{id}/cancel`): envía correo con plantilla `cancelacion-cita.html` informando la liberación del slot y el motivo (si fue indicado).
+   - Trazabilidad en tabla `RECORDATORIO_CITA` con estado de envío (`ENVIADO`, `FALLIDO`), fecha y destinatario.
+2. **Seguimiento Post-Atención y Tareas de Control:**
+   - Al cerrarse una atención médica (`POST /api/v1/attentions/{id}/close`), o como acción médica posterior sobre una atención cerrada propia o con relación asistencial activa, el profesional asistencial puede prescribir tareas de seguimiento en `POST /api/v1/attentions/{id}/follow-ups`.
+   - Tipos de seguimiento permitidos: `CONTROL_MEDICO`, `EVOLUCION_SINTOMAS`, `EXAMEN_PENDIENTE`, `ADHERENCIA_TRATAMIENTO`.
+   - Se notifica al paciente vía correo electrónico con plantilla `resumen-atencion-seguimiento.html` con las indicaciones del profesional y fecha sugerida de control.
+   - El paciente puede consultar sus tareas de seguimiento en `GET /api/v1/patients/me/follow-ups` y registrar reportes de evolución en `POST /api/v1/patients/me/follow-ups/{id}/report`.
+   - **Regla estricta (§5.16 Documento Maestro):** El reporte de evolución del paciente jamás se convierte automáticamente en un diagnóstico médico. Queda registrado como insumo clínico accesible únicamente por profesionales con relación asistencial activa.
+3. **Resiliencia y Tolerancia a Fallos en el Envío de Notificaciones:**
+   - El despacho de correos no debe interferir con la atomicidad ni la finalización de las transacciones principales de negocio (reserva de cita o cierre de atención médica). En caso de excepción de envío SMTP, se registra el fallo en logs y en `RECORDATORIO_CITA`, pero la transacción principal permanece consolidada.
+4. **Aislamiento y Privacidad (ADR-007 / ADR-011):**
+   - Personal administrativo tiene acceso estrictamente bloqueado (403 Forbidden) a seguimientos post-atención y reportes de evolución.
+   - Cero contenido clínico ni indicaciones en logs ni en la tabla de auditoría.
+
+## ADR-016 Dispensación y reclamación farmacéutica de recetas
+**Estado:** APROBADO por Juan (2026-10-04).
+**Contexto:** En el marco asistencial colombiano (Decreto 780 de 2016 y Resolución 1403 de 2007), la prescripción médica generada en la consulta debe ser dispensada de forma controlada por el servicio farmacéutico hospitalario o ambulatorio. Es imperativo garantizar que los medicamentos no se entreguen después de la vigencia de la receta, que no se sobrepase la cantidad formulada (control de entregas parciales y totales), que exista trazabilidad de lotes INVIMA y que el personal farmacéutico no acceda a evoluciones médicas reservadas (ADR-007).
+**Decisión:**
+1. **Rol de Farmacia (`ROLE_FARMACEUTICO`):**
+   - Se crea el rol `ROLE_FARMACEUTICO` en `ROL`. Los usuarios con este rol representan al regente de farmacia o químico farmacéutico responsable de la entrega.
+   - Segregación estricta (ADR-007): Tienen autorización para buscar y consultar recetas médicas vigentes y registrar dispensaciones. Tienen **prohibido el acceso** a notas de evolución médica, historias clínicas completas, triajes y gestión administrativa.
+2. **Modelo Relacional de Dispensación:**
+   - Tabla `DISPENSACION`: Registra cada evento de entrega en farmacia (`ID`, `PUBLIC_ID`, `RECETA_ID`, `SEDE_ID`, `USUARIO_ID`, `OBSERVACIONES`, `CREATED_AT`).
+   - Tabla `DISPENSACION_DETALLE`: Registra los medicamentos entregados en ese evento (`ID`, `DISPENSACION_ID`, `RECETA_DETALLE_ID`, `CANTIDAD_ENTREGADA`, `LOTE`, `FECHA_VENCIMIENTO_LOTE`, `CREATED_AT`).
+   - Triggers de inmutabilidad: `TR_DISPENSACION_INMUTABILIDAD` y `TR_DISP_DETALLE_INMUTABILIDAD` bloquean `UPDATE` y `DELETE`.
+3. **Reglas de Negocio:**
+   - **Vigencia estricta:** Una receta solo puede dispensarse si `CREATED_AT + VIGENCIA_DIAS >= CURRENT_TIMESTAMP`. Si está vencida, el sistema rechaza la dispensación con código `400 DatosInvalidosException`.
+   - **Control de saldo y entregas parciales:** Para cada `RECETA_DETALLE`, la sumatoria de `CANTIDAD_ENTREGADA` histórica no puede exceder `CANTIDAD` prescrita (`saldo = prescrita - entregada`). Si el saldo es 0, no se puede dispensar más de ese ítem. Si todos los ítems de la receta alcanzan saldo 0, el estado calculado de la receta es `DISPENSADA_TOTAL`; si al menos uno tiene entrega mayor a 0 pero saldo > 0, es `DISPENSADA_PARCIAL`; si no tiene entregas, es `PENDIENTE`.
+   - **Código de Reclamación:** Cada receta expone un código alfanumérico legible de reclamación derivado de su `PUBLIC_ID` (o token corto) para que el paciente lo presente en farmacia junto con su documento de identidad.
+4. **Auditoría Obligatoria (ADR-011):**
+   - Toda entrega farmacéutica genera un evento `DISPENSACION_RECETA` en `AUDITORIA` con el ID del dispensador, IP de origen y el `publicId` de la receta. Cero nombres de fármacos o diagnósticos en los logs o auditoría.
+
+## ADR-017 Acceso clínico de emergencia (Break-Glass)
+**Estado:** APROBADO (2026-10-04).
+**Contexto:** En situaciones clínicas de urgencia o emergencia médica (inconsciencia, trauma mayor, shock, alteración aguda del estado de conciencia o remisión urgente), el profesional de salud necesita consultar de manera inmediata el historial médico completo del paciente (diagnósticos previos, atenciones, signos vitales, alergias, recetas) sin que medie una cita previa agendada ni una atención propia en los últimos 12 meses (ADR-007). Sin embargo, permitir el acceso irrestricto violaría la reserva legal de la historia clínica (Resolución 1995 de 1999 y Ley Estatutaria 1581 de 2012). Es indispensable un protocolo formal de *Break-Glass* ("romper el vidrio") que habilite el acceso excepcional pero garantice justificación obligatoria, temporalidad estricta y auditoría indeleble.
+**Decisión:**
+1. **Autorización y Segregación de Roles (ADR-007):**
+   - Únicamente usuarios con `ROLE_PROFESIONAL` (médicos asistenciales matriculados) pueden invocar la activación del *Break-Glass*.
+   - El personal administrativo (`ROLE_ADMINISTRADOR`) tiene acceso estrictamente prohibido (`403 Forbidden`).
+   - Los pacientes y farmacéuticos no pueden invocar *Break-Glass*.
+2. **Justificación Médica Obligatoria:**
+   - La solicitud de activación requiere un motivo clínico de urgencia explícito (`motivo`, mínimo 20 caracteres, máximo 500).
+   - No se permiten justificaciones vacías, genéricas o en blanco (`400 DatosInvalidosException`).
+3. **Temporalidad y Ventana de Vigencia:**
+   - Todo acceso *Break-Glass* otorgado expira de forma automática transcurridas 24 horas desde el momento de su activación (`FECHA_EXPIRACION = CREATED_AT + 24 HOURS`).
+   - Durante la ventana de 24 horas, `AccesoClinicoService` considera autorizadas las consultas clínicas y de historia clínica de ese paciente por ese profesional específico.
+4. **Persistencia e Inmutabilidad en Base de Datos (ADR-008, ADR-012):**
+   - Tabla relacional inmutable `ACCESO_BREAK_GLASS`: `ID`, `PUBLIC_ID`, `PROFESIONAL_ID`, `PACIENTE_ID`, `MOTIVO`, `FECHA_EXPIRACION`, `CREATED_AT`.
+   - Trigger `TR_BREAK_GLASS_INMUTABILIDAD` que bloquea irrevocablemente cualquier intento de `UPDATE` o `DELETE`.
+   - Concesión de privilegios mínimos a `MEDITRIAJE_APP`: `SELECT, INSERT` únicamente.
+5. **Auditoría Reforzada (ADR-011):**
+   - La activación genera un evento inmutable `ACCESO_BREAK_GLASS` en `AUDITORIA` registrando el `usuarioId`, la IP de origen, el tipo de recurso `"PACIENTE"`, el `publicId` del paciente y el resultado `EXITO`.
+   - Cero contenido clínico confidencial en la tabla general de auditoría o en logs de aplicación.
+
+## ADR-018 Reportes operativos administrativos y asistente del sistema (RF-27, RF-30)
+**Estado:** APROBADO (2026-10-04).
+**Contexto:**
+1. *Métricas y reportes operativos (RF-30):* La gestión de infraestructura hospitalaria, disponibilidad de profesionales y evaluación del triaje requiere que el personal administrativo (`ROLE_ADMINISTRADOR`) cuente con indicadores y estadísticas de rendimiento del servicio (volumen de citas por estado, tasas de cancelación e inasistencia, distribución de triajes por nivel de prioridad I-V, demanda de especialidades y volumen de dispensación farmacéutica). Sin embargo, conforme a ADR-007, el administrador tiene prohibido el acceso a la historia clínica de los pacientes. Por ende, los reportes deben construirse exclusivamente mediante agregaciones matemáticas y estadísticas anónimas en base de datos (`COUNT`, `SUM`, `GROUP BY`), sin retornar jamás identificadores de pacientes, diagnósticos individuales ni datos sensibles de salud.
+2. *Asistente del sistema / chatbot (RF-27, DOCUMENTO_MAESTRO §5.19):* Los usuarios (pacientes y personal) necesitan una herramienta interactiva para resolver dudas operativas frecuentes (orientación sobre el triaje, preparación para citas, reclamación de medicamentos, uso del QR de emergencia y comprensión de estados). Para salvaguardar la seguridad del paciente, el asistente debe contar con reglas no negociables: jamás diagnostica ni prescribe fármacos, detecta inmediatamente expresiones de alarma médica para remitir al 123 o a urgencias, y opera con respuestas estructuradas y deterministas basadas en el conocimiento de la plataforma.
+
+**Decisión:**
+1. **Segregación Estricta de Reportes Administrativos (ADR-007):**
+   - Endpoints bajo `/api/v1/admin/reports/**` protegidos con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`.
+   - Consultas SQL 100% agregadas:
+     - `CITA`: conteo agrupado por `ESTADO`, por `ESPECIALIDAD` y por `SEDE`, calculando tasa de cumplimiento y tasa de inasistencia/cancelación.
+     - `TRIAJE`: conteo por `NIVEL_PRIORIDAD` (I al V) y total de cortes de emergencia activados (`ES_EMERGENCIA = 1`).
+     - `RECETA` y `DISPENSACION`: total de recetas emitidas, conteo por estado de dispensación (`PENDIENTE`, `DISPENSADA_PARCIAL`, `DISPENSADA_TOTAL`) y total de unidades farmacológicas entregadas.
+     - `ACCESO_BREAK_GLASS`: total de activaciones de emergencia y distribución mensual por especialidad para control del comité asistencial.
+   - Parámetros opcionales de ventana temporal (`fechaDesde`, `fechaHasta` calculados en zona horaria `America/Bogota`).
+   - Cero exposición de datos personales ni clínicos identificables en DTOs de reporte.
+2. **Motor y Servicio del Asistente del Sistema (RF-27):**
+   - Servicio `AssistantService` expuesto vía `POST /api/v1/assistant/chat`:
+     - Detección inmediata de síntomas o términos de alarma (dolor torácico, ahogo severo, pérdida de conocimiento, sangrado masivo, etc.): genera respuesta prioritaria de emergencia con instrucciones de acudir a urgencias o llamar al 123 y enlaces de soporte inmediato.
+     - Procesamiento de intenciones temáticas basado en base de conocimiento curada de MediTriaje 2.0:
+       - Triaje y niveles de prioridad (I a V).
+       - Agendamiento y cancelación de citas (regla de anticipación de 2 horas).
+       - Farmacia y reclamación con código `REC-XXXXXXXX`.
+       - Resumen de salud y QR temporal de emergencia.
+       - Derechos del paciente, inmutabilidad de historia clínica y enmiendas.
+     - Inclusión en cada respuesta de sugerencias interactivas de acción (rutas directas SPA como `#/patient/triage`, `#/patient/book`, `#/patient/prescriptions`) y aviso legal permanente: *"Soy un asistente de orientación para MediTriaje 2.0. No sustituyo la valoración médica profesional."*
+
+## ADR-019 Visor de auditoría de seguridad y exportación de reportes operativos (RF-26, RF-30, RNF-11)
+**Estado:** APROBADO (2026-10-04).
+**Contexto:**
+1. *Visor de Auditoría de Seguridad (RF-26, RNF-11):* La tabla inmutable `AUDITORIA` registra de forma fidedigna y no repudiable todos los eventos sensibles del sistema (inicios de sesión, creación de atenciones, emisiones de recetas, dispensación farmacéutica, cortes de emergencia de triaje y activaciones Break-Glass). No obstante, para facilitar la labor del Oficial de Seguridad de la Información y Cumplimiento Hospitalario, se requiere una interfaz web protegida que permita consultar, filtrar y revisar la trazabilidad de accesos sin exponer diagnósticos ni notas confidenciales (ADR-007, ADR-011).
+2. *Exportación de Reportes Operativos (RF-30):* El personal administrativo necesita descargar y consolidar las métricas de rendimiento hospitalario (citas por estado, triajes por nivel, demanda por especialidad y sede, y balance de farmacia) en archivos planos estandarizados (CSV delimitado con UTF-8) para su análisis en herramientas de BI o informes a comités directivos.
+**Decisión:**
+1. **Consulta Controlada de Auditoría (ADR-007, ADR-011):**
+   - Endpoints bajo `/api/v1/admin/audit` protegidos estrictamente con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`.
+   - Repositorio `AuditoriaRepository` expone métodos de lectura paginada (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) filtrando por rango de fechas (`America/Bogota`), tipo de acción (`AccionAuditable`) y resultado (`EXITO` / `FALLO`).
+   - Se proyecta `USUARIO.EMAIL`, `ACCION`, `TIPO_RECURSO`, `RECURSO_PUBLIC_ID`, `RESULTADO`, `IP_ORIGEN` y `FECHA_HORA`.
+   - Cero exposición de datos clínicos ni notas sensibles del paciente.
+2. **Exportación Estructurada de Reportes a CSV (RF-30):**
+   - El dashboard de reportes del frontend (`admin-reports.js`) genera y descarga archivos CSV client-side (`text/csv;charset=utf-8;`) respetando el rango temporal seleccionado.
+   - Incluye secciones para Resumen de Indicadores, Desglose de Citas, Distribución de Triajes y Farmacia.
+
 ---
 
 ## Pendientes reales
 - **Reglas exactas de triaje**: requieren revisión de un profesional de salud.
 - **Nombre/dominio definitivo** y **diseño visual**: no bloquean el MVP.
+

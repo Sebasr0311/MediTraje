@@ -1,10 +1,10 @@
 /**
  * MediTriaje 2.0 — Vista de Recetas Médicas del Paciente (patient-prescriptions.js)
- * Listado de fórmulas médicas digitales, cálculo de vigencia, snapshots inmutables
- * de medicamentos y opción de impresión/guardado en PDF (M8.2c, HU-08, ADR-008).
+ * Listado de fórmulas médicas digitales, código de reclamación alfanumérico,
+ * cálculo de vigencia, saldos de dispensación y trazabilidad farmacéutica (M8.2c, HU-08, F2.4, ADR-016).
  */
 
-import { api } from '../api.js';
+import { api, patientApi } from '../api.js';
 import { auth } from '../auth.js';
 import { router } from '../router.js';
 import { ui, esc } from '../ui.js';
@@ -14,7 +14,8 @@ let prescriptionsState = {
   page: 0,
   size: 20,
   totalPages: 1,
-  totalElements: 0
+  totalElements: 0,
+  dispensationDetails: new Map() // recetaPublicId -> RecetaDispensacionResponse
 };
 
 /**
@@ -29,6 +30,26 @@ function formatPrescriptionDate(isoString) {
       day: 'numeric',
       month: 'long',
       year: 'numeric'
+    }).format(d);
+  } catch {
+    return isoString;
+  }
+}
+
+/**
+ * Formatea una fecha y hora ISO en formato colombiano
+ */
+function formatDateTime(isoString) {
+  if (!isoString) return '—';
+  try {
+    const d = new Date(isoString);
+    return new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     }).format(d);
   } catch {
     return isoString;
@@ -68,6 +89,21 @@ function checkPrescriptionValidity(createdAt, vigenciaDias = 30) {
 }
 
 /**
+ * Retorna el badge visual para el estado de dispensación
+ */
+function renderDispensationBadge(estado) {
+  switch (estado) {
+    case 'DISPENSADA_TOTAL':
+      return `<span class="badge badge--confirmed font-semibold">${ui.icon('check', 'icon icon--sm')} Totalmente Entregada</span>`;
+    case 'DISPENSADA_PARCIAL':
+      return `<span class="badge badge--warning font-semibold">${ui.icon('clock', 'icon icon--sm')} Entrega Parcial</span>`;
+    case 'PENDIENTE':
+    default:
+      return `<span class="badge badge--scheduled font-semibold">${ui.icon('pill', 'icon icon--sm')} Pendiente de Entrega</span>`;
+  }
+}
+
+/**
  * Vista principal de Recetas Médicas del Paciente (#/patient/prescriptions)
  * @param {HTMLElement} container Contenedor DOM
  */
@@ -84,11 +120,11 @@ export async function patientPrescriptionsView(container) {
             </a>
             <h1 class="text-2xl font-bold m-0">Mis Recetas Médicas</h1>
           </div>
-          <p class="text-sm text-muted m-0">Prescripciones farmacológicas digitales emitidas con respaldo legal inmutable</p>
+          <p class="text-sm text-muted m-0">Prescripciones farmacológicas digitales con código de reclamación y seguimiento de entregas</p>
         </div>
 
         <button type="button" class="btn btn-secondary btn--sm" id="btnPrintPrescriptions" title="Imprimir fórmulas">
-          ${ui.icon('file-text')}
+          ${ui.icon('printer')}
           <span>Imprimir recetas</span>
         </button>
       </div>
@@ -146,7 +182,7 @@ function renderPrescriptionsList(container) {
     ui.renderEmpty(listContainer, {
       icon: 'pill',
       title: 'No tienes recetas médicas emitidas',
-      description: 'Cuando un médico te formule medicamentos durante una consulta, tus prescripciones aparecerán aquí con sus indicaciones completas.',
+      description: 'Cuando un médico te formule medicamentos durante una consulta, tus prescripciones aparecerán aquí con su código de reclamación en farmacia.',
       actionText: 'Ver mis citas',
       onAction: () => router.navigate('/patient/appointments')
     });
@@ -167,6 +203,7 @@ function renderPrescriptionsList(container) {
       ${prescriptionsState.recetas.map(receta => {
         const vigenciaInfo = checkPrescriptionValidity(receta.createdAt, receta.vigenciaDias);
         const detalles = receta.detalles || [];
+        const codigoReclamacion = "REC-" + receta.publicId.replace(/-/g, "").substring(0, 8).toUpperCase();
 
         return `
           <div class="card p-6" id="receta-${receta.publicId}" style="border-top: 4px solid ${vigenciaInfo.isVigente ? 'var(--primary)' : 'var(--border)'};">
@@ -178,7 +215,7 @@ function renderPrescriptionsList(container) {
                   <span class="badge ${vigenciaInfo.isVigente ? 'badge--confirmed' : 'badge--neutral'} text-xs font-bold">
                     ${vigenciaInfo.isVigente ? 'Vigente' : 'Vencida'}
                   </span>
-                  <span class="text-xs text-muted font-mono">Código: ${receta.publicId.slice(0, 8)}</span>
+                  <span class="text-xs text-muted font-mono">UUID: ${receta.publicId.slice(0, 8)}</span>
                 </div>
                 <h2 class="text-lg font-bold m-0">Receta Médica Digital</h2>
               </div>
@@ -186,6 +223,32 @@ function renderPrescriptionsList(container) {
               <div class="text-right">
                 <span class="text-sm font-semibold block">${receta.profesionalNombre || 'Profesional Médico'}</span>
                 <span class="badge badge--neutral text-xs">${receta.especialidadNombre || 'Medicina General'}</span>
+              </div>
+            </div>
+
+            <!-- Código de Reclamación Farmacéutica (ADR-016) -->
+            <div class="card p-4 mb-5" style="background-color: var(--teal-50); border: 2px dashed var(--primary); border-radius: var(--radius-md);">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="empty-state-icon" style="margin: 0; width: 44px; height: 44px; background-color: var(--primary); color: #fff;">
+                    ${ui.icon('pill', 'icon icon--md')}
+                  </div>
+                  <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-muted block">Código para Reclamar en Farmacia</span>
+                    <strong class="font-mono text-2xl text-primary font-bold tracking-wider">${codigoReclamacion}</strong>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <button type="button" class="btn btn-secondary btn--sm btn-copy-claim" data-claim="${codigoReclamacion}" title="Copiar código para ventanilla">
+                    ${ui.icon('copy', 'icon icon--sm')}
+                    <span>Copiar código</span>
+                  </button>
+                  <button type="button" class="btn btn-primary btn--sm btn-view-dispensation" data-receta-id="${receta.publicId}">
+                    ${ui.icon('activity', 'icon icon--sm')}
+                    <span>Estado de Entrega</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -206,7 +269,7 @@ function renderPrescriptionsList(container) {
                 <span class="font-medium text-text">${vigenciaInfo.fechaExpiracion}</span>
                 ${vigenciaInfo.isVigente ? `
                   <span class="text-success font-semibold ml-1">(${vigenciaInfo.diasRestantes} días restantes)</span>
-                ` : ''}
+                ` : '<span class="text-danger font-semibold ml-1">(Expirada)</span>'}
               </div>
             </div>
 
@@ -256,14 +319,19 @@ function renderPrescriptionsList(container) {
               </div>
             </div>
 
+            <!-- Panel Expandible de Estado de Dispensación Farmacéutica (ADR-016) -->
+            <div id="dispensation-box-${receta.publicId}" class="mt-4 pt-4 border-t" style="display: none;">
+              <div class="skeleton skeleton-card" style="height: 100px;"></div>
+            </div>
+
             <!-- Pie de Receta -->
             <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t">
               <span class="text-xs text-muted">
-                Fórmula médica electrónica verificada. Válida para reclamación y dispensación.
+                Fórmula médica electrónica verificada. Válida para reclamación y dispensación farmacéutica.
               </span>
 
               <button type="button" class="btn btn-secondary btn--sm btn-print-single" data-receta-id="${receta.publicId}">
-                ${ui.icon('file-text', 'icon icon--sm')}
+                ${ui.icon('printer', 'icon icon--sm')}
                 <span>Imprimir esta receta</span>
               </button>
             </div>
@@ -274,6 +342,48 @@ function renderPrescriptionsList(container) {
     </div>
   `;
 
+  // Listener para botones de copiado de código de reclamación
+  listContainer.querySelectorAll('.btn-copy-claim').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const claimCode = btn.dataset.claim;
+      try {
+        await navigator.clipboard.writeText(claimCode);
+        ui.showToast(`Código ${claimCode} copiado al portapapeles.`, 'success');
+      } catch {
+        // Fallback accesible
+        const temp = document.createElement('input');
+        temp.value = claimCode;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        temp.remove();
+        ui.showToast(`Código ${claimCode} copiado al portapapeles.`, 'success');
+      }
+    });
+  });
+
+  // Listener para consultar / expandir estado de dispensación
+  listContainer.querySelectorAll('.btn-view-dispensation').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const recetaId = btn.dataset.recetaId;
+      const box = listContainer.querySelector(`#dispensation-box-${recetaId}`);
+      if (!box) return;
+
+      if (box.style.display === 'block') {
+        box.style.display = 'none';
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-primary');
+        return;
+      }
+
+      box.style.display = 'block';
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-secondary');
+
+      await renderDispensationDetails(box, recetaId);
+    });
+  });
+
   // Asignar listeners de impresión individual
   listContainer.querySelectorAll('.btn-print-single').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -281,3 +391,116 @@ function renderPrescriptionsList(container) {
     });
   });
 }
+
+/**
+ * Consulta y renderiza el desglose de saldos y entregas previas de una receta
+ */
+async function renderDispensationDetails(boxElement, recetaPublicId) {
+  ui.renderLoading(boxElement, 'Consultando estado de entregas en farmacia...');
+
+  try {
+    const dispData = await patientApi.consultarDispensacionReceta(recetaPublicId);
+    prescriptionsState.dispensationDetails.set(recetaPublicId, dispData);
+
+    const items = dispData.items || [];
+    const entregas = dispData.entregasPrevias || [];
+
+    boxElement.innerHTML = `
+      <div class="card p-4" style="background-color: var(--surface-1); border-left: 4px solid var(--primary);">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-bold uppercase tracking-wider m-0">Trazabilidad de Farmacia</h3>
+            ${renderDispensationBadge(dispData.estadoDispensacion)}
+          </div>
+          <span class="text-xs text-muted">
+            Código: <strong class="font-mono text-primary">${dispData.codigoReclamacion}</strong>
+          </span>
+        </div>
+
+        <!-- Tabla de saldos por medicamento -->
+        <h4 class="text-xs font-bold text-muted uppercase tracking-wider mb-2">Saldos de Medicamentos:</h4>
+        <div class="table-container mb-4">
+          <table class="table text-xs">
+            <thead>
+              <tr>
+                <th>Medicamento</th>
+                <th class="text-center">Prescrito</th>
+                <th class="text-center">Entregado</th>
+                <th class="text-center">Saldo Pendiente</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(item => `
+                <tr>
+                  <td>
+                    <strong>${esc(item.nombreComercial)}</strong>
+                    <span class="text-muted block">${esc(item.presentacion)} — ${esc(item.concentracion)}</span>
+                  </td>
+                  <td class="text-center font-medium">${item.cantidadPrescrita}</td>
+                  <td class="text-center font-medium text-success">${item.cantidadDispensada}</td>
+                  <td class="text-center font-bold ${item.saldoPendiente > 0 ? 'text-primary' : 'text-muted'}">
+                    ${item.saldoPendiente}
+                  </td>
+                  <td>${renderDispensationBadge(item.estado)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Historial de entregas realizadas -->
+        <h4 class="text-xs font-bold text-muted uppercase tracking-wider mb-2">Entregas Realizadas (${entregas.length}):</h4>
+        ${entregas.length === 0 ? `
+          <p class="text-xs text-muted m-0 p-3" style="background-color: var(--surface-2); border-radius: var(--radius-sm);">
+            No se han registrado entregas todavía para esta receta. Preséntate en ventanilla con tu código de reclamación.
+          </p>
+        ` : `
+          <div class="flex flex-col gap-3">
+            ${entregas.map(ent => `
+              <div class="p-3" style="background-color: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs mb-2">
+                  <span><strong>Fecha:</strong> ${formatDateTime(ent.createdAt)}</span>
+                  <span><strong>Sede:</strong> ${esc(ent.sedeNombre)}</span>
+                  <span class="text-muted"><strong>Dispensador:</strong> ${esc(ent.dispensadorNombre)}</span>
+                </div>
+                ${ent.observaciones ? `
+                  <p class="text-xs text-muted mb-2"><strong>Observaciones:</strong> ${esc(ent.observaciones)}</p>
+                ` : ''}
+                <div class="table-container">
+                  <table class="table text-xs" style="margin: 0;">
+                    <thead>
+                      <tr>
+                        <th>Medicamento</th>
+                        <th>Lote INVIMA</th>
+                        <th>Vencimiento Lote</th>
+                        <th class="text-center">Cantidad Entregada</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${(ent.detalles || []).map(d => `
+                        <tr>
+                          <td><strong>${esc(d.nombreComercial)}</strong> (${esc(d.principioActivo)})</td>
+                          <td><span class="badge badge--neutral font-mono text-xs">${esc(d.lote) || 'N/A'}</span></td>
+                          <td>${d.fechaVencimientoLote || 'N/A'}</td>
+                          <td class="text-center font-bold text-success">${d.cantidadEntregada}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    `;
+  } catch (err) {
+    ui.renderError(boxElement, {
+      title: 'No fue posible obtener el estado de dispensación',
+      message: err.message || 'Error al consultar datos de farmacia.',
+      onRetry: () => renderDispensationDetails(boxElement, recetaPublicId)
+    });
+  }
+}
+

@@ -121,15 +121,56 @@ export async function patientDashboardView(container) {
           <div class="skeleton skeleton-card" style="height: 100px;"></div>
         </div>
       </div>
+
+      <!-- Seguimiento Post-Atención (F2.2.4) -->
+      <div class="card mb-8" id="cardRecentFollowUps">
+        <div class="card-header flex items-center justify-between">
+          <h3 class="card-title text-lg flex items-center gap-2">
+            ${ui.icon('shield', 'icon icon--sm text-primary')}
+            <span>Seguimiento Post-Atención</span>
+          </h3>
+          <a href="#/patient/follow-ups" class="text-sm font-medium text-primary">Ver todas mis tareas</a>
+        </div>
+        <div class="card-body" id="followUpsContainer">
+          <div class="skeleton skeleton-card" style="height: 100px;"></div>
+        </div>
+      </div>
+
+      <!-- Resumen y Código QR de Emergencia (F2.3.5) -->
+      <div class="card mb-8" id="cardEmergencyQr" style="border-left: 4px solid var(--danger); background: linear-gradient(90deg, var(--danger-bg) 0%, var(--surface) 100%);">
+        <div class="card-body flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div style="background-color: var(--danger); color: #FFFFFF; width: 44px; height: 44px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              ${ui.icon('shield', 'icon icon--md')}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <h3 class="text-lg font-bold" style="color: var(--text);">Resumen de Salud y Código QR de Emergencia</h3>
+                <span class="badge badge--danger text-xs font-semibold">15 Minutos · Seguro</span>
+              </div>
+              <p class="text-sm text-muted" style="margin: 0; max-width: 60ch;">
+                Genera un código QR temporal para paramédicos y personal de ambulancia con tus alergias, medicamentos activos y contacto de emergencia.
+              </p>
+            </div>
+          </div>
+          <div>
+            <a href="#/patient/emergency-qr" class="btn btn-primary btn--md">
+              ${ui.icon('shield', 'icon icon--sm')}
+              <span>Gestionar Código QR</span>
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 
   // 2. Carga en paralelo de datos del paciente
-  const [perfilResult, appointmentsResult, historyResult, prescriptionsResult] = await Promise.allSettled([
+  const [perfilResult, appointmentsResult, historyResult, prescriptionsResult, followUpsResult] = await Promise.allSettled([
     api.get('/patients/me'),
     api.get('/patients/me/appointments?page=0&size=5'),
     api.get('/patients/me/history?page=0&size=3'),
-    api.get('/patients/me/prescriptions?page=0&size=3')
+    api.get('/patients/me/prescriptions?page=0&size=3'),
+    api.get('/patients/me/follow-ups?page=0&size=3')
   ]);
 
   // 3. Renderizar Saludo
@@ -295,4 +336,53 @@ export async function patientDashboardView(container) {
       </div>
     `;
   }
+
+  // 7. Renderizar Seguimientos Post-Atención Recientes (F2.2.4)
+  const followUpsContainer = document.getElementById('followUpsContainer');
+  if (followUpsResult.status === 'fulfilled' && followUpsResult.value?.content) {
+    const seguimientos = followUpsResult.value.content;
+    if (seguimientos.length > 0) {
+      followUpsContainer.innerHTML = `
+        <div class="grid grid-cols-1 grid-cols-2-md gap-4">
+          ${seguimientos.map(s => {
+            const isPending = s.estado === 'PENDIENTE';
+            const badgeClass = isPending ? 'badge--scheduled' : (s.estado === 'COMPLETADO' ? 'badge--confirmed' : 'badge--cancelled');
+            const tipoLabel = s.tipo ? s.tipo.replace(/_/g, ' ') : 'SEGUIMIENTO';
+            return `
+              <div class="card" style="background-color: var(--surface-2); padding: var(--space-4); border: 1px solid var(--border); border-left: 3px solid ${isPending ? 'var(--primary)' : 'var(--success)'};">
+                <div class="flex justify-between items-start mb-2">
+                  <span class="badge ${badgeClass}">${s.estado}</span>
+                  <span class="text-xs text-muted uppercase font-medium">${tipoLabel}</span>
+                </div>
+                <div class="font-medium text-sm mb-1">${s.profesionalNombre || 'Médico tratante'} · <span class="text-xs text-muted">${s.profesionalEspecialidad || ''}</span></div>
+                <p class="text-xs text-muted mb-3" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${s.indicaciones || ''}</p>
+                <div class="flex justify-between items-center text-xs">
+                  <span class="text-muted">${s.fechaSugeridaControl ? 'Control: ' + s.fechaSugeridaControl : ''}</span>
+                  <a href="#/patient/follow-ups" class="font-medium text-primary">${isPending ? 'Reportar evolución' : 'Ver detalle'}</a>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      followUpsContainer.innerHTML = `
+        <div class="empty-state text-center py-4">
+          <div class="empty-state-icon" style="margin: 0 auto 8px auto; width: 40px; height: 40px;">
+            ${ui.icon('shield', 'icon icon--md text-muted')}
+          </div>
+          <p class="text-sm font-medium mb-1">Sin tareas de seguimiento pendientes</p>
+          <p class="text-xs text-muted">Cuando tus profesionales indiquen controles o exámenes posteriores, se mostrarán aquí.</p>
+        </div>
+      `;
+    }
+  } else {
+    followUpsContainer.innerHTML = `
+      <div class="alert alert--warning text-xs">
+        ${ui.icon('alert-triangle', 'icon alert-icon')}
+        <div>No fue posible cargar tus tareas de seguimiento.</div>
+      </div>
+    `;
+  }
 }
+

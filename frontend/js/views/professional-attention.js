@@ -16,6 +16,34 @@ function formatDateTime(iso) {
   }).format(new Date(iso));
 }
 
+function tipoBadge(tipo) {
+  switch (tipo) {
+    case 'CONTROL_MEDICO':
+      return `<span class="badge badge--scheduled">${ui.icon('calendar', 'icon icon--sm')} Control Médico</span>`;
+    case 'EVOLUCION_SINTOMAS':
+      return `<span class="badge badge--confirmed">${ui.icon('activity', 'icon icon--sm')} Evolución de Síntomas</span>`;
+    case 'EXAMEN_PENDIENTE':
+      return `<span class="badge badge--rescheduled">${ui.icon('file-text', 'icon icon--sm')} Examen Pendiente</span>`;
+    case 'ADHERENCIA_TRATAMIENTO':
+      return `<span class="badge badge--attended">${ui.icon('pill', 'icon icon--sm')} Adherencia a Tratamiento</span>`;
+    default:
+      return `<span class="badge badge--scheduled">${esc(tipo || '')}</span>`;
+  }
+}
+
+function estadoBadge(estado) {
+  switch (estado) {
+    case 'PENDIENTE':
+      return `<span class="badge badge--scheduled">Pendiente</span>`;
+    case 'COMPLETADO':
+      return `<span class="badge badge--confirmed">${ui.icon('check', 'icon icon--sm')} Completado</span>`;
+    case 'CANCELADO':
+      return `<span class="badge badge--cancelled">Cancelado</span>`;
+    default:
+      return `<span class="badge">${esc(estado || '')}</span>`;
+  }
+}
+
 /** Convierte un valor de input a número o null. */
 function num(value) {
   if (value === undefined || value === null || String(value).trim() === '') return null;
@@ -62,7 +90,13 @@ function header(atencion, badge) {
         </div>
         <p class="text-sm text-muted m-0">Paciente: <strong>${esc(atencion.pacienteNombre)}</strong> · ${esc(atencion.especialidadNombre || '')}</p>
       </div>
-      ${badge}
+      <div class="flex items-center gap-2">
+        <a href="#/professional/patient-history/${esc(atencion.pacientePublicId)}" class="btn btn-secondary btn--sm" title="Consultar historia clínica y antecedentes previos del paciente">
+          ${ui.icon('file-text', 'icon icon--sm')}
+          <span>Historial previo</span>
+        </a>
+        ${badge}
+      </div>
     </div>`;
 }
 
@@ -279,6 +313,49 @@ function renderClosed(container, atencion) {
         <a href="#/professional/agenda" class="btn btn-secondary">Volver a la agenda</a>
       </div>
 
+      <!-- Plan de Seguimiento Post-Atención (F2.2.4) -->
+      <section class="mb-8" id="followUpSection">
+        <h2 class="text-lg font-bold mb-3 flex items-center justify-between">
+          <span>Plan de Seguimiento Post-Atención</span>
+          <span id="followUpCount" class="text-sm font-normal text-muted"></span>
+        </h2>
+        <div id="followUpList" class="flex flex-col gap-3 mb-4">
+          <div class="skeleton skeleton-card" style="height: 80px;"></div>
+        </div>
+
+        <details class="card" id="prescribeFollowUpCard">
+          <summary class="card-title text-md font-semibold" style="cursor: pointer; padding: var(--space-4);">Prescribir tarea de seguimiento</summary>
+          <div class="card-body">
+            <form id="followUpForm" novalidate>
+              <div class="grid grid-cols-1 grid-cols-2-md gap-4 mb-3">
+                <div class="form-group m-0">
+                  <label for="fu-tipo" class="form-label">Tipo de seguimiento *</label>
+                  <select id="fu-tipo" class="form-input">
+                    <option value="CONTROL_MEDICO">Control Médico</option>
+                    <option value="EVOLUCION_SINTOMAS">Evolución de Síntomas</option>
+                    <option value="EXAMEN_PENDIENTE">Examen Pendiente</option>
+                    <option value="ADHERENCIA_TRATAMIENTO">Adherencia a Tratamiento</option>
+                  </select>
+                </div>
+                <div class="form-group m-0">
+                  <label for="fu-fecha" class="form-label">Fecha sugerida de control (opcional)</label>
+                  <input type="date" id="fu-fecha" class="form-input" min="${new Date().toISOString().split('T')[0]}">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="fu-indicaciones" class="form-label">Indicaciones para el paciente *</label>
+                <textarea id="fu-indicaciones" class="form-input" rows="3" maxlength="1000" placeholder="Ej: Continuar con el antibiótico por 7 días y reportar si persiste la fiebre o el dolor..."></textarea>
+                <span class="text-xs text-muted">Máximo 1000 caracteres.</span>
+              </div>
+              <p id="fu-error" class="text-sm text-danger" role="alert"></p>
+              <div class="flex justify-end">
+                <button type="submit" id="btnPrescribeFollowUp" class="btn btn-primary">${ui.icon('check')}<span>Prescribir seguimiento</span></button>
+              </div>
+            </form>
+          </div>
+        </details>
+      </section>
+
       <h2 class="text-lg font-bold mb-3">Enmiendas (${enmiendas.length})</h2>
       <div id="amendList" class="flex flex-col gap-3 mb-6">
         ${enmiendas.length === 0 ? '<p class="text-sm text-muted m-0">Sin enmiendas.</p>' : enmiendas.map(amendHtml).join('')}
@@ -304,6 +381,80 @@ function renderClosed(container, atencion) {
     </div>
   `;
 
+  // Lógica de seguimientos post-atención (F2.2.4)
+  async function loadFollowUps() {
+    const listEl = container.querySelector('#followUpList');
+    const countEl = container.querySelector('#followUpCount');
+    if (!listEl) return;
+    try {
+      const items = await api.get(`/attentions/${atencion.publicId}/follow-ups`);
+      if (countEl) countEl.textContent = `(${items.length})`;
+      if (items.length === 0) {
+        listEl.innerHTML = '<p class="text-sm text-muted m-0">Sin tareas de seguimiento prescritas para esta atención.</p>';
+      } else {
+        listEl.innerHTML = items.map(followUpCardHtml).join('');
+        listEl.querySelectorAll('.btn-cancel-followup').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const publicId = btn.dataset.id;
+            ui.showModal({
+              title: 'Cancelar seguimiento',
+              message: '¿Estás seguro de que deseas cancelar esta tarea de seguimiento?',
+              confirmText: 'Sí, cancelar seguimiento',
+              cancelText: 'Volver',
+              onConfirm: async () => {
+                try {
+                  await api.patch(`/follow-ups/${publicId}/cancel`);
+                  ui.showToast('Seguimiento cancelado.', 'info');
+                  await loadFollowUps();
+                } catch (err) {
+                  ui.showToast(err.message || 'Error al cancelar.', 'danger');
+                }
+              }
+            });
+          });
+        });
+      }
+    } catch (err) {
+      listEl.innerHTML = `<p class="text-sm text-danger m-0">Error al cargar seguimientos: ${esc(err.message)}</p>`;
+    }
+  }
+
+  const fuForm = container.querySelector('#followUpForm');
+  if (fuForm) {
+    fuForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const tipo = container.querySelector('#fu-tipo').value;
+      const fechaSugeridaControl = container.querySelector('#fu-fecha').value || null;
+      const indicaciones = container.querySelector('#fu-indicaciones').value.trim();
+      const errEl = container.querySelector('#fu-error');
+      errEl.textContent = '';
+
+      if (!indicaciones) {
+        errEl.textContent = 'Las indicaciones para el paciente son obligatorias.';
+        return;
+      }
+
+      const btn = container.querySelector('#btnPrescribeFollowUp');
+      ui.setButtonLoading(btn, true);
+      try {
+        await api.post(`/attentions/${atencion.publicId}/follow-ups`, {
+          tipo,
+          indicaciones,
+          fechaSugeridaControl
+        });
+        ui.showToast('Plan de seguimiento prescrito correctamente.', 'success');
+        fuForm.reset();
+        await loadFollowUps();
+      } catch (err) {
+        errEl.textContent = err.message || 'No fue posible registrar el seguimiento.';
+      } finally {
+        ui.setButtonLoading(btn, false);
+      }
+    });
+  }
+
+  loadFollowUps();
+
   const form = container.querySelector('#amendForm');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -327,6 +478,52 @@ function renderClosed(container, atencion) {
       ui.setButtonLoading(btn, false);
     }
   });
+}
+
+function followUpCardHtml(item) {
+  const isPending = item.estado === 'PENDIENTE';
+  const isCompleted = item.estado === 'COMPLETADO';
+  return `
+    <div class="card p-4" style="border-left: 4px solid ${isPending ? 'var(--primary)' : (isCompleted ? 'var(--success)' : 'var(--neutral-300)')};">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div class="flex items-center gap-2">
+          ${tipoBadge(item.tipo)}
+          ${estadoBadge(item.estado)}
+        </div>
+        <span class="text-xs text-muted">Prescrito el ${formatDateTime(item.createdAt)}</span>
+      </div>
+
+      ${item.fechaSugeridaControl ? `
+        <div class="text-xs text-primary font-medium mb-2">
+          ${ui.icon('calendar', 'icon icon--sm')} Fecha sugerida de control: <strong>${esc(item.fechaSugeridaControl)}</strong>
+        </div>
+      ` : ''}
+
+      <div class="p-3 mb-2" style="background: var(--surface-2); border-radius: var(--radius-md);">
+        <span class="text-xs font-bold text-muted uppercase block mb-1">Indicaciones al paciente</span>
+        <p class="text-sm m-0" style="white-space: pre-wrap;">${esc(item.indicaciones)}</p>
+      </div>
+
+      ${item.reportePaciente ? `
+        <div class="p-3 mt-2" style="background: var(--teal-50); border-left: 3px solid var(--primary); border-radius: var(--radius-sm);">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="text-xs font-bold text-primary uppercase">Reporte de evolución del paciente</span>
+            <span class="text-xs text-muted">${formatDateTime(item.fechaRespuestaPaciente)}</span>
+          </div>
+          <p class="text-sm m-0" style="white-space: pre-wrap; color: var(--on-teal-50);">${esc(item.reportePaciente)}</p>
+        </div>
+      ` : ''}
+
+      ${isPending ? `
+        <div class="flex justify-end pt-2">
+          <button type="button" class="btn btn-ghost btn--sm text-danger btn-cancel-followup" data-id="${esc(item.publicId)}">
+            ${ui.icon('x', 'icon icon--sm')}
+            <span>Cancelar seguimiento</span>
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `;
 }
 
 function amendHtml(enm) {

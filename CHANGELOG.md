@@ -5,6 +5,334 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Visor de Auditoría de Seguridad y Exportación de Reportes (F2.7, RF-26, RF-30, RNF-11, ADR-019)**:
+  - Formalización y aprobación de **ADR-019** en `docs/DECISIONES.md`: consulta administrativa supervisada de la bitácora inmutable `AUDITORIA` con cero exposición de datos clínicos confidenciales (ADR-007) y exportación client-side de métricas operativas en CSV estructurado con BOM UTF-8.
+  - Repositorio y Servicio de Auditoría (`AuditoriaRepository`, `AuditoriaService`):
+    - Consultas paginadas y filtradas (`listarEventos`, `contarEventos`) con ANSI SQL / Oracle `OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`.
+    - Filtros por rango de fechas en zona horaria `America/Bogota`, tipo de acción (`AccionAuditable`) y resultado (`EXITO`, `FALLO`, `BLOQUEADO`).
+    - DTO inmutable `RegistroAuditoriaResponse` con metadatos técnicos de supervisión (cero campos clínicos).
+    - Preservación estricta de la inmutabilidad: la tabla `AUDITORIA` se mantiene sin métodos de actualización ni borrado.
+  - Controlador REST `AdminAuditController` (`/api/v1/admin/audit`):
+    - Protección estricta con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`.
+    - Aislamiento de privilegios: 403 Forbidden para pacientes y profesionales asistenciales; 401 Unauthorized sin autenticación; 400 Bad Request ante fechas invertidas.
+  - Frontend — Exportación a CSV y Pantalla del Visor de Auditoría:
+    - En `frontend/js/views/admin-reports.js`: botón "Exportar CSV" que genera y descarga al instante el archivo `reporte_operativo_YYYYMMDD_YYYYMMDD.csv` con métricas de citas, triajes, farmacia, break-glass y desgloses analíticos.
+    - Nueva pantalla `frontend/js/views/admin-audit.js`: vista reactiva con filtros por fecha, selector de acción agrupada y resultado, tabla accesible con badges de estado, fecha formateada en Bogotá (`es-CO`), identicadores truncados y paginación bidireccional accesible.
+    - Integración en pestañas del panel administrativo (`frontend/js/views/admin-views.js`) y ruta enrutada `#/admin/audit` en `frontend/js/app.js`.
+  - Colección HTTP `docs/api/F2.7.http` con 5 secciones y 9 escenarios de prueba completos.
+  - Verificación global con suite completa de 740 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores).
+- **Colección HTTP y Cierre de Asistente del Sistema y Reportes Administrativos (F2.6.6, RF-27, RF-30, ADR-018)**:
+  - Creación de `docs/api/F2.6.http` con 5 secciones y 14 escenarios de prueba completos cubriendo:
+    - Healthcheck y autenticación multirol (Administrador, Paciente, Profesional).
+    - Resumen operativo global y consultas filtradas por rango de fechas (`America/Bogota`).
+    - Métricas especializadas de citas y triaje clínico.
+    - Seguridad y segregación estricta de privilegios: 403 Forbidden para pacientes y profesionales en endpoints de reportes administrativos (ADR-007); 401 Unauthorized sin sesión; 400 Bad Request ante fechas invertidas.
+    - Asistente virtual del sistema: orientación operativa sobre citas, triaje clínico, farmacia y reclamación con código `REC-XXXXXXXX`, y QR de emergencia.
+    - Detección infalible de emergencias médicas vitales (dolor de pecho, ahogo, pérdida de conciencia) con respuesta inmediata y enlace a la línea 123.
+    - Validación de mensajes en blanco (400) y acceso universal sin autenticación previa para orientación de pacientes.
+  - Verificación global con suite completa de 729 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores).
+- **Frontend: Dashboard Analítico de Reportes y Widget Flotante del Asistente Virtual (F2.6.5, RF-27, RF-30, ADR-018)**:
+  - Nueva vista analítica `frontend/js/views/admin-reports.js` integrada en el panel administrativo (`#/admin/reports`):
+    - Filtros temporales (`desde`, `hasta`) con atajos predeterminados (Hoy, 7 días, 30 días, Histórico).
+    - Tarjetas KPI: total de citas, tasa de cumplimiento e inasistencia/cancelación, evaluaciones de triaje, emergencias Nivel I, recetas emitidas y unidades farmacológicas entregadas, y activaciones Break-Glass activas.
+    - Barras de progreso porcentuales para estados de citas, distribución de triaje por niveles I–V y estados de dispensación farmacéutica.
+    - Listas de distribución de demanda por especialidad médica y por sede hospitalaria, y auditoría de accesos Break-Glass por especialidad médica.
+    - Cumplimiento estricto de ADR-007: métricas agregadas anónimas sin acceso a historias clínicas individuales.
+  - Widget interactivo flotante `frontend/js/views/system-assistant-widget.js`:
+    - Botón flotante accesible (`#assistant-fab`) con apertura/cierre de panel de chat (`#assistant-panel`).
+    - Atajos rápidos de consulta sugerida (agendamiento, triaje, farmacia, QR de emergencia, alerta médica).
+    - Renderizado de mensajes con indicador de tipeo reactivo, disclaimer médico permanente y botones de acción rápida con navegación SPA.
+    - Destacado visual de alarma de emergencia médica con llamado de urgencia al 123.
+    - Inicialización global en `frontend/js/app.js` disponible para todos los usuarios.
+- **Modelos, Repositorio, Servicios y Controladores REST de Reportes y Asistente Virtual (F2.6.2-F2.6.4, RF-27, RF-30, ADR-018)**:
+  - DTOs inmutables para reportes (`MetricasCitasDto`, `MetricasTriajeDto`, `MetricasFarmaciaDto`, `MetricasBreakGlassDto`, `DistribucionItemDto`, `ResumenOperativoResponse`) y asistente (`PreguntaAsistenteRequest`, `RespuestaAsistenteResponse`, `SugerenciaAccionDto`).
+  - Repositorio `ReporteRepository` con `JdbcTemplate` y SQL 100% parametrizado para agregaciones matemáticas anónimas (`COUNT`, `SUM`, `GROUP BY`) sobre `CITA`, `TRIAJE`, `RECETA`, `DISPENSACION`, `ACCESO_BREAK_GLASS`, `ESPECIALIDAD` y `SEDE`.
+  - Servicio `ReporteService` con validación de rangos temporales en zona `America/Bogota`, cálculo de tasas porcentuales y auditoría inmutable de consultas administrativas (`CONSULTA_REPORTE_ADMINISTRATIVO`).
+  - Servicio `AssistantService` con normalización de texto sin tildes, detección de términos de alarma vital para corte de emergencia, clasificación de intenciones en base de conocimiento de la plataforma, generación de acciones interactivas y aviso legal permanente.
+  - Controladores REST `AdminReportController` (`/api/v1/admin/reports/**`) con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")` y `AssistantController` (`/api/v1/assistant/chat`) con acceso público en `SecurityConfig`.
+  - 36 pruebas unitarias y de integración MockMvc nuevas elevando la suite completa a 729 pruebas pasando al 100%.
+- **ADR-018: Reportes Operativos Administrativos y Asistente del Sistema (F2.6.1, RF-27, RF-30)**:
+  - Documentación formal de ADR-018 en `docs/DECISIONES.md`: segregación estricta de reportes administrativos (ADR-007) mediante agregaciones anónimas en base de datos sin datos de salud individuales, y reglas de operación del asistente virtual (cero diagnósticos/fármacos, corte de emergencia prioritario al 123).
+  - Desglose detallado de tareas F2.6.1 a F2.6.6 en `docs/PLAN_DE_TRABAJO.md` y actualización de roadmap en `docs/PROGRESO.md`.
+- **Colección HTTP y Cierre de Acceso Clínico de Emergencia Break-Glass (F2.5.6, ADR-017)**:
+  - Creación de `docs/api/F2.5.http` con 8 secciones y 15 escenarios de prueba cubriendo:
+    - Autenticación multirol y healthcheck.
+    - Rechazo de consulta de historia médica sin relación asistencial (403 Forbidden).
+    - Validaciones y controles de seguridad de Break-Glass (rechazo por justificación menor a 20 caracteres, prohibición estricta para administrador y paciente).
+    - Activación médica exitosa con motivo de urgencia vital y ventana de vigencia a 24 horas (`POST /api/v1/clinical/break-glass` -> 201 Created).
+    - Consulta de accesos activos (`GET /api/v1/clinical/break-glass/active`) y consulta de detalle.
+    - Desbloqueo y consulta efectiva de historia clínica (`GET /api/v1/clinical/patients/{id}/history` -> 200 OK) con registro de auditoría `CONSULTA_HISTORIA`.
+    - Aislamiento intransferible: médicos ajenos sin cita continúan recibiendo 403 Forbidden.
+    - Prohibición absoluta: administradores reciben 403 Forbidden en todo intento de consulta clínica o break-glass.
+  - Verificación global con suite completa de 693 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores).
+- **Frontend: Modal de Justificación Legal y Consulta Asistencial Excepcional (F2.5.5, ADR-017)**:
+  - Diálogo modal accesible `frontend/js/views/break-glass-modal.js` con advertencia legal y ética obligatoria, lista de accesos activos del profesional, campo de justificación clínica con contador de caracteres interactivo (mínimo 20 caracteres), declaración juramentada y activación con `POST /api/v1/clinical/break-glass`.
+  - Nueva vista profesional de historia del paciente `frontend/js/views/professional-patient-history.js` (`#/professional/patient-history/:patientPublicId`):
+    - Detección reactiva de acceso Break-Glass activo y renderizado de banner prominente con fecha de expiración y justificación médica.
+    - Línea de tiempo de atenciones clínicas inmutables, diagnósticos CIE-10, signos vitales, indicaciones y enmiendas aclaratorias.
+    - Manejo de falta de relación asistencial (403) con pantalla de orientación asistencial y botón directo de activación de Break-Glass.
+  - Integración en cabecera de agenda médica (`frontend/js/views/professional-agenda.js`), acciones en tarjetas de citas y acceso a antecedentes en atención clínica (`frontend/js/views/professional-attention.js`).
+  - Registro de ruta protegida para `ROLE_PROFESIONAL` en enrutador SPA (`frontend/js/app.js`); validación sintáctica 100% limpia con `node --check`.
+- **Modelos, Repositorio, Servicios y Controladores REST de Break-Glass (F2.5.2-F2.5.4, ADR-017)**:
+  - Modelo de dominio inmutable `AccesoBreakGlass` y DTOs `ActivarBreakGlassRequest` y `AccesoBreakGlassResponse`.
+  - Repositorio `BreakGlassRepository` con `JdbcTemplate` y SQL parametrizado para inserción con `GeneratedKeyHolder`, verificación de vigencia y listado de accesos activos.
+  - Servicio `BreakGlassService` con validación de profesional asistencial, existencia del paciente, justificación obligatoria (mínimo 20 caracteres), cálculo de vigencia temporal (24 horas) y auditoría reforzada inmutable `ACCESO_BREAK_GLASS`.
+  - Integración centralizada en `AccesoClinicoService`: método `tieneRelacionAsistencial` extendido para conceder acceso excepcional cuando exista un registro Break-Glass activo no expirado.
+  - Servicio `ClinicalAttentionService`: método `obtenerHistoriaClinicaPaciente` con validación de acceso clínico, paginación y auditoría `CONSULTA_HISTORIA`.
+  - Controladores REST `ClinicalBreakGlassController` (`/api/v1/clinical/break-glass`) y `ClinicalPatientHistoryController` (`/api/v1/clinical/patients/{id}/history`) con protección `@PreAuthorize("hasAuthority('ROLE_PROFESIONAL')")`.
+  - 28 pruebas unitarias y de integración MockMvc nuevas elevando la suite a 693 pruebas pasando al 100%.
+- **ADR-017 y Migración Flyway V014 para Acceso Clínico de Emergencia (F2.5.1, ADR-017)**:
+  - Documentación de ADR-017 en `docs/DECISIONES.md` formalizando el protocolo *Break-Glass* para habilitar acceso excepcional temporal (24 horas) a la historia clínica de un paciente para `ROLE_PROFESIONAL` ante urgencias médicas con justificación obligatoria.
+  - Creación de migración Flyway `database/migrations/V014__acceso_break_glass.sql`: tabla inmutable `ACCESO_BREAK_GLASS`, trigger `TR_BREAK_GLASS_INMUTABILIDAD` bloqueando `UPDATE` y `DELETE` (ORA-20040 / ORA-20041), índices relacionales y concesión de privilegios mínimos a `MEDITRIAJE_APP` (`SELECT, INSERT`).
+  - Adición del valor `ACCESO_BREAK_GLASS` en `AccionAuditable`.
+  - Actualización de `OracleIntegrationTest` validando schema history (>= 14 migraciones), permisos sobre `ACCESO_BREAK_GLASS` y disparo de triggers de inmutabilidad.
+- **Colección HTTP y Cierre de Dispensación Farmacéutica (F2.4.6, ADR-016)**:
+  - Creación de `docs/api/F2.4.http` con 9 secciones y 23 escenarios de prueba exhaustivos:
+    - Autenticación multirol (Administrador, Paciente 1, Paciente 2, Médico, Farmacéutico).
+    - Ciclo asistencial previo: catálogo, disponibilidad, cita, atención cerrada y emisión de receta médica con 2 fármacos.
+    - Ventanilla de farmacia: búsqueda por cédula y código de reclamación, consulta de receta con saldos y listado de sedes.
+    - Entrega parcial con registro de lote INVIMA y fecha de vencimiento (`POST /api/v1/pharmacy/dispensations`).
+    - Control de saldos: validación matemática de disponibilidad y rechazo de sobredispensación (400 `DatosInvalidosException`).
+    - Segunda entrega completando el saldo total y verificación de estado `DISPENSADA_TOTAL` (saldo 0).
+    - Portal del paciente: consulta del código de reclamación y trazabilidad de entregas previas (`GET /api/v1/patients/me/prescriptions/{id}/dispensation`).
+    - Aislamiento de seguridad: 403 Forbidden para pacientes, médicos y administradores en `/api/v1/pharmacy/**`; 403 entre pacientes distintos; 401 Unauthorized sin sesión.
+  - Script de semillas ficticias para ambiente dev: `database/seeds/dev_seeds_f2_4.sql` habilitando usuario farmacéutico con `ROLE_FARMACEUTICO`.
+  - Verificación global con suite completa de 665 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores).
+- **Ventanilla de Farmacia y Seguimiento de Dispensación en Recetas del Paciente (F2.4.5, ADR-016)**:
+  - Nueva vista de farmacia `frontend/js/views/pharmacy-dispensation.js` (`#/pharmacy/dispensation`):
+    - Estación de trabajo para regente de farmacia (`ROLE_FARMACEUTICO`) con selección dinámica de sede de entrega.
+    - Buscador reactivo de prescripciones por código de reclamación alfanumérico o documento de identidad del paciente.
+    - Ficha de receta médica con alerta destacada de caducidad e inhabilitación ante recetas expiradas.
+    - Formulario de entrega controlada: validación de topes según saldo remanente, captura de lote INVIMA y fecha de vencimiento.
+    - Modal accesible de confirmación inmutable y generación inmediata de comprobante de entrega imprimible (`window.print()`).
+    - Consulta de historial cronológico de entregas farmacéuticas previas.
+  - Actualización de la vista del paciente `frontend/js/views/patient-prescriptions.js`:
+    - Visualización prominente del código de reclamación alfanumérico (`REC-XXXXXXXX`) con botón de copiado rápido al portapapeles.
+    - Panel interactivo de trazabilidad farmacéutica con badges de estado (`PENDIENTE`, `DISPENSADA_PARCIAL`, `DISPENSADA_TOTAL`).
+    - Desglose de saldos acumulados por medicamento prescrito e historial cronológico de recepciones en farmacia.
+  - Integración en cliente API (`frontend/js/api.js`), enrutador SPA (`frontend/js/router.js`), autenticación (`frontend/js/auth.js`) y navegación (`frontend/js/app.js`).
+  - Endpoint auxiliar `GET /api/v1/pharmacy/sites` en `PharmacyDispensationController` y `DispensationService` para listar sedes activas para farmacia con pruebas unitarias y de integración.
+- **Controladores REST para Farmacia y Portal del Paciente (F2.4.4, ADR-016)**:
+  - Controlador `PharmacyDispensationController` en `/api/v1/pharmacy` (protegido con `@PreAuthorize("hasAuthority('ROLE_FARMACEUTICO')")`):
+    - `POST /api/v1/pharmacy/dispensations`: registra dispensación con respuesta 201 Created y cabecera `Location`.
+    - `GET /api/v1/pharmacy/dispensations/{publicId}`: consulta detalle de dispensación registrada.
+    - `GET /api/v1/pharmacy/prescriptions`: búsqueda paginada de recetas por código de reclamación o documento del paciente.
+    - `GET /api/v1/pharmacy/prescriptions/{publicId}`: consulta de receta médica con saldos y entregas previas.
+  - Endpoint en `PacienteController`:
+    - `GET /api/v1/patients/me/prescriptions/{publicId}/dispensation`: consulta de estado de dispensación y código de reclamación para el paciente titular.
+  - Aislamiento estricto de seguridad: 403 Forbidden para pacientes y administradores en `/api/v1/pharmacy/**`; 401 Unauthorized sin sesión; mitigación CSRF obligatoria en operaciones mutantes.
+  - 13 pruebas unitarias y de integración MockMvc nuevas en `PharmacyDispensationControllerTest` y `PacienteControllerTest` elevando la suite completa a 663 pruebas verdes al 100%.
+- **Servicio de Dispensación Farmacéutica y Reglas de Negocio (F2.4.3, ADR-016)**:
+  - Implementación de `DispensationService` en `com.meditriaje.service`:
+    - Validación de rol del dispensador (`ROLE_FARMACEUTICO`) con rechazo inmediato para otros roles (`AccesoNoAutorizadoException`).
+    - Validación estricta de vigencia de la receta médica (`createdAt + vigenciaDias >= now`) con rechazo de recetas vencidas (`DatosInvalidosException`).
+    - Validación y control matemático de saldos acumulados por ítem prescrito (rechazo de sobre-dispensación y de ítems con saldo agotado).
+    - Prevención de duplicados en la lista de medicamentos de la solicitud.
+    - Persistencia transaccional atómica de cabecera `DISPENSACION` y detalles `DISPENSACION_DETALLE` con lote INVIMA y fecha de caducidad.
+    - Registro inmutable de auditoría `DISPENSACION_RECETA` vía `AuditoriaService` con ID del dispensador, IP de origen y UUID de la receta (cero datos clínicos en logs/auditoría).
+    - Consultas de saldos y código de reclamación para ventanilla de farmacia y portal del paciente titular con aislamiento de pacientes.
+  - Pruebas unitarias exhaustivas en `DispensationServiceTest` (12 pruebas pasando al 100%, suite global en 650 pruebas verdes).
+- **Modelos de Dominio, DTOs y Repositorio JDBC de Dispensación Farmacéutica (F2.4.2, ADR-016)**:
+  - Modelos inmutables de dominio:
+    - `Dispensacion`: cabecera inmutable con `publicId`, `recetaId`, `sedeId`, `usuarioId`, `observaciones` y `createdAt`.
+    - `DispensacionDetalle`: detalle inmutable de entrega con `recetaDetalleId`, `cantidadEntregada`, `lote` y `fechaVencimientoLote`.
+    - `EstadoRecetaDispensacion`: enum (`PENDIENTE`, `DISPENSADA_PARCIAL`, `DISPENSADA_TOTAL`).
+  - DTOs en `com.meditriaje.dto.pharmacy`:
+    - `DetalleEntregaRequest`: ítem a entregar con validación de cantidad mayor a 0, lote y fecha de vencimiento.
+    - `RegistrarDispensacionRequest`: solicitud de dispensación con receta, sede, observaciones y lista no vacía de detalles.
+    - `DispensacionDetalleResponse`: respuesta de ítem entregado con fármaco, código, nombre, lote y vencimiento.
+    - `DispensacionResponse`: cabecera de entrega con sede, dispensador, observaciones e ítems asociados.
+    - `SaldoMedicamentoDto`: cálculo de saldo pendiente (`prescrita - dispensada`) y estado por ítem prescrito.
+    - `RecetaDispensacionResponse`: información integral para farmacia y paciente, incluyendo `codigoReclamacion` (`REC-XXXXXXXX`), estado global, vigencia y entregas previas.
+  - Repositorio `DispensacionRepository`:
+    - Inserción transaccional de cabecera con `GeneratedKeyHolder` y lote en `DISPENSACION_DETALLE`.
+    - Consultas de saldos dinámicos acumulados por ítem prescrito.
+    - Búsqueda de recetas para farmacia por código de reclamación o documento del paciente.
+    - Búsqueda detallada por `publicId` de receta o dispensación.
+  - Pruebas unitarias en `DispensacionRepositoryTest` (9 pruebas pasando al 100%, suite global en 638 pruebas verdes).
+- **Migración Flyway V013: Dispensación Farmacéutica y Rol ROLE_FARMACEUTICO (F2.4.1, ADR-016)**:
+  - Archivo de migración `database/migrations/V013__dispensacion_farmacia.sql` creando:
+    - Semilla del rol `ROLE_FARMACEUTICO` en `ROL` (actualizando la restricción `CK_ROL_NOMBRE`).
+    - Tabla `DISPENSACION`: cabecera inmutable de entrega farmacéutica vinculada a `RECETA`, `SEDE` y `USUARIO` dispensador.
+    - Tabla `DISPENSACION_DETALLE`: ítem entregado con cantidad, lote y fecha de vencimiento para trazabilidad INVIMA.
+    - Triggers de inmutabilidad `TR_DISPENSACION_INMUTABILIDAD` y `TR_DISP_DETALLE_INMUTABILIDAD` bloqueando `UPDATE` y `DELETE`.
+    - Índices relacionales y concesión de privilegios mínimos `SELECT, INSERT` a `MEDITRIAJE_APP` (ADR-012).
+  - Actualización de `OracleIntegrationTest.java` para verificar 13 migraciones Flyway y privilegios de lectura en las nuevas tablas.
+  - Documentación en `docs/DECISIONES.md` (ADR-016) y `docs/database/MODELO_RELACIONAL.md`.
+- **Colección HTTP y Cierre de Resumen QR de Emergencia (F2.3.6, ADR-010, §5.17, §5.18)**:
+  - Creación de `docs/api/F2.3.http` con 7 secciones y 17 escenarios de prueba completos:
+    - Healthcheck y autenticación de roles (Admin, Paciente 1, Paciente 2).
+    - Generación de código QR de emergencia sin PIN (acceso libre con alcance clínico total).
+    - Generación de código QR protegido con PIN de 4 dígitos y alcance clínico restringido.
+    - Validación y rechazo de PIN en formato inválido (400 Bad Request).
+    - Control de autorización y aislamiento: rechazo de generación para roles no autorizados como administrador (403 Forbidden).
+    - Consulta del historial del paciente y rechazo de revocación por parte de un paciente ajeno (403 Forbidden).
+    - Consulta pública prehospitalaria: verificación preliminar de vigencia (`/check`), resolución directa del resumen sin PIN, desafío de PIN y rechazo ante PIN incorrecto (403 Forbidden), y resolución del resumen con PIN correcto.
+    - Agotamiento estricto de cupo al tercer acceso auditado y rechazo inmediato de la cuarta lectura.
+    - Revocación instantánea por el paciente titular e invalidación inmediata en el visor público prehospitalario.
+  - Verificación de la suite completa de Maven con 629 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre formal del módulo F2.3.
+- **Pantallas de Generador y Visor de Resumen QR de Emergencia (F2.3.5, ADR-010, §5.17, §5.18)**:
+  - Nueva vista de paciente `frontend/js/views/patient-emergency-qr.js` (`#/patient/emergency-qr`):
+    - Configuración interactiva de alcance clínico: checkboxes para alergias, medicamentos activos, antecedentes/atenciones previas y contacto de emergencia.
+    - Campo opcional de PIN numérico de 4 dígitos con ayuda contextual.
+    - Renderizado visual del código QR utilizando la biblioteca local `frontend/js/lib/qrcode.min.js` (cumpliendo estrictamente con CSP `script-src 'self'`).
+    - Temporizador regresivo dinámico en vivo (countdown de 15 minutos en tiempo real `mm:ss`).
+    - Enlace web copiable al portapapeles y botón interactivo de revocación inmediata con confirmación modal.
+    - Tabla responsiva de historial de accesos generados con badges de estado (`ACTIVO`, `EXPIRADO`, `AGOTADO`, `REVOCADO`) y acción de revocación.
+  - Nueva vista pública prehospitalaria `frontend/js/views/emergency-summary-view.js` (`#/emergency-summary/:token`):
+    - Verificación preliminar de estado y vigencia (`GET /api/v1/emergency-summary/:token/check`).
+    - Flujo de solicitud y validación de PIN accesible si el código está protegido.
+    - Despliegue médico sobrio y estructurado: advertencia legal obligatoria de prototipo, identificación y demografía del paciente (edad calculada, documento, teléfono directo), tarjetas de alergias con alerta de severidad, tabla de medicamentos activos con dosis/frecuencia, timeline de atenciones recientes con códigos CIE-10 y pie de auditoría.
+  - Integración en `frontend/js/views/patient-dashboard.js`: tarjeta destacada de acceso rápido a la gestión de códigos QR de emergencia.
+  - Registro de rutas y scripts en `frontend/js/app.js` y `frontend/index.html`.
+- **Endpoints REST de Resumen y QR de Emergencia (F2.3.4, ADR-010, §5.17, §5.18)**:
+  - Endpoints protegidos en `PacienteController.java` para pacientes (`ROLE_PACIENTE`):
+    - `POST /api/v1/patients/me/emergency-qr`: generación de código QR con PIN opcional y flags de alcance (201 Created).
+    - `GET /api/v1/patients/me/emergency-qr`: listado de tokens generados y estado dinámico calculado.
+    - `PATCH /api/v1/patients/me/emergency-qr/{publicId}/revoke`: revocación inmediata de token temporal (204 No Content).
+  - Controlador público prehospitalario `EmergencySummaryController.java`:
+    - `GET /api/v1/emergency-summary/{token}/check`: verificación pública de vigencia preliminar y si requiere PIN (200 OK).
+    - `POST /api/v1/emergency-summary/{token}`: consulta pública del resumen de salud con PIN opcional, consumo atómico de lecturas y registro de auditoría (200 OK).
+  - Configuración de seguridad:
+    - `SecurityConfig.java`: permitAll para `/api/v1/emergency-summary/**`.
+    - `CsrfHeaderFilter.java`: exención de rutas `/api/v1/emergency-summary/` para consumo sin cookies.
+  - 16 pruebas MockMvc nuevas en `PacienteControllerTest` y `EmergencySummaryControllerTest` elevando la suite completa a 629 pruebas verdes.
+- **Servicio de Agregación de Resumen Clínico de Salud (F2.3.3, ADR-010, §5.17, §5.18)**:
+  - Modelo de dominio `Alergia.java` y repositorio `AlergiaRepository.java` con JDBC parametrizado para consultar hipersensibilidades del paciente registradas en `ALERGIA`.
+  - DTOs de agregación clínica en `com.meditriaje.dto.emergency.summary`:
+    - `PacienteEmergenciaDto`: datos básicos, documento, edad calculada, contacto condicional.
+    - `AlergiaEmergenciaDto`: sustancia, reacción, severidad.
+    - `MedicamentoActivoDto`: fármaco, principio activo, presentación, concentración, dosis, frecuencia, duración, indicaciones, vigencia y fecha de prescripción.
+    - `AtencionResumenDto`: fecha, especialidad, código y descripción CIE-10, motivo de consulta, indicaciones.
+    - `ResumenSaludResponse`: vista médica consolidada con advertencia legal explícita.
+  - Servicio `EmergencySummaryService.java`:
+    - Validación de token criptográfico y PIN de seguridad opcional contra `pinHash`.
+    - Registro atómico de acceso en base de datos (`registrarAcceso`).
+    - Auditoría inmutable `ACCESO_EMERGENCIA_QR` vía `AuditoriaService`.
+    - Filtrado dinámico de información clínica según flags de alcance autorizados por el paciente (`incluirAlergias`, `incluirMedicamentos`, `incluirAtenciones`, `incluirContacto`).
+    - Exclusión automática de medicamentos de recetas expiradas.
+  - 12 pruebas unitarias nuevas en `AlergiaRepositoryTest` y `EmergencySummaryServiceTest`.
+- **Repositorio y Lógica de Tokens Temporales Criptográficos QR (F2.3.2, ADR-010, §5.17, §5.18)**:
+  - Modelo de dominio inmutable `AccesoTemporalQr.java` con métodos de resolución de estado temporal (`estaActivo`, `requierePin`, `resolverEstado`) y enum `EstadoAccesoQr.java` (`ACTIVO`, `EXPIRADO`, `AGOTADO`, `REVOCADO`).
+  - DTOs de emergencia en `com.meditriaje.dto.emergency`: `GenerarQrRequest`, `GenerarQrResponse`, `AccesoQrResponse`, `VerificarQrResponse`, `ConsultarResumenRequest`.
+  - Repositorio `AccesoTemporalQrRepository.java` con JDBC 100% parametrizado:
+    - Inserción con `GeneratedKeyHolder`.
+    - Búsqueda indexada por hash de token SHA-256 (`IX_ACCESO_QR_TOKEN`).
+    - Búsqueda por `publicId` y listado por paciente (`IX_ACCESO_QR_PACIENTE`).
+    - Registro de lectura concurrente atómico con incremento de accesos condicional (`ACCESOS_REALIZADOS + 1`) y validación de vigencia.
+    - Revocación atómica por paciente titular.
+  - Servicio `EmergencyQrService.java`:
+    - Generación de token criptográfico opaco de 256 bits (32 bytes con `SecureRandom`, `Base64Url`).
+    - Hashing SHA-256 en reposo vía `TokenHashUtil`.
+    - Soporte para PIN numérico opcional de 4 dígitos hasheado con Argon2id (`PasswordEncoder`).
+    - Regla de negocio de vigencia estricta de 15 minutos exactos y máximo 3 lecturas.
+    - Revocación inmediata por el paciente titular con validación de aislamiento (403 si es ajeno).
+    - Verificación pública preliminar de vigencia y si requiere PIN.
+    - Auditoría inmutable con `GENERACION_QR_EMERGENCIA` y `REVOCACION_QR_EMERGENCIA`.
+  - 14 pruebas unitarias nuevas en `AccesoTemporalQrRepositoryTest` y `EmergencyQrServiceTest`.
+- **Migración Flyway V012: Acceso Temporal QR y Resumen de Emergencia (F2.3.1, ADR-010, §5.17, §5.18)**:
+  - Archivo de migración `database/migrations/V012__acceso_temporal_qr.sql` creando:
+    - Tabla `ACCESO_TEMPORAL_QR` para registro de tokens temporales de acceso criptográfico (256 bits, hash SHA-256 en reposo), soporte de PIN opcional con hash, flags booleanos de alcance (`INCLUIR_ALERGIAS`, `INCLUIR_MEDICAMENTOS`, `INCLUIR_ATENCIONES`, `INCLUIR_CONTACTO`), límite estricto de 3 lecturas (`MAX_ACCESOS`, `ACCESOS_REALIZADOS`), expiración a 15 minutos (`EXPIRA_AT`) y soporte de revocación (`REVOCADO`).
+    - Índices `IX_ACCESO_QR_TOKEN` e `IX_ACCESO_QR_PACIENTE`.
+    - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (`SELECT, INSERT, UPDATE`).
+  - Actualización de `OracleIntegrationTest.java` para verificar esquema V12 y lectura sobre `ACCESO_TEMPORAL_QR`.
+- **Colección HTTP y Cierre de Seguimiento y Notificaciones (F2.2.5, ADR-015)**:
+  - Creación de la colección interactiva `docs/api/F2.2.http` con 7 secciones y 20 escenarios de prueba:
+    - Healthcheck técnico (`/ping`).
+    - Autenticación y roles (Administrador, Paciente 1, Paciente 2, Médico autor, Médico sin relación).
+    - Despacho de notificaciones por correo en reservas y cancelaciones de citas con registro en `RECORDATORIO_CITA`.
+    - Prescripción médica asistencial sobre atenciones cerradas con notificación al paciente y validaciones de autorización (403 para admin, paciente y médicos ajenos).
+    - Consulta y aislamiento estricto de tareas de seguimiento (personal administrativo y pacientes ajenos reciben 403 Forbidden).
+    - Portal del paciente: consulta, filtros por estado y reporte de evolución clínica sin diagnóstico automático (§5.16).
+    - Cancelación de tareas de seguimiento por profesionales autorizados.
+  - Verificación exitosa de la suite completa de pruebas de backend con 594 pruebas verdes al 100% (0 fallos, 0 errores).
+- **Pantallas de Seguimiento Post-Atención y Reporte del Paciente en Frontend (F2.2.4, ADR-015, §5.16)**:
+  - Nueva vista interactiva para el paciente `frontend/js/views/patient-follow-ups.js`:
+    - Listado reactivo de planes de seguimiento post-atención agrupados y filtrables por estado (`PENDIENTE`, `COMPLETADO`).
+    - Badges accesibles e informativos para cada tipo de tarea (`Control Médico`, `Evolución de Síntomas`, `Examen Pendiente`, `Adherencia a Tratamiento`).
+    - Modal accesible para el reporte de evolución clínica con advertencia explícita (§5.16) de que el reporte es un insumo médico confidencial y no genera diagnósticos automáticos ni sustituye urgencias.
+  - Integración en `frontend/js/views/patient-dashboard.js`:
+    - Tarjeta destacada de 'Seguimiento Post-Atención' con carga paralela de tareas activas e hipervínculos directos.
+  - Integración en `frontend/js/views/professional-attention.js`:
+    - Sección 'Plan de Seguimiento Post-Atención' en atenciones cerradas con formulario colapsable para prescribir nuevas tareas (tipo, fecha sugerida de control e indicaciones).
+    - Visualización destacada del reporte de evolución ingresado por el paciente con fecha y hora local de respuesta.
+    - Botón de cancelación de seguimientos pendientes con confirmación modal.
+  - Configuración y registro de la ruta protegida `#/patient/follow-ups` en `frontend/js/app.js`.
+- **Lógica de Dominio y Endpoints de Seguimiento Post-Atención (F2.2.3, ADR-015, §5.16)**:
+  - Enums de dominio `TipoSeguimiento` (`CONTROL_MEDICO`, `EVOLUCION_SINTOMAS`, `EXAMEN_PENDIENTE`, `ADHERENCIA_TRATAMIENTO`) y `EstadoSeguimiento` (`PENDIENTE`, `COMPLETADO`, `CANCELADO`).
+  - Modelo inmutable `SeguimientoPostAtencion.java` y DTOs `CrearSeguimientoRequest`, `ReportarEvolucionRequest` y `SeguimientoResponse` (sin exponer IDs numéricos autonuméricos internos).
+  - Repositorio `SeguimientoRepository.java` con JDBC 100% parametrizado, inserción con `KeyHolder`, actualización de reporte del paciente, cancelación y consultas paginadas ANSI SQL/Oracle.
+  - Servicio `FollowUpService.java`:
+    - Prescripción médica sobre atenciones cerradas con validación de relación asistencial activa o autor.
+    - Notificación por correo al paciente con plantilla HTML de resumen asistencial.
+    - Registro de evolución del paciente sin diagnóstico médico automático (§5.16).
+    - Aislamiento estricto de roles: personal administrativo bloqueado (403 Forbidden), pacientes restringidos a sus propios seguimientos.
+  - Nuevas acciones en `AccionAuditable`: `CREACION_SEGUIMIENTO` y `REPORTE_EVOLUCION_SEGUIMIENTO` (auditadas sin datos clínicos).
+  - Controladores REST:
+    - `FollowUpController.java` (`POST /api/v1/attentions/{id}/follow-ups`, `GET /api/v1/attentions/{id}/follow-ups`, `GET /api/v1/follow-ups/{id}`, `PATCH /api/v1/follow-ups/{id}/cancel`).
+    - `PacienteController.java` (`GET /api/v1/patients/me/follow-ups`, `POST /api/v1/patients/me/follow-ups/{id}/report`).
+  - Suite de 26 pruebas automatizadas nuevas en `SeguimientoRepositoryTest`, `FollowUpServiceTest`, `FollowUpControllerTest` y `PacienteControllerTest` elevando la suite a 594 pruebas al 100% de éxito.
+- **Plantillas HTML y Notificaciones de Citas y Atención (F2.2.2, ADR-015)**:
+  - Tres plantillas de correo HTML institucionales en `backend/src/main/resources/templates/email/`:
+    - `confirmacion-cita.html`: notificación inmediata tras reserva con fecha/hora local (Bogotá UTC-5), profesional, especialidad, sede, modalidad y código de reserva.
+    - `cancelacion-cita.html`: notificación tras cancelación de cita médica con motivo y recomendaciones.
+    - `resumen-atencion-seguimiento.html`: resumen asistencial posterior a la atención médica con recomendaciones de autocuidado y recordatorio de tareas de seguimiento.
+  - Modelo `RecordatorioCita.java` y repositorio `RecordatorioCitaRepository.java` con JDBC parametrizado para registrar historial de notificaciones enviadas y fallidas.
+  - Servicio `AppointmentNotificationService.java`: despacho asíncrono y tolerante a fallos SMTP (`despacharYRegistrar`), resolviendo el correo del paciente y registrando el intento en `RECORDATORIO_CITA`.
+  - Integración en `AppointmentService.java`: despacho automático en `reservarCita` y `cancelarCita` sin abortar las transacciones clínicas/asistenciales ante fallos de correo.
+  - Suite de 14 pruebas automatizadas nuevas en `AppointmentNotificationServiceTest`, `RecordatorioCitaRepositoryTest` y `EmailServiceTest` elevando la suite completa a 568 pruebas al 100% de éxito.
+- **Migración Flyway V011: Seguimiento Post-Atención y Recordatorios (F2.2.1, ADR-015)**:
+  - Archivo de migración `database/migrations/V011__seguimiento_post_atencion.sql` creando:
+    - Tabla `SEGUIMIENTO_POST_ATENCION` para registro de tareas de control, evolución de síntomas, exámenes pendientes y adherencia a tratamiento, con clave foránea a `ATENCION`, `PACIENTE` y `PROFESIONAL`, e inclusión de reporte del paciente (§5.16).
+    - Tabla `RECORDATORIO_CITA` para trazabilidad y auditoría de notificaciones de citas por correo electrónico (`CONFIRMACION_RESERVA`, `RECORDATORIO_PREVIO`, `CANCELACION`).
+    - Concesión de privilegios mínimos a `MEDITRIAJE_APP` (`SELECT, INSERT, UPDATE`).
+  - Actualización de `OracleIntegrationTest.java` para validar migración V11 y permisos de lectura en las nuevas tablas.
+- **Colección HTTP y Verificación de MFA y Recuperación de Contraseña (F2.1.6, ADR-014)**:
+  - Colección interactiva `docs/api/F2.1.http` con 4 secciones y 12 escenarios de prueba cubriendo: healthcheck (`/ping`), recuperación de contraseña por OTP (`/auth/forgot-password` con mitigación de enumeración y `/auth/reset-password` con validación de código de 6 dígitos y contraseña segura), enrolamiento MFA TOTP (`/auth/mfa/setup` y `/auth/mfa/verify` con emisión de 8 códigos de respaldo uniuso) y desafío de segundo factor en login (`/auth/login` con `mfaRequerido` y `/auth/mfa/authenticate` con código TOTP o de respaldo, detección de códigos consumidos y tokens inválidos).
+  - Verificación de la suite Maven con 556 pruebas pasando limpiamente (100% de éxito, 0 regresiones).
+- **Pantallas de Recuperación, Login con MFA y Enrolamiento TOTP en Frontend (F2.1.5, ADR-014)**:
+  - En `frontend/js/auth.js`: métodos cliente de API para MFA (`setupMfa`, `verifyMfa`, `authenticateMfa`) y recuperación de contraseña (`forgotPassword`, `resetPassword`), y soporte de flujo de desafío temporal en `login()`.
+  - En `frontend/js/views/auth-views.js`:
+    - Enlace accesible "¿Olvidaste tu contraseña?" incorporado al formulario de login.
+    - Flujo de desafío de segundo factor en `loginView`: ante respuesta con `mfaRequerido = true`, renderiza `renderMfaChallengeStep` solicitando código TOTP de 6 dígitos o código de respaldo alfanumérico.
+    - Nueva vista de recuperación de contraseña `forgotPasswordView` en dos pasos: solicitud de correo y verificación de código OTP de 6 dígitos con actualización de contraseña segura (toggle de visibilidad, validación de coincidencia y feedback accesible).
+  - En `frontend/js/views/mfa-setup-modal.js`: modal accesible para enrolamiento de doble factor (TOTP) con soporte de teclado (Escape/Tab), exhibición de clave secreta formateada y enlace `otpauth://`, validación inmediata del primer código y entrega de los 8 códigos de respaldo uniuso con botón de copiado masivo al portapapeles.
+  - En cabeceras de `frontend/js/views/professional-agenda.js` y `frontend/js/views/admin-views.js`: botón accesible "Seguridad MFA" para activar y gestionar el doble factor de autenticación.
+  - En `frontend/js/app.js`: registro de la ruta pública `#/forgot-password`.
+- **Autenticación Multifactor (MFA TOTP RFC 6238) en Backend (F2.1.4, ADR-014)**:
+  - Utilidad criptográfica pura `Base32Util.java` conforme a RFC 4648 con codificación, decodificación tolerante a espacios/guiones y generación segura de secretos.
+  - Servicio `TotpService.java` conforme a RFC 6238 con HMAC-SHA1, paso de 30 segundos, truncamiento dinámico a 6 dígitos, ventana de tolerancia temporal de ±30s (±1 paso) y generación de URIs `otpauth://totp/`.
+  - Modelo inmutable `MfaBackupCode.java` y repositorio `MfaBackupCodeRepository.java` con JDBC parametrizado para persistencia en lote de códigos hasheados con SHA-256, consumo uniuso atómico, conteo y depuración por usuario.
+  - Extensiones en `Usuario.java` y `UsuarioRepository.java` para persistir `mfaHabilitado`, `mfaSecret` y `mfaConfiguradoAt`.
+  - Nuevas acciones en `AccionAuditable`: `MFA_SETUP`, `MFA_VERIFY`, `MFA_LOGIN_EXITOSO` y `MFA_LOGIN_FALLIDO`.
+  - DTOs en `com.meditriaje.dto.auth`: `MfaSetupResponse`, `MfaVerifyRequest`, `MfaVerifyResponse` y `MfaAuthenticateRequest`, además de adaptación en `AuthSessionResponse` para soportar `mfaRequerido` y `mfaChallengeToken`.
+  - Gestión de tokens de desafío en `JwtService`: generación de `mfaChallengeToken` de 5 minutos firmado con claim `type: "mfa_challenge"`, validación de desafíos (`esMfaChallengeValido`) y discriminación en `esValido` para impedir que tokens de desafío operen como sesiones en `JwtAuthenticationFilter`.
+  - Lógica de autenticación en dos factores en `AuthService`:
+    - Bifurcación en `login`: si el usuario tiene `mfaHabilitado = true`, retorna 200 con `mfaRequerido: true` y el token de desafío firmado, sin emitir cookies de sesión `access_token` ni `refresh_token`.
+    - Método `setupMfa`: enrolamiento con generación de secreto Base32 y URI otpauth.
+    - Método `verifyMfa`: verificación del primer código TOTP para activación y generación de 8 códigos de respaldo uniuso hasheados.
+    - Método `autenticarMfa`: validación del desafío temporal con TOTP de 6 dígitos o consumo de código de respaldo, emitiendo cookies de sesión HttpOnly y doble auditoría.
+  - Endpoints en `AuthController`: `POST /api/v1/auth/mfa/setup`, `POST /api/v1/auth/mfa/verify` y `POST /api/v1/auth/mfa/authenticate` (abierto en `SecurityConfig`).
+  - Suite de 35 pruebas automatizadas nuevas en `Base32UtilTest`, `TotpServiceTest`, `MfaBackupCodeRepositoryTest`, `AuthServiceTest`, `AuthControllerTest` y `JwtServiceTest` elevando la suite completa a 556 pruebas pasando al 100%.
+- **Recuperación de Contraseña con Código OTP por Correo (F2.1.3, ADR-014)**:
+  - Modelo de dominio inmutable `CodigoVerificacion.java` con métodos de expiración (`estaExpirado`), intentos máximos (`alcanzoMaxIntentos`) y validez (`esValido`).
+  - Repositorio `CodigoVerificacionRepository.java` con JDBC parametrizado para inserción atómica con `KeyHolder`, búsqueda del último código pendiente por usuario y tipo, incremento de intentos fallidos, marcado como usado e invalidación de códigos previos.
+  - DTOs en `com.meditriaje.dto.auth`: `SolicitarRecuperacionRequest`, `SolicitarRecuperacionResponse`, `RestablecerPasswordRequest` (validación de código de 6 dígitos numéricos `^[0-9]{6}$` y longitud de clave) y `RestablecerPasswordResponse`.
+  - Acciones de auditoría inmutables en `AccionAuditable`: `SOLICITUD_RECUPERACION_PASSWORD`, `RECUPERACION_PASSWORD_EXITO` y `RECUPERACION_PASSWORD_FALLO`.
+  - Métodos transaccionales en `AuthService`:
+    - `solicitarRecuperacionPassword`: generación criptográfica segura de código numérico de 6 dígitos con `SecureRandom`, hash SHA-256 (`TokenHashUtil`), expiración de 15 minutos, envío de correo con plantilla institucional (`EmailService`), mitigación de enumeración de usuarios retornando respuesta idéntica informativa y auditoría inmutable.
+    - `restablecerPassword`: verificación de hash SHA-256, expiración e intentos máximos (límite de 3 intentos), actualización de clave hasheada con Argon2id, desbloqueo de cuenta, revocación masiva de todas las sesiones previas del usuario (`RefreshTokenRepository.revocarTodosPorUsuario`) y auditoría de éxito/fallo.
+  - Endpoints públicos en `AuthController`: `POST /api/v1/auth/forgot-password` y `POST /api/v1/auth/reset-password` autorizados en `SecurityConfig.java`.
+  - 20 pruebas unitarias y de integración nuevas en `CodigoVerificacionRepositoryTest`, `AuthServiceTest` y `AuthControllerTest`.
+- **Servicio de Correo y Plantilla HTML Institucional (F2.1.2, ADR-014)**:
+  - Plantilla HTML `backend/src/main/resources/templates/email/recuperacion-password.html` con sistema de diseño MediTriaje 2.0 (`tokens.css`), caja destacada para el código de 6 dígitos, expiración de 15 minutos y advertencias de seguridad.
+  - Servicio `EmailTemplateService` y `DefaultEmailService` con buffer en memoria para pruebas.
+- **Migración Flyway V010: MFA y Recuperación de Contraseña (F2.1.1, ADR-014)**:
+  - Archivo `database/migrations/V010__mfa_y_recuperacion_password.sql` con soporte TOTP en `USUARIO`, tabla `CODIGO_VERIFICACION` y tabla `MFA_BACKUP_CODE`.
+
 ## [1.0.0-mvp] - 2026-10-03
 
 ### Added

@@ -170,3 +170,15 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
+
+export const pharmacyApi = {
+  buscarRecetas: (query = '', page = 0, size = 10) => api.get('/pharmacy/prescriptions', { query, page, size }),
+  consultarReceta: (publicId) => api.get(`/pharmacy/prescriptions/${publicId}`),
+  registrarDispensacion: (data) => api.post('/pharmacy/dispensations', data),
+  consultarDispensacion: (publicId) => api.get(`/pharmacy/dispensations/${publicId}`),
+  listarSedes: () => api.get('/pharmacy/sites')
+};
+
+export const patientApi = {
+  consultarDispensacionReceta: (publicId) => api.get(`/patients/me/prescriptions/${publicId}/dispensation`)
+};

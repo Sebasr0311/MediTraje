@@ -50,4 +50,19 @@ class JwtServiceTest {
         assertThat(jwtService.esValido(null)).isFalse();
         assertThat(jwtService.esValido("")).isFalse();
     }
+
+    @Test
+    void generarMfaChallengeToken_creaChallengeValidoYRechazadoPorEsValido() {
+        String publicId = "user-mfa-123";
+        String email = "medico@example.com";
+        List<String> roles = List.of("ROLE_PROFESIONAL");
+
+        String challengeToken = jwtService.generarMfaChallengeToken(publicId, email, roles);
+
+        assertThat(challengeToken).isNotBlank();
+        assertThat(jwtService.esMfaChallengeValido(challengeToken)).isTrue();
+        assertThat(jwtService.esValido(challengeToken)).isFalse(); // No debe ser aceptado como access token de sesión
+        assertThat(jwtService.esAccessToken(challengeToken)).isFalse();
+        assertThat(jwtService.extraerPublicId(challengeToken)).isEqualTo(publicId);
+    }
 }

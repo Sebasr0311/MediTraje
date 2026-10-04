@@ -148,6 +148,8 @@ class Router {
       this.navigate('/professional/agenda');
     } else if (auth.isAdmin) {
       this.navigate('/admin/dashboard');
+    } else if (auth.isFarmaceutico) {
+      this.navigate('/pharmacy/dispensation');
     } else {
       this.navigate('/');
     }
