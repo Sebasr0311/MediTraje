@@ -92,6 +92,7 @@ public class SecurityConfig {
                     "/api/v1/auth/reset-password",
                     "/api/v1/auth/mfa/authenticate",
                     "/api/v1/emergency-summary/**",
+                    "/api/v1/assistant/**",
                     "/actuator/**"
                 ).permitAll()
                 .anyRequest().authenticated()
