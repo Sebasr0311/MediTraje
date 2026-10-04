@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** M8 — Frontend y cierre
-- **Tarea actual:** M8.2c — Paciente: citas, historia, recetas
+- **Tarea actual:** M8.3 — Pantallas de profesional
 - **Última etiqueta:** v0.7 (M7 completa)
 - **Rama de trabajo:** feature/m8-frontend
 
@@ -73,7 +73,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M8.1 Base del frontend
 - [x] M8.2a Paciente: registro, login, dashboard
 - [x] M8.2b Paciente: triaje, disponibilidad, reserva
-- [ ] M8.2c Paciente: citas, historia, recetas
+- [x] M8.2c Paciente: citas, historia, recetas
 - [ ] M8.3 Pantallas de profesional
 - [ ] M8.4 Pantallas de administración
 - [ ] M8.5 Endurecimiento
@@ -149,3 +149,4 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 
 
 
+- 2026-10-03 · M8.2c · Pantallas del paciente: mis citas (filtros, cancelacion con regla de 2 horas), historia clinica (linea de tiempo, CIE-10, signos vitales, enmiendas) y recetas (vigencia, snapshots); estilos timeline/vitals/print; rutas /patient/appointments, /patient/history, /patient/prescriptions; verificado con Playwright en 375, 768 y 1280 px sin desbordamiento; backend sin cambios (500 pruebas verdes). · feat(frontend): mis citas historia clinica y recetas del paciente (M8.2c)

@@ -1198,3 +1198,104 @@
   transition: width var(--duration) var(--ease);
 }
 
+/* ==========================================================================
+   12. HISTORIA CLÍNICA, RECETAS Y LÍNEA DE TIEMPO (.timeline, .vitals-grid)
+   ========================================================================== */
+.timeline {
+  position: relative;
+  padding-left: var(--space-8);
+  margin-top: var(--space-4);
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--space-3);
+  width: 2px;
+  background-color: var(--border);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: var(--space-8);
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-marker {
+  position: absolute;
+  top: var(--space-4);
+  left: calc(-1 * var(--space-8) + var(--space-1));
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background-color: var(--surface);
+  border: 3px solid var(--primary);
+  z-index: 1;
+}
+
+.timeline-marker--amendment {
+  border-color: var(--warning);
+}
+
+.vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.vital-card {
+  background-color: var(--surface-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.vital-card-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+  display: block;
+}
+
+.vital-card-val {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  color: var(--text);
+  margin-top: 2px;
+  display: block;
+}
+
+/* Reglas de impresión para recetas e historia clínica */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  .navbar,
+  .bottom-nav,
+  .btn,
+  .skip-link,
+  .toast-container,
+  #modal-container {
+    display: none !important;
+  }
+  main.container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .card {
+    border: 1px solid #CCCCCC !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 1.5rem !important;
+  }
+}
+

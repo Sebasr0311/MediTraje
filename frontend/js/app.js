@@ -10,6 +10,9 @@ import { loginView, registerView } from './views/auth-views.js';
 import { patientDashboardView } from './views/patient-dashboard.js';
 import { patientTriageView } from './views/patient-triage.js';
 import { patientBookingView } from './views/patient-booking.js';
+import { patientAppointmentsView } from './views/patient-appointments.js';
+import { patientHistoryView } from './views/patient-history.js';
+import { patientPrescriptionsView } from './views/patient-prescriptions.js';
 
 // Inicialización de Tema Claro / Oscuro
 function initTheme() {
@@ -172,6 +175,11 @@ function setupRoutes() {
   router.addRoute('/patient/triage/:id', patientTriageView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
   router.addRoute('/patient/book', patientBookingView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
   router.addRoute('/availability', patientBookingView, { requiresAuth: true });
+
+  // Rutas M8.2c: Citas, Historia Clínica y Recetas Médicas del Paciente
+  router.addRoute('/patient/appointments', patientAppointmentsView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+  router.addRoute('/patient/history', patientHistoryView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+  router.addRoute('/patient/prescriptions', patientPrescriptionsView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
 
 
   router.addRoute('/professional/agenda', async (container) => {

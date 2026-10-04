@@ -8,6 +8,31 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Mis Citas, Historia Clínica y Recetas Médicas del Paciente (M8.2c, HU-04, HU-05, HU-08, HU-09, ADR-006, ADR-007, ADR-008)**:
+  - Módulo de Mis Citas `frontend/js/views/patient-appointments.js`:
+    - Listado paginado de citas (`GET /api/v1/patients/me/appointments`) con filtros rápidos por estado (Todas, Próximas y Activas, Finalizadas y Canceladas).
+    - Tarjetas completas con fecha/hora colombiana, médico, especialidad, sede, modalidad y badge accesible de estado.
+    - Mecanismo de cancelación anticipada con validación estricta de la regla de las 2 horas (ADR-006, HU-05): para citas a menos de 120 minutos se deshabilita la cancelación con mensaje explicativo; para citas con anticipación superior, despliega modal accesible (`ui.showModal`) solicitando motivo opcional y ejecuta `PATCH /api/v1/appointments/{id}/cancel` actualizando la vista inmediatamente sin recargar.
+  - Módulo de Historia Clínica `frontend/js/views/patient-history.js`:
+    - Línea de tiempo vertical (`.timeline`, `.timeline-item`) de atenciones médicas cerradas inmutables (`GET /api/v1/patients/me/history`).
+    - Diagnóstico principal CIE-10 (código + descripción), motivo de consulta, evolución médica e indicaciones terapéuticas.
+    - Cuadrícula de parámetros fisiológicos (`.vitals-grid`, `.vital-card`) con presión arterial sistólica/diastólica, frecuencia cardíaca, respiratoria, temperatura, saturación de oxígeno, peso y talla.
+    - Sección destacada de aclaraciones y enmiendas clínicas append-only (quién, cuándo, contenido y motivo de la aclaración).
+    - Botón de impresión o guardado a PDF del historial clínico.
+  - Módulo de Recetas Médicas `frontend/js/views/patient-prescriptions.js`:
+    - Listado de fórmulas farmacológicas digitales (`GET /api/v1/patients/me/prescriptions`).
+    - Cálculo automático de estado de vigencia (Vigente / Vencida) a partir de la fecha de emisión y los días de vigencia.
+    - Tabla estructurada de medicamentos prescritos leyendo de los snapshots inmutables: nombre comercial, principio activo, concentración, presentación, dosificación, frecuencia, duración, cantidad e indicaciones.
+    - Botón para imprimir recetas individuales o el consolidado de fórmulas médicas.
+  - Componentes de diseño en `frontend/css/components.css`:
+    - Estilos de línea de tiempo `.timeline`, `.timeline-marker`, `.timeline-marker--amendment`.
+    - Componente de signos vitales `.vitals-grid` y `.vital-card`.
+    - Reglas de estilo para impresión `@media print` que ocultan menús, barras de navegación, botones y optimizan el documento para hojas impresas o PDF.
+  - Verificación visual y funcional con Playwright:
+    - Validación de flujo de listado de citas y cancelación con regla de 2 horas.
+    - Validación de línea de tiempo clínica con signos vitales y enmiendas.
+    - Validación de prescripciones con medicamentos y badges de vigencia.
+    - Comprobación de cero desbordamiento horizontal en 375 px (móvil), 768 px (tablet) y 1280 px (desktop).
 - **Triaje Clínico, Corte de Emergencia y Agendamiento de Citas (M8.2b, HU-02, HU-03, HU-04, ADR-006, ADR-009)**:
   - Módulo de Triaje Clínico del Paciente `frontend/js/views/patient-triage.js`:
     - Asistente por pasos accesible y sereno (Paso 1: selección de síntomas con búsqueda en tiempo real, filtro por categorías y chips táctiles ≥ 44 px; Paso 2: escala táctil de 0 a 10 para intensidad del dolor, selector de duración en horas con presets rápidos de 2h a 72h y observaciones opcionales con contador de caracteres).
