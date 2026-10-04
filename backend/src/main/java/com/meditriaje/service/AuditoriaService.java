@@ -84,4 +84,34 @@ public class AuditoriaService {
         log.info("Evento auditado: accion={}, tipoRecurso={}, resultado={}",
                 evento.accion(), evento.tipoRecurso(), evento.resultado());
     }
+
+    /**
+     * Consulta paginada y filtrada de la bitácora de auditoría para supervisión administrativa (ADR-019).
+     */
+    public com.meditriaje.dto.common.PaginatedResponse<com.meditriaje.dto.audit.RegistroAuditoriaResponse> consultarBitacora(
+            java.time.LocalDate fechaDesde,
+            java.time.LocalDate fechaHasta,
+            String accion,
+            String resultado,
+            int page,
+            int size
+    ) {
+        if (fechaDesde != null && fechaHasta != null && fechaDesde.isAfter(fechaHasta)) {
+            throw new com.meditriaje.exception.DatosInvalidosException("La fecha desde no puede ser posterior a la fecha hasta.");
+        }
+
+        java.time.ZoneId bogota = java.time.ZoneId.of("America/Bogota");
+        java.time.Instant desde = fechaDesde != null ? fechaDesde.atStartOfDay(bogota).toInstant() : null;
+        java.time.Instant hasta = fechaHasta != null ? fechaHasta.atTime(java.time.LocalTime.MAX).atZone(bogota).toInstant() : null;
+
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+
+        java.util.List<com.meditriaje.dto.audit.RegistroAuditoriaResponse> items =
+                auditoriaRepository.listarEventos(desde, hasta, accion, resultado, safePage, safeSize);
+        long total = auditoriaRepository.contarEventos(desde, hasta, accion, resultado);
+
+        return com.meditriaje.dto.common.PaginatedResponse.of(items, safePage, safeSize, total);
+    }
 }
+

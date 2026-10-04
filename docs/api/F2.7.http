@@ -1,0 +1,114 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase F2.7)
+### Visor de Auditoría de Seguridad y Exportación de Reportes — RF-26, RF-30, RNF-11, ADR-019
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+### Cumplimiento estricto: ADR-002, ADR-003, ADR-007, ADR-011, ADR-019
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With
+@csrfValue = XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Autenticación y Credenciales Multi-Rol
+### ----------------------------------------------------------------------------
+
+### 2.1 Login como Administrador (ROLE_ADMINISTRADOR)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "Admin12345*"
+}
+
+### 2.2 Login como Paciente (ROLE_PACIENTE)
+# @name loginPaciente
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "PasswordSegura123*"
+}
+
+### 2.3 Login como Profesional Asistencial (ROLE_PROFESIONAL)
+# @name loginMedico
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}: {{csrfValue}}
+
+{
+  "email": "dra.garcia@meditriaje.com",
+  "password": "PasswordSegura123*"
+}
+
+### ----------------------------------------------------------------------------
+### 3. Consulta de Bitácora de Auditoría por Administrador (RF-26, ADR-019)
+### ----------------------------------------------------------------------------
+
+### 3.1 Consulta general paginada de eventos de auditoría (Admin) -> 200 OK
+# @name auditListadoGeneral
+GET {{baseUrl}}/admin/audit?page=0&size=15
+Accept: application/json
+
+### 3.2 Consulta filtrada por rango de fechas en hora Bogotá -> 200 OK
+# @name auditFiltroFechas
+GET {{baseUrl}}/admin/audit?desde=2026-10-01&hasta=2026-10-04&page=0&size=10
+Accept: application/json
+
+### 3.3 Consulta filtrada por tipo de acción auditable -> 200 OK
+# @name auditFiltroAccion
+GET {{baseUrl}}/admin/audit?accion=LOGIN_EXITOSO&page=0&size=10
+Accept: application/json
+
+### 3.4 Consulta filtrada por resultado del evento (EXITO / FALLO / BLOQUEADO) -> 200 OK
+# @name auditFiltroResultado
+GET {{baseUrl}}/admin/audit?resultado=EXITO&page=0&size=10
+Accept: application/json
+
+### 3.5 Consulta combinada (fechas + acción + resultado + paginación) -> 200 OK
+# @name auditFiltroCombinado
+GET {{baseUrl}}/admin/audit?desde=2026-10-01&hasta=2026-10-04&accion=RESERVA_CITA&resultado=EXITO&page=0&size=10
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 4. Validaciones de Negocio y Formato
+### ----------------------------------------------------------------------------
+
+### 4.1 Rechazo por fechas invertidas (desde posterior a hasta) -> 400 Bad Request
+# @name auditErrorFechasInvertidas
+GET {{baseUrl}}/admin/audit?desde=2026-12-31&hasta=2026-01-01
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 5. Control de Acceso y Aislamiento de Seguridad (ADR-007, ADR-019)
+### ----------------------------------------------------------------------------
+
+### 5.1 Intento de consulta de auditoría con rol PACIENTE -> 403 Forbidden
+# @name auditForbiddenPaciente
+GET {{baseUrl}}/admin/audit
+Accept: application/json
+Cookie: access_token={{loginPaciente.response.headers.Set-Cookie}}
+
+### 5.2 Intento de consulta de auditoría con rol PROFESIONAL -> 403 Forbidden
+# @name auditForbiddenProfesional
+GET {{baseUrl}}/admin/audit
+Accept: application/json
+Cookie: access_token={{loginMedico.response.headers.Set-Cookie}}
+
+### 5.3 Intento de consulta de auditoría sin autenticación -> 401 Unauthorized
+# @name auditUnauthorizedSinSesion
+GET {{baseUrl}}/admin/audit
+Accept: application/json

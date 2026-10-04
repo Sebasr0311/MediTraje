@@ -219,6 +219,7 @@ function setupRoutes() {
   router.addRoute('/admin/professionals', (c) => adminDashboardView(c, { tab: 'professionals' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/slots', (c) => adminDashboardView(c, { tab: 'slots' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/reports', (c) => adminDashboardView(c, { tab: 'reports' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/audit', (c) => adminDashboardView(c, { tab: 'audit' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
 
   // Rutas F2.4: Ventanilla de Dispensación Farmacéutica (ADR-016)
   router.addRoute('/pharmacy/dispensation', pharmacyDispensationView, { requiresAuth: true, requiredRole: 'ROLE_FARMACEUTICO' });

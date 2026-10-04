@@ -717,8 +717,50 @@ Colección docs/api/F2.6.http, pruebas completas de integración y verificación
 
 ---
 
+## Módulo F2.7 — Visor de Auditoría de Seguridad y Exportación de Reportes (RF-26, RF-30, RNF-11)
+
+### F2.7.1 ADR-019: Visor de Auditoría de Seguridad y Exportación de Reportes
+```
+Formaliza ADR-019 en docs/DECISIONES.md y estructura el alcance en docs/PLAN_DE_TRABAJO.md.
+```
+
+### F2.7.2 Repositorio y Servicio de Auditoría de Seguridad
+```
+Implementa en backend:
+- DTOs en com.meditriaje.dto.audit: RegistroAuditoriaResponse, FiltroAuditoriaRequest.
+- AuditoriaRepository: métodos listar(desde, hasta, accion, resultado, page, size) y contar(...) con JOIN a USUARIO para email.
+- AuditoriaService: método consultarBitacora(desde, hasta, accion, resultado, page, size, adminPublicId, ipOrigen).
+- Pruebas unitarias en AuditoriaRepositoryTest y AuditoriaServiceTest.
+```
+
+### F2.7.3 Controlador REST de Auditoría y Pruebas MockMvc
+```
+Implementa en backend:
+- AdminAuditController en /api/v1/admin/audit (@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")):
+  - GET /: consulta paginada de la bitácora de auditoría con filtros.
+  - Seguridad: 403 Forbidden para pacientes y profesionales; 401 Unauthorized sin sesión.
+- Pruebas MockMvc en AdminAuditControllerTest.
+```
+
+### F2.7.4 Frontend: Exportación a CSV y Pantalla del Visor de Auditoría
+```
+Actualiza el frontend Vanilla:
+- Exportación client-side a CSV estructurado en frontend/js/views/admin-reports.js.
+- Nueva vista de auditoría frontend/js/views/admin-audit.js con filtros reactivos (acción, resultado, fechas), paginación y tabla responsiva.
+- Pestaña 'Auditoría' en admin-views.js y ruta #/admin/audit en app.js.
+- Validación con node --check.
+```
+
+### F2.7.5 Pruebas, Colección HTTP y Cierre F2.7
+```
+Colección docs/api/F2.7.http, pruebas completas de integración y verificación. Puerta de salida F2.7: etiqueta v1.7-auditoria-reportes.
+```
+
+---
+
 # Otras iniciativas de Fase 2 (orden sugerido)
 1. Integraciones externas y mejoras analíticas adicionales.
+
 
 ---
 

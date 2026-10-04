@@ -237,6 +237,21 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
        - Derechos del paciente, inmutabilidad de historia clínica y enmiendas.
      - Inclusión en cada respuesta de sugerencias interactivas de acción (rutas directas SPA como `#/patient/triage`, `#/patient/book`, `#/patient/prescriptions`) y aviso legal permanente: *"Soy un asistente de orientación para MediTriaje 2.0. No sustituyo la valoración médica profesional."*
 
+## ADR-019 Visor de auditoría de seguridad y exportación de reportes operativos (RF-26, RF-30, RNF-11)
+**Estado:** APROBADO (2026-10-04).
+**Contexto:**
+1. *Visor de Auditoría de Seguridad (RF-26, RNF-11):* La tabla inmutable `AUDITORIA` registra de forma fidedigna y no repudiable todos los eventos sensibles del sistema (inicios de sesión, creación de atenciones, emisiones de recetas, dispensación farmacéutica, cortes de emergencia de triaje y activaciones Break-Glass). No obstante, para facilitar la labor del Oficial de Seguridad de la Información y Cumplimiento Hospitalario, se requiere una interfaz web protegida que permita consultar, filtrar y revisar la trazabilidad de accesos sin exponer diagnósticos ni notas confidenciales (ADR-007, ADR-011).
+2. *Exportación de Reportes Operativos (RF-30):* El personal administrativo necesita descargar y consolidar las métricas de rendimiento hospitalario (citas por estado, triajes por nivel, demanda por especialidad y sede, y balance de farmacia) en archivos planos estandarizados (CSV delimitado con UTF-8) para su análisis en herramientas de BI o informes a comités directivos.
+**Decisión:**
+1. **Consulta Controlada de Auditoría (ADR-007, ADR-011):**
+   - Endpoints bajo `/api/v1/admin/audit` protegidos estrictamente con `@PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')")`.
+   - Repositorio `AuditoriaRepository` expone métodos de lectura paginada (`OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`) filtrando por rango de fechas (`America/Bogota`), tipo de acción (`AccionAuditable`) y resultado (`EXITO` / `FALLO`).
+   - Se proyecta `USUARIO.EMAIL`, `ACCION`, `TIPO_RECURSO`, `RECURSO_PUBLIC_ID`, `RESULTADO`, `IP_ORIGEN` y `FECHA_HORA`.
+   - Cero exposición de datos clínicos ni notas sensibles del paciente.
+2. **Exportación Estructurada de Reportes a CSV (RF-30):**
+   - El dashboard de reportes del frontend (`admin-reports.js`) genera y descarga archivos CSV client-side (`text/csv;charset=utf-8;`) respetando el rango temporal seleccionado.
+   - Incluye secciones para Resumen de Indicadores, Desglose de Citas, Distribución de Triajes y Farmacia.
+
 ---
 
 ## Pendientes reales
