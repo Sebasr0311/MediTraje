@@ -8,6 +8,7 @@
 import { api } from '../api.js';
 import { router } from '../router.js';
 import { ui, esc } from '../ui.js';
+import { showMfaModal } from './mfa-setup-modal.js';
 
 /** Fecha de hoy en formato YYYY-MM-DD en zona America/Bogota. */
 function todayBogota() {
@@ -64,9 +65,15 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
 
   container.innerHTML = `
     <div style="max-width: var(--container); margin: 0 auto; padding-bottom: var(--space-12);">
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold mb-1">Administración del Sistema</h1>
-        <p class="text-sm text-muted m-0">Gestión de infraestructura, profesionales asistenciales y slots de disponibilidad</p>
+      <div class="mb-6 flex justify-between items-center flex-wrap gap-4">
+        <div>
+          <h1 class="text-2xl font-bold mb-1">Administración del Sistema</h1>
+          <p class="text-sm text-muted m-0">Gestión de infraestructura, profesionales asistenciales y slots de disponibilidad</p>
+        </div>
+        <button type="button" id="btnAdminMfa" class="btn btn-secondary btn--sm">
+          ${ui.icon('shield', 'icon icon--sm')}
+          <span>Seguridad MFA</span>
+        </button>
       </div>
 
       <div class="alert alert--info mb-6" role="note">
@@ -126,6 +133,10 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
     else if (activeTab === 'slots') renderSlots(contentEl);
     else renderInstitutions(contentEl);
   }
+
+  container.querySelector('#btnAdminMfa')?.addEventListener('click', () => {
+    showMfaModal();
+  });
 
   renderActiveTab();
 }

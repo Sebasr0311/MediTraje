@@ -26,6 +26,21 @@ public class UsuarioRepository {
     private final RowMapper<Usuario> usuarioRowMapper = (rs, rowNum) -> {
         Timestamp tsBloqueado = rs.getTimestamp("BLOQUEADO_HASTA");
         Timestamp tsCreated = rs.getTimestamp("CREATED_AT");
+        Timestamp tsMfaConfig = null;
+        try {
+            tsMfaConfig = rs.getTimestamp("MFA_CONFIGURADO_AT");
+        } catch (Exception ignored) {}
+
+        boolean mfaHabilitado = false;
+        try {
+            mfaHabilitado = rs.getInt("MFA_HABILITADO") == 1;
+        } catch (Exception ignored) {}
+
+        String mfaSecret = null;
+        try {
+            mfaSecret = rs.getString("MFA_SECRET");
+        } catch (Exception ignored) {}
+
         return new Usuario(
                 rs.getLong("ID"),
                 rs.getString("PUBLIC_ID"),
@@ -35,7 +50,10 @@ public class UsuarioRepository {
                 rs.getInt("INTENTOS_FALLIDOS"),
                 tsBloqueado != null ? tsBloqueado.toInstant() : null,
                 tsCreated != null ? tsCreated.toInstant() : null,
-                rs.getInt("DEBE_CAMBIAR_PASSWORD") == 1
+                rs.getInt("DEBE_CAMBIAR_PASSWORD") == 1,
+                mfaHabilitado,
+                mfaSecret,
+                tsMfaConfig != null ? tsMfaConfig.toInstant() : null
         );
     };
 
@@ -78,7 +96,7 @@ public class UsuarioRepository {
 
     public Optional<Usuario> buscarPorEmail(String email) {
         final String sql = """
-            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT, DEBE_CAMBIAR_PASSWORD
+            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT, DEBE_CAMBIAR_PASSWORD, MFA_HABILITADO, MFA_SECRET, MFA_CONFIGURADO_AT
             FROM USUARIO
             WHERE EMAIL = ?
             """;
@@ -88,7 +106,7 @@ public class UsuarioRepository {
 
     public Optional<Usuario> buscarPorId(Long id) {
         final String sql = """
-            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT, DEBE_CAMBIAR_PASSWORD
+            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT, DEBE_CAMBIAR_PASSWORD, MFA_HABILITADO, MFA_SECRET, MFA_CONFIGURADO_AT
             FROM USUARIO
             WHERE ID = ?
             """;
@@ -98,7 +116,7 @@ public class UsuarioRepository {
 
     public Optional<Usuario> buscarPorPublicId(String publicId) {
         final String sql = """
-            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT, DEBE_CAMBIAR_PASSWORD
+            SELECT ID, PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO, INTENTOS_FALLIDOS, BLOQUEADO_HASTA, CREATED_AT, DEBE_CAMBIAR_PASSWORD, MFA_HABILITADO, MFA_SECRET, MFA_CONFIGURADO_AT
             FROM USUARIO
             WHERE PUBLIC_ID = ?
             """;
@@ -167,5 +185,32 @@ public class UsuarioRepository {
             WHERE ID = ?
             """;
         jdbcTemplate.update(sql, estado, usuarioId);
+    }
+
+    public void guardarMfaSecret(Long usuarioId, String mfaSecret) {
+        final String sql = """
+            UPDATE USUARIO
+            SET MFA_SECRET = ?, UPDATED_AT = CURRENT_TIMESTAMP
+            WHERE ID = ?
+            """;
+        jdbcTemplate.update(sql, mfaSecret, usuarioId);
+    }
+
+    public void activarMfa(Long usuarioId, String mfaSecret) {
+        final String sql = """
+            UPDATE USUARIO
+            SET MFA_HABILITADO = 1, MFA_SECRET = ?, MFA_CONFIGURADO_AT = CURRENT_TIMESTAMP, UPDATED_AT = CURRENT_TIMESTAMP
+            WHERE ID = ?
+            """;
+        jdbcTemplate.update(sql, mfaSecret, usuarioId);
+    }
+
+    public void desactivarMfa(Long usuarioId) {
+        final String sql = """
+            UPDATE USUARIO
+            SET MFA_HABILITADO = 0, MFA_SECRET = NULL, MFA_CONFIGURADO_AT = NULL, UPDATED_AT = CURRENT_TIMESTAMP
+            WHERE ID = ?
+            """;
+        jdbcTemplate.update(sql, usuarioId);
     }
 }

@@ -1,0 +1,184 @@
+### MediTriaje 2.0 — Colección de Pruebas HTTP (Fase F2.1)
+### MFA para Profesionales/Admins y Recuperación de Contraseña con Código OTP por Correo
+### Compatible con REST Client (VS Code, IntelliJ, etc.)
+
+@baseUrl = http://localhost:8080/api/v1
+@csrfHeader = X-Requested-With: XMLHttpRequest
+
+### ----------------------------------------------------------------------------
+### 1. Healthcheck Técnico
+### ----------------------------------------------------------------------------
+# @name ping
+GET {{baseUrl}}/ping
+Accept: application/json
+
+### ----------------------------------------------------------------------------
+### 2. Recuperación de Contraseña con Código OTP por Correo (ADR-014)
+### ----------------------------------------------------------------------------
+
+### 2.1 Solicitud de código de recuperación para usuario existente
+# Envía un código OTP numérico de 6 dígitos al correo institucional con expiración a 15 minutos
+# @name solicitarCodigoValido
+POST {{baseUrl}}/auth/forgot-password
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "email": "carlos.perez@example.com"
+}
+
+### 2.2 Mitigación de enumeración: solicitud para usuario que NO existe
+# Debe retornar 200 OK con el MISMO mensaje genérico informativo (sin revelar si el correo existe)
+# @name solicitarCodigoInexistente
+POST {{baseUrl}}/auth/forgot-password
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "email": "usuario.inexistente@correo.com"
+}
+
+### 2.3 Intento de restablecimiento con código inválido o erróneo (400 Bad Request)
+# @name restablecerCodigoInvalido
+POST {{baseUrl}}/auth/reset-password
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "email": "carlos.perez@example.com",
+  "codigo": "000000",
+  "nuevaPassword": "NuevaPasswordSegura2026*"
+}
+
+### 2.4 Restablecimiento exitoso con el código OTP de 6 dígitos recibido por correo
+# Nota: sustituir "123456" por el código recibido o generado en consola/buffer dev
+# @name restablecerExitoso
+POST {{baseUrl}}/auth/reset-password
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "email": "carlos.perez@example.com",
+  "codigo": "123456",
+  "nuevaPassword": "NuevaPasswordSegura2026*"
+}
+
+### 2.5 Verificación de login con la nueva contraseña restablecida
+# @name loginConNuevaPassword
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "email": "carlos.perez@example.com",
+  "password": "NuevaPasswordSegura2026*"
+}
+
+### ----------------------------------------------------------------------------
+### 3. Enrolamiento de MFA TOTP (RFC 6238) para Profesionales / Administradores
+### ----------------------------------------------------------------------------
+
+### 3.1 Login como Administrador (o Profesional) para obtener sesión
+# @name loginAdminParaMfa
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "AdminPasswordSegura123*"
+}
+
+### 3.2 Iniciar configuración MFA: generación de secreto Base32 y URI otpauth
+# Requiere cookie de sesión activa. Retorna secretKey y otpauthUri para app autenticadora
+# @name setupMfa
+POST {{baseUrl}}/auth/mfa/setup
+Accept: application/json
+{{csrfHeader}}
+
+### 3.3 Confirmar y activar MFA con el primer código TOTP de 6 dígitos
+# Retorna 8 códigos de respaldo uniuso (backup codes) hasheados con SHA-256 en BD
+# Sustituir "123456" por el código generado por la app autenticadora
+# @name verifyMfa
+POST {{baseUrl}}/auth/mfa/verify
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "codigo": "123456"
+}
+
+### ----------------------------------------------------------------------------
+### 4. Flujo de Login con MFA Requerido y Autenticación de Segundo Factor
+### ----------------------------------------------------------------------------
+
+### 4.1 Login con credenciales estándar de usuario con MFA habilitado
+# Retorna 200 OK con { mfaRequerido: true, mfaChallengeToken: "..." }
+# ¡NO emite cookies de sesión access_token ni refresh_token hasta completar el 2do factor!
+# @name loginConMfaRequerido
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "email": "admin@meditriaje.com",
+  "password": "AdminPasswordSegura123*"
+}
+
+### 4.2 Autenticación del segundo factor con código TOTP de 6 dígitos
+# Emite las cookies de sesión HttpOnly definitivas y audita MFA_LOGIN_EXITOSO
+# @name autenticarConTotp
+POST {{baseUrl}}/auth/mfa/authenticate
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "challengeToken": "{{loginConMfaRequerido.response.body.mfaChallengeToken}}",
+  "codigo": "123456"
+}
+
+### 4.3 Autenticación del segundo factor con código de respaldo (backup code)
+# Permite acceder si se perdió el dispositivo autenticador. Consume el código de un solo uso.
+# @name autenticarConBackupCode
+POST {{baseUrl}}/auth/mfa/authenticate
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "challengeToken": "{{loginConMfaRequerido.response.body.mfaChallengeToken}}",
+  "backupCode": "A1B2-C3D4"
+}
+
+### 4.4 Intento con código de respaldo YA consumido (debe rechazar con 401 Credenciales inválidas)
+# @name intentoBackupCodeReusado
+POST {{baseUrl}}/auth/mfa/authenticate
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "challengeToken": "{{loginConMfaRequerido.response.body.mfaChallengeToken}}",
+  "backupCode": "A1B2-C3D4"
+}
+
+### 4.5 Intento con token de desafío adulterado o expirado (401 Unauthorized)
+# @name intentoDesafioInvalido
+POST {{baseUrl}}/auth/mfa/authenticate
+Content-Type: application/json
+Accept: application/json
+{{csrfHeader}}
+
+{
+  "challengeToken": "eyJhbGciOiJIUzI1NiJ9.tokenInvalido.firmaInvalida",
+  "codigo": "123456"
+}

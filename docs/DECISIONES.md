@@ -132,8 +132,28 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 - Historia clínica: no eliminación; conservación según Res. 1995 de 1999 (consultar plazo exacto). Interoperabilidad (Ley 2015 de 2020): fuera del MVP, pero no bloquear su evolución.
 - Catálogos: CIE-10 reducido para diagnósticos; tipos de documento CC, TI, RC, CE, PA. Código CUM de medicamentos: fase 2.
 
+## ADR-014 Autenticación multifactor (MFA TOTP) y recuperación de contraseña con código OTP por correo
+**Estado:** APROBADO por Juan (2026-10-03).
+**Decisión:**
+1. **Recuperación de Contraseña con Código OTP y Plantilla de Correo:**
+   - Para restablecer contraseña, el usuario solicita un código ingresando su correo en `POST /api/v1/auth/forgot-password`.
+   - El sistema genera un código numérico de 6 dígitos (`SecureRandom`, rango 100000–999999) con expiración de 15 minutos.
+   - El código se almacena **hasheado con SHA-256** en la tabla `CODIGO_VERIFICACION` con contador de intentos (máximo 3 intentos fallidos antes de invalidarse).
+   - Se envía un correo electrónico formateado con **plantilla HTML institucional** responsiva alineada con el sistema de diseño (`docs/DISENO_UI_UX.md`, tokens de color de `tokens.css`), que destaca el código de 6 dígitos en caja prominente, tiempo de expiración y advertencias de seguridad contra suplantación.
+   - La respuesta HTTP es siempre genérica 200 OK (*"Si el correo se encuentra registrado, recibirás un código de verificación."*) para neutralizar ataques de enumeración.
+   - El endpoint `POST /api/v1/auth/reset-password` valida el correo, el código OTP y la nueva contraseña (mínimo 10 caracteres). Al completarse, hashea con Argon2id, marca el código como usado, audita el evento e invalida de forma inmediata todas las sesiones activas (refresh tokens) de la cuenta.
+2. **Autenticación Multifactor (MFA TOTP) para Profesionales y Administradores:**
+   - Estándar RFC 6238 (TOTP con pasos de 30 segundos, HMAC-SHA1 y secreto Base32) compatible con aplicaciones autenticadoras estándar (Google Authenticator, Microsoft Authenticator).
+   - Enrolamiento en dos pasos: generación de secreto + URI `otpauth://` y confirmación del primer código válido.
+   - Login con desafío de segundo factor: si el usuario tiene MFA habilitado, el login por contraseña devuelve `mfaRequerido: true` y un token temporal de desafío (`mfaChallengeToken`, vida útil de 5 minutos). Las cookies definitivas `access_token` y `refresh_token` solo se emiten tras validar el código TOTP en `POST /api/v1/auth/mfa/authenticate`.
+   - Generación de 8 códigos de respaldo (backup codes) alfanuméricos uniuso, almacenados hasheados con SHA-256 en la tabla `MFA_BACKUP_CODE`.
+3. **Servicio de Correo Electrónico:**
+   - Interfaz `EmailService` con carga de plantillas HTML desde `resources/templates/email/`.
+   - En perfiles `dev` y `test`, si no hay servidor SMTP configurado, registra el correo renderizado en logs de forma segura para permitir pruebas funcionales y automatizadas. En perfil `prod`, utiliza `JavaMailSender` con TLS/STARTTLS.
+
 ---
 
 ## Pendientes reales
 - **Reglas exactas de triaje**: requieren revisión de un profesional de salud.
 - **Nombre/dominio definitivo** y **diseño visual**: no bloquean el MVP.
+

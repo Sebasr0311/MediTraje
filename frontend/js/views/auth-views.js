@@ -5,7 +5,7 @@
 
 import { auth } from '../auth.js';
 import { router } from '../router.js';
-import { ui } from '../ui.js';
+import { ui, esc } from '../ui.js';
 
 /**
  * Renderiza la vista de Inicio de Sesión
@@ -72,6 +72,10 @@ export function loginView(container, { queryParams } = {}) {
               </button>
             </div>
             <span class="form-error" id="passwordError" style="display: none;" role="alert"></span>
+          </div>
+
+          <div class="flex justify-end mb-4">
+            <a href="#/forgot-password" class="text-xs text-primary font-semibold hover:underline">¿Olvidaste tu contraseña?</a>
           </div>
 
           <button type="submit" id="btnLoginSubmit" class="btn btn-primary w-full mt-2">
@@ -165,7 +169,14 @@ export function loginView(container, { queryParams } = {}) {
     ui.setButtonLoading(btnSubmit, true);
 
     try {
-      await auth.login(email, password);
+      const session = await auth.login(email, password);
+
+      if (session && session.mfaRequerido) {
+        ui.setButtonLoading(btnSubmit, false);
+        renderMfaChallengeStep(container, session.mfaChallengeToken, email, queryParams);
+        return;
+      }
+
       ui.showToast('Bienvenido a MediTriaje.', 'success');
 
       const redirect = queryParams?.get('redirect');
@@ -197,6 +208,115 @@ export function loginView(container, { queryParams } = {}) {
       `;
     } finally {
       ui.setButtonLoading(btnSubmit, false);
+    }
+  });
+}
+
+/**
+ * Renderiza el paso de desafío MFA dentro de la pantalla de Login (ADR-014, F2.1.4, F2.1.5).
+ */
+function renderMfaChallengeStep(container, challengeToken, email, queryParams) {
+  container.innerHTML = `
+    <div class="container-narrow" style="padding-top: var(--space-8); padding-bottom: var(--space-8);">
+      <div class="card" style="padding: var(--space-8);">
+        <div class="text-center mb-6">
+          <div class="empty-state-icon" style="margin: 0 auto var(--space-3) auto; background-color: var(--teal-50); color: var(--primary);">
+            ${ui.icon('shield', 'icon icon--lg')}
+          </div>
+          <h1 class="text-2xl font-bold mb-1">Verificación en Dos Pasos</h1>
+          <p class="text-sm text-muted">Ingresa el código para <strong>${esc(email)}</strong></p>
+        </div>
+
+        <form id="formMfaChallenge" novalidate>
+          <div id="mfaAlertContainer" aria-live="polite"></div>
+
+          <div class="form-group mb-4 text-center">
+            <label for="mfaChallengeCode" class="form-label font-bold mb-2">
+              Código de autenticación o de respaldo <span class="required" aria-hidden="true">*</span>
+            </label>
+            <input 
+              type="text" 
+              id="mfaChallengeCode" 
+              name="codigo"
+              class="form-input text-center" 
+              placeholder="123456 o 1234-5678" 
+              required 
+              autocomplete="one-time-code"
+              aria-required="true"
+              style="font-family: monospace; font-size: 1.5rem; letter-spacing: 0.2em; max-width: 260px; margin: 0 auto; display: block;"
+            >
+            <span class="form-error text-center mt-1" id="mfaChallengeError" style="display: none;" role="alert"></span>
+            <p class="text-xs text-muted mt-2">
+              Ingresa el código de 6 dígitos de tu app autenticadora o uno de tus códigos de respaldo uniuso.
+            </p>
+          </div>
+
+          <button type="submit" id="btnSubmitMfaChallenge" class="btn btn-primary w-full mt-4">
+            ${ui.icon('shield', 'icon icon--sm')}
+            <span>Verificar e Ingresar</span>
+          </button>
+
+          <button type="button" id="btnCancelMfa" class="btn btn-ghost w-full mt-2 text-muted">
+            <span>Cancelar y volver al inicio</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  `;
+
+  const mfaForm = container.querySelector('#formMfaChallenge');
+  const mfaInput = container.querySelector('#mfaChallengeCode');
+  const mfaError = container.querySelector('#mfaChallengeError');
+  const mfaAlert = container.querySelector('#mfaAlertContainer');
+  const btnSubmit = container.querySelector('#btnSubmitMfaChallenge');
+  const btnCancel = container.querySelector('#btnCancelMfa');
+
+  setTimeout(() => mfaInput?.focus(), 150);
+
+  btnCancel?.addEventListener('click', () => {
+    loginView(container, { queryParams });
+  });
+
+  mfaForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    mfaError.style.display = 'none';
+    mfaError.textContent = '';
+    mfaAlert.innerHTML = '';
+    mfaInput.classList.remove('has-error');
+
+    const codigo = mfaInput.value.trim();
+    if (!codigo) {
+      mfaInput.classList.add('has-error');
+      mfaError.textContent = 'Por favor ingresa tu código de verificación.';
+      mfaError.style.display = 'block';
+      mfaInput.focus();
+      return;
+    }
+
+    ui.setButtonLoading(btnSubmit, true);
+
+    try {
+      await auth.authenticateMfa(challengeToken, codigo);
+      ui.showToast('Bienvenido a MediTriaje.', 'success');
+
+      const redirect = queryParams?.get('redirect');
+      if (redirect) {
+        router.navigate(decodeURIComponent(redirect));
+      } else {
+        router.redirectToHome();
+      }
+    } catch (err) {
+      ui.setButtonLoading(btnSubmit, false);
+      mfaInput.classList.add('has-error');
+      mfaAlert.innerHTML = `
+        <div class="alert alert--danger mb-4">
+          ${ui.icon('alert-circle', 'icon alert-icon')}
+          <div class="alert-content">
+            <p class="m-0">${esc(err.message || 'Código de verificación incorrecto o expirado.')}</p>
+          </div>
+        </div>
+      `;
+      mfaInput.select();
     }
   });
 }
@@ -719,4 +839,307 @@ export function registerView(container) {
       ui.setButtonLoading(btnSubmit, false);
     }
   });
+}
+
+/**
+ * Renderiza la vista de Recuperación de Contraseña con código OTP por correo (ADR-014, F2.1.3).
+ * @param {HTMLElement} container Contenedor principal
+ */
+export function forgotPasswordView(container) {
+  let userEmail = '';
+
+  const renderStep1 = () => {
+    container.innerHTML = `
+      <div class="container-narrow" style="padding-top: var(--space-8); padding-bottom: var(--space-8);">
+        <div class="card" style="padding: var(--space-8);">
+          <div class="text-center mb-6">
+            <div class="empty-state-icon" style="margin: 0 auto var(--space-3) auto; background-color: var(--teal-50); color: var(--primary);">
+              ${ui.icon('shield', 'icon icon--lg')}
+            </div>
+            <h1 class="text-2xl font-bold mb-1">Recuperar Contraseña</h1>
+            <p class="text-sm text-muted">Te enviaremos un código numérico de 6 dígitos a tu correo registrado</p>
+          </div>
+
+          <form id="formForgotPassword" novalidate>
+            <div id="forgotAlertContainer" aria-live="polite"></div>
+
+            <div class="form-group mb-4">
+              <label for="forgotEmail" class="form-label">
+                Correo electrónico registrado <span class="required" aria-hidden="true">*</span>
+              </label>
+              <input 
+                type="email" 
+                id="forgotEmail" 
+                name="email"
+                class="form-input" 
+                placeholder="ejemplo@correo.com" 
+                required 
+                autocomplete="email"
+                aria-required="true"
+                value="${esc(userEmail)}"
+              >
+              <span class="form-error" id="forgotEmailError" style="display: none;" role="alert"></span>
+            </div>
+
+            <button type="submit" id="btnForgotSubmit" class="btn btn-primary w-full mt-2">
+              <span>Enviar código de verificación</span>
+            </button>
+          </form>
+
+          <div class="text-center mt-6 pt-4 border-top">
+            <p class="text-sm text-muted">
+              ¿Recordaste tu contraseña?
+              <a href="#/login" class="font-semibold text-primary" style="margin-left: 4px;">Volver al inicio de sesión</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const form = container.querySelector('#formForgotPassword');
+    const emailInput = container.querySelector('#forgotEmail');
+    const emailError = container.querySelector('#forgotEmailError');
+    const alertBox = container.querySelector('#forgotAlertContainer');
+    const btnSubmit = container.querySelector('#btnForgotSubmit');
+
+    setTimeout(() => emailInput?.focus(), 150);
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      emailError.style.display = 'none';
+      emailError.textContent = '';
+      alertBox.innerHTML = '';
+      emailInput.classList.remove('has-error');
+
+      const email = emailInput.value.trim();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        emailInput.classList.add('has-error');
+        emailError.textContent = 'Ingresa un correo electrónico válido.';
+        emailError.style.display = 'block';
+        emailInput.focus();
+        return;
+      }
+
+      userEmail = email;
+      ui.setButtonLoading(btnSubmit, true);
+
+      try {
+        await auth.forgotPassword(email);
+        ui.showToast('Código de recuperación despachado.', 'info');
+        renderStep2();
+      } catch (err) {
+        ui.setButtonLoading(btnSubmit, false);
+        alertBox.innerHTML = `
+          <div class="alert alert--danger mb-4">
+            ${ui.icon('alert-circle', 'icon alert-icon')}
+            <div class="alert-content">
+              <p class="m-0">${esc(err.message || 'Ocurrió un error al solicitar la recuperación.')}</p>
+            </div>
+          </div>
+        `;
+      }
+    });
+  };
+
+  const renderStep2 = () => {
+    container.innerHTML = `
+      <div class="container-narrow" style="padding-top: var(--space-8); padding-bottom: var(--space-8);">
+        <div class="card" style="padding: var(--space-8);">
+          <div class="text-center mb-6">
+            <div class="empty-state-icon" style="margin: 0 auto var(--space-3) auto; background-color: var(--teal-50); color: var(--primary);">
+              ${ui.icon('shield', 'icon icon--lg')}
+            </div>
+            <h1 class="text-2xl font-bold mb-1">Nueva Contraseña</h1>
+            <p class="text-sm text-muted">Ingresa el código OTP de 6 dígitos enviado a tu correo</p>
+          </div>
+
+          <div class="alert alert--info mb-4" role="note">
+            ${ui.icon('info', 'icon alert-icon')}
+            <div class="alert-content">
+              <p class="m-0 text-xs">
+                Hemos enviado un código a <strong>${esc(userEmail)}</strong>. Válido por 15 minutos (máximo 3 intentos).
+              </p>
+            </div>
+          </div>
+
+          <form id="formResetPassword" novalidate>
+            <div id="resetAlertContainer" aria-live="polite"></div>
+
+            <div class="form-group mb-4 text-center">
+              <label for="resetOtpCode" class="form-label font-bold mb-1">
+                Código de 6 dígitos <span class="required" aria-hidden="true">*</span>
+              </label>
+              <input 
+                type="text" 
+                id="resetOtpCode" 
+                name="codigo"
+                class="form-input text-center font-mono font-bold" 
+                placeholder="123456" 
+                maxlength="6"
+                inputmode="numeric"
+                pattern="[0-9]{6}"
+                required 
+                autocomplete="one-time-code"
+                style="font-size: 1.5rem; letter-spacing: 0.25em; max-width: 200px; margin: 0 auto; display: block;"
+              >
+              <span class="form-error text-center mt-1" id="otpError" style="display: none;" role="alert"></span>
+            </div>
+
+            <div class="form-group mb-4">
+              <label for="resetPassword" class="form-label">
+                Nueva Contraseña <span class="required" aria-hidden="true">*</span>
+              </label>
+              <div style="position: relative; display: flex; align-items: center;">
+                <input 
+                  type="password" 
+                  id="resetPassword" 
+                  name="password"
+                  class="form-input" 
+                  placeholder="Mínimo 10 caracteres" 
+                  required 
+                  autocomplete="new-password"
+                  style="padding-right: 48px;"
+                >
+                <button 
+                  type="button" 
+                  id="btnToggleResetPassword" 
+                  class="btn btn-ghost btn--sm" 
+                  style="position: absolute; right: 4px; padding: 6px 10px; color: var(--text-muted);" 
+                  aria-label="Mostrar contraseña"
+                >
+                  ${ui.icon('search', 'icon icon--sm')}
+                </button>
+              </div>
+              <span class="form-error" id="resetPasswordError" style="display: none;" role="alert"></span>
+              <p class="text-xs text-muted mt-1">Mínimo 10 caracteres, combinando mayúsculas, minúsculas, números y símbolos.</p>
+            </div>
+
+            <div class="form-group mb-4">
+              <label for="resetPasswordConfirm" class="form-label">
+                Confirmar Nueva Contraseña <span class="required" aria-hidden="true">*</span>
+              </label>
+              <input 
+                type="password" 
+                id="resetPasswordConfirm" 
+                name="passwordConfirm"
+                class="form-input" 
+                placeholder="Repite tu nueva contraseña" 
+                required 
+                autocomplete="new-password"
+              >
+              <span class="form-error" id="resetConfirmError" style="display: none;" role="alert"></span>
+            </div>
+
+            <button type="submit" id="btnResetSubmit" class="btn btn-primary w-full mt-2">
+              <span>Guardar Nueva Contraseña</span>
+            </button>
+
+            <button type="button" id="btnBackToStep1" class="btn btn-ghost w-full mt-2 text-muted">
+              <span>Reenviar código o corregir correo</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    `;
+
+    const passInput = container.querySelector('#resetPassword');
+    const toggleBtn = container.querySelector('#btnToggleResetPassword');
+    let isVisible = false;
+    toggleBtn?.addEventListener('click', () => {
+      isVisible = !isVisible;
+      passInput.type = isVisible ? 'text' : 'password';
+      toggleBtn.innerHTML = ui.icon(isVisible ? 'x' : 'search', 'icon icon--sm');
+    });
+
+    container.querySelector('#btnBackToStep1')?.addEventListener('click', renderStep1);
+
+    const form = container.querySelector('#formResetPassword');
+    const otpInput = container.querySelector('#resetOtpCode');
+    const confirmInput = container.querySelector('#resetPasswordConfirm');
+    const otpError = container.querySelector('#otpError');
+    const passError = container.querySelector('#resetPasswordError');
+    const confirmError = container.querySelector('#resetConfirmError');
+    const alertBox = container.querySelector('#resetAlertContainer');
+    const btnSubmit = container.querySelector('#btnResetSubmit');
+
+    setTimeout(() => otpInput?.focus(), 150);
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      otpError.style.display = 'none';
+      passError.style.display = 'none';
+      confirmError.style.display = 'none';
+      alertBox.innerHTML = '';
+      otpInput.classList.remove('has-error');
+      passInput.classList.remove('has-error');
+      confirmInput.classList.remove('has-error');
+
+      const otp = otpInput.value.trim();
+      const pass = passInput.value;
+      const confirm = confirmInput.value;
+      let hasError = false;
+
+      if (!otp || !/^[0-9]{6}$/.test(otp)) {
+        otpInput.classList.add('has-error');
+        otpError.textContent = 'El código debe tener 6 dígitos numéricos.';
+        otpError.style.display = 'block';
+        hasError = true;
+      }
+
+      if (!pass || pass.length < 10) {
+        passInput.classList.add('has-error');
+        passError.textContent = 'La contraseña debe tener al menos 10 caracteres.';
+        passError.style.display = 'block';
+        hasError = true;
+      }
+
+      if (pass !== confirm) {
+        confirmInput.classList.add('has-error');
+        confirmError.textContent = 'Las contraseñas no coinciden.';
+        confirmError.style.display = 'block';
+        hasError = true;
+      }
+
+      if (hasError) return;
+
+      ui.setButtonLoading(btnSubmit, true);
+
+      try {
+        await auth.resetPassword(userEmail, otp, pass);
+        renderSuccess();
+      } catch (err) {
+        ui.setButtonLoading(btnSubmit, false);
+        alertBox.innerHTML = `
+          <div class="alert alert--danger mb-4">
+            ${ui.icon('alert-circle', 'icon alert-icon')}
+            <div class="alert-content">
+              <p class="m-0">${esc(err.message || 'No fue posible restablecer la contraseña. Verifica el código.')}</p>
+            </div>
+          </div>
+        `;
+      }
+    });
+  };
+
+  const renderSuccess = () => {
+    container.innerHTML = `
+      <div class="container-narrow" style="padding-top: var(--space-8); padding-bottom: var(--space-8);">
+        <div class="card text-center" style="padding: var(--space-8);">
+          <div class="empty-state-icon" style="margin: 0 auto var(--space-4) auto; background-color: var(--success-bg); color: var(--success);">
+            ${ui.icon('check', 'icon icon--lg')}
+          </div>
+          <h1 class="text-2xl font-bold mb-2">¡Contraseña Actualizada!</h1>
+          <p class="text-sm text-muted mb-6">
+            Tu contraseña ha sido restablecida exitosamente. Por seguridad, todas las sesiones activas previas han sido cerradas.
+          </p>
+          <a href="#/login" class="btn btn-primary w-full">
+            <span>Iniciar Sesión con Nueva Contraseña</span>
+          </a>
+        </div>
+      </div>
+    `;
+    ui.showToast('Contraseña restablecida exitosamente.', 'success');
+  };
+
+  renderStep1();
 }

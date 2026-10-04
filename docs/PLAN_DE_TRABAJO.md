@@ -411,15 +411,63 @@ Completa README.md, ARCHITECTURE.md, API.md, DATABASE.md, SECURITY.md y CHANGELO
 
 ---
 
-# Después del MVP (fase 2, en este orden sugerido)
-1. MFA para profesionales y recuperación de contraseña.
-2. Seguimiento post-atención y recordatorios por correo.
-3. Resumen de salud y QR temporal (ADR-010).
-4. Dispensación/reclamación y tratamientos.
-5. Acceso de emergencia *break-glass*.
-6. Asistente y reportes.
+# FASE 2 — Extensiones y Robustecimiento
 
-Cada una se trabaja con el mismo ciclo: actualizar `MVP.md`/`DECISIONES.md` → tareas pequeñas → puerta de salida.
+## Módulo F2.1 — MFA para Profesionales y Recuperación de Contraseña
+
+### F2.1.1 Migración de base de datos V010
+```
+Crea database/migrations/V010__mfa_y_recuperacion_password.sql:
+- Añadir a USUARIO: MFA_HABILITADO NUMBER(1) DEFAULT 0 NOT NULL, MFA_SECRET VARCHAR2(128) NULL, MFA_CONFIGURADO_AT TIMESTAMP WITH TIME ZONE NULL.
+- Tabla CODIGO_VERIFICACION: ID, PUBLIC_ID, USUARIO_ID (FK), TIPO (VARCHAR2(30)), CODIGO_HASH (VARCHAR2(64)), FECHA_EXPIRACION, INTENTOS_FALLIDOS (default 0), MAX_INTENTOS (default 3), USADO (0/1), CREATED_AT.
+- Tabla MFA_BACKUP_CODE: ID, USUARIO_ID (FK), CODE_HASH (VARCHAR2(64)), USADO (0/1), USADO_AT.
+- GRANTs mínimos a MEDITRIAJE_APP (ADR-012).
+```
+
+### F2.1.2 Servicio de correo y plantilla HTML institucional
+```
+Implementa EmailService e EmailTemplateService:
+- Plantilla HTML responsiva en resources/templates/email/recuperacion-password.html (estilo corporativo con tokens de color de MediTriaje 2.0, caja de código de 6 dígitos en fuente destacada, aviso de expiración en 15 min y advertencia de seguridad).
+- Configuración en application.yml con modo dev/test (log en consola de correo formateado) y modo prod (JavaMailSender SMTP).
+```
+
+### F2.1.3 Endpoints y lógica de recuperación de contraseña
+```
+Implementa en AuthService y AuthController:
+- POST /api/v1/auth/forgot-password: genera código numérico de 6 dígitos (SecureRandom), guarda hash SHA-256 en BD con expiración a 15 min, renderiza plantilla y envía correo. Respuesta genérica 200 OK (sin enumeración).
+- POST /api/v1/auth/reset-password: valida email, código y contraseña (>=10 caracteres). Máximo 3 intentos fallidos por código. Actualiza password con Argon2id, marca código como USADO, revoca masivamente todos los refresh tokens previos de la cuenta y audita. Pruebas completas.
+```
+
+### F2.1.4 Autenticación Multifactor (MFA TOTP) en Backend
+```
+Implementa servicio TOTP RFC 6238 (paso 30s, HMAC-SHA1, Base32):
+- POST /api/v1/auth/mfa/setup: genera secreto y URI otpauth://.
+- POST /api/v1/auth/mfa/verify: verifica primer código, activa MFA en USUARIO y devuelve 8 códigos de respaldo uniuso hasheados en BD.
+- Actualiza POST /api/v1/auth/login: si usuario tiene MFA activo, responde mfaRequerido: true y mfaChallengeToken temporal (5 min).
+- POST /api/v1/auth/mfa/authenticate: valida código TOTP o código de respaldo contra el challenge y emite cookies definitivas access_token y refresh_token.
+```
+
+### F2.1.5 Pantallas en Frontend (Login, Recuperación y Enrolamiento MFA)
+```
+Actualiza el frontend Vanilla:
+- Modal / vista "¿Olvidaste tu contraseña?" en login con flujo en 2 pasos: ingreso de correo -> ingreso de código y nueva clave con validación en cliente.
+- Desafío MFA en login cuando la API responda mfaRequerido: true.
+- Enrolamiento y visualización de códigos de respaldo en el panel del profesional asistencial.
+```
+
+### F2.1.6 Pruebas, colección HTTP y cierre F2.1
+```
+Colección docs/api/F2.1.http, pruebas de integración y E2E Playwright. Puerta de salida F2.1: etiqueta v1.1-mfa.
+```
+
+---
+
+# Otras iniciativas de Fase 2 (orden sugerido)
+1. Seguimiento post-atención y recordatorios por correo.
+2. Resumen de salud y QR temporal (ADR-010).
+3. Dispensación/reclamación y tratamientos.
+4. Acceso de emergencia *break-glass*.
+5. Asistente y reportes.
 
 ---
 

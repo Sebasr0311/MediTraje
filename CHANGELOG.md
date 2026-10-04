@@ -5,6 +5,52 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Colección HTTP y Verificación de MFA y Recuperación de Contraseña (F2.1.6, ADR-014)**:
+  - Colección interactiva `docs/api/F2.1.http` con 4 secciones y 12 escenarios de prueba cubriendo: healthcheck (`/ping`), recuperación de contraseña por OTP (`/auth/forgot-password` con mitigación de enumeración y `/auth/reset-password` con validación de código de 6 dígitos y contraseña segura), enrolamiento MFA TOTP (`/auth/mfa/setup` y `/auth/mfa/verify` con emisión de 8 códigos de respaldo uniuso) y desafío de segundo factor en login (`/auth/login` con `mfaRequerido` y `/auth/mfa/authenticate` con código TOTP o de respaldo, detección de códigos consumidos y tokens inválidos).
+  - Verificación de la suite Maven con 556 pruebas pasando limpiamente (100% de éxito, 0 regresiones).
+- **Pantallas de Recuperación, Login con MFA y Enrolamiento TOTP en Frontend (F2.1.5, ADR-014)**:
+  - En `frontend/js/auth.js`: métodos cliente de API para MFA (`setupMfa`, `verifyMfa`, `authenticateMfa`) y recuperación de contraseña (`forgotPassword`, `resetPassword`), y soporte de flujo de desafío temporal en `login()`.
+  - En `frontend/js/views/auth-views.js`:
+    - Enlace accesible "¿Olvidaste tu contraseña?" incorporado al formulario de login.
+    - Flujo de desafío de segundo factor en `loginView`: ante respuesta con `mfaRequerido = true`, renderiza `renderMfaChallengeStep` solicitando código TOTP de 6 dígitos o código de respaldo alfanumérico.
+    - Nueva vista de recuperación de contraseña `forgotPasswordView` en dos pasos: solicitud de correo y verificación de código OTP de 6 dígitos con actualización de contraseña segura (toggle de visibilidad, validación de coincidencia y feedback accesible).
+  - En `frontend/js/views/mfa-setup-modal.js`: modal accesible para enrolamiento de doble factor (TOTP) con soporte de teclado (Escape/Tab), exhibición de clave secreta formateada y enlace `otpauth://`, validación inmediata del primer código y entrega de los 8 códigos de respaldo uniuso con botón de copiado masivo al portapapeles.
+  - En cabeceras de `frontend/js/views/professional-agenda.js` y `frontend/js/views/admin-views.js`: botón accesible "Seguridad MFA" para activar y gestionar el doble factor de autenticación.
+  - En `frontend/js/app.js`: registro de la ruta pública `#/forgot-password`.
+- **Autenticación Multifactor (MFA TOTP RFC 6238) en Backend (F2.1.4, ADR-014)**:
+  - Utilidad criptográfica pura `Base32Util.java` conforme a RFC 4648 con codificación, decodificación tolerante a espacios/guiones y generación segura de secretos.
+  - Servicio `TotpService.java` conforme a RFC 6238 con HMAC-SHA1, paso de 30 segundos, truncamiento dinámico a 6 dígitos, ventana de tolerancia temporal de ±30s (±1 paso) y generación de URIs `otpauth://totp/`.
+  - Modelo inmutable `MfaBackupCode.java` y repositorio `MfaBackupCodeRepository.java` con JDBC parametrizado para persistencia en lote de códigos hasheados con SHA-256, consumo uniuso atómico, conteo y depuración por usuario.
+  - Extensiones en `Usuario.java` y `UsuarioRepository.java` para persistir `mfaHabilitado`, `mfaSecret` y `mfaConfiguradoAt`.
+  - Nuevas acciones en `AccionAuditable`: `MFA_SETUP`, `MFA_VERIFY`, `MFA_LOGIN_EXITOSO` y `MFA_LOGIN_FALLIDO`.
+  - DTOs en `com.meditriaje.dto.auth`: `MfaSetupResponse`, `MfaVerifyRequest`, `MfaVerifyResponse` y `MfaAuthenticateRequest`, además de adaptación en `AuthSessionResponse` para soportar `mfaRequerido` y `mfaChallengeToken`.
+  - Gestión de tokens de desafío en `JwtService`: generación de `mfaChallengeToken` de 5 minutos firmado con claim `type: "mfa_challenge"`, validación de desafíos (`esMfaChallengeValido`) y discriminación en `esValido` para impedir que tokens de desafío operen como sesiones en `JwtAuthenticationFilter`.
+  - Lógica de autenticación en dos factores en `AuthService`:
+    - Bifurcación en `login`: si el usuario tiene `mfaHabilitado = true`, retorna 200 con `mfaRequerido: true` y el token de desafío firmado, sin emitir cookies de sesión `access_token` ni `refresh_token`.
+    - Método `setupMfa`: enrolamiento con generación de secreto Base32 y URI otpauth.
+    - Método `verifyMfa`: verificación del primer código TOTP para activación y generación de 8 códigos de respaldo uniuso hasheados.
+    - Método `autenticarMfa`: validación del desafío temporal con TOTP de 6 dígitos o consumo de código de respaldo, emitiendo cookies de sesión HttpOnly y doble auditoría.
+  - Endpoints en `AuthController`: `POST /api/v1/auth/mfa/setup`, `POST /api/v1/auth/mfa/verify` y `POST /api/v1/auth/mfa/authenticate` (abierto en `SecurityConfig`).
+  - Suite de 35 pruebas automatizadas nuevas en `Base32UtilTest`, `TotpServiceTest`, `MfaBackupCodeRepositoryTest`, `AuthServiceTest`, `AuthControllerTest` y `JwtServiceTest` elevando la suite completa a 556 pruebas pasando al 100%.
+- **Recuperación de Contraseña con Código OTP por Correo (F2.1.3, ADR-014)**:
+  - Modelo de dominio inmutable `CodigoVerificacion.java` con métodos de expiración (`estaExpirado`), intentos máximos (`alcanzoMaxIntentos`) y validez (`esValido`).
+  - Repositorio `CodigoVerificacionRepository.java` con JDBC parametrizado para inserción atómica con `KeyHolder`, búsqueda del último código pendiente por usuario y tipo, incremento de intentos fallidos, marcado como usado e invalidación de códigos previos.
+  - DTOs en `com.meditriaje.dto.auth`: `SolicitarRecuperacionRequest`, `SolicitarRecuperacionResponse`, `RestablecerPasswordRequest` (validación de código de 6 dígitos numéricos `^[0-9]{6}$` y longitud de clave) y `RestablecerPasswordResponse`.
+  - Acciones de auditoría inmutables en `AccionAuditable`: `SOLICITUD_RECUPERACION_PASSWORD`, `RECUPERACION_PASSWORD_EXITO` y `RECUPERACION_PASSWORD_FALLO`.
+  - Métodos transaccionales en `AuthService`:
+    - `solicitarRecuperacionPassword`: generación criptográfica segura de código numérico de 6 dígitos con `SecureRandom`, hash SHA-256 (`TokenHashUtil`), expiración de 15 minutos, envío de correo con plantilla institucional (`EmailService`), mitigación de enumeración de usuarios retornando respuesta idéntica informativa y auditoría inmutable.
+    - `restablecerPassword`: verificación de hash SHA-256, expiración e intentos máximos (límite de 3 intentos), actualización de clave hasheada con Argon2id, desbloqueo de cuenta, revocación masiva de todas las sesiones previas del usuario (`RefreshTokenRepository.revocarTodosPorUsuario`) y auditoría de éxito/fallo.
+  - Endpoints públicos en `AuthController`: `POST /api/v1/auth/forgot-password` y `POST /api/v1/auth/reset-password` autorizados en `SecurityConfig.java`.
+  - 20 pruebas unitarias y de integración nuevas en `CodigoVerificacionRepositoryTest`, `AuthServiceTest` y `AuthControllerTest`.
+- **Servicio de Correo y Plantilla HTML Institucional (F2.1.2, ADR-014)**:
+  - Plantilla HTML `backend/src/main/resources/templates/email/recuperacion-password.html` con sistema de diseño MediTriaje 2.0 (`tokens.css`), caja destacada para el código de 6 dígitos, expiración de 15 minutos y advertencias de seguridad.
+  - Servicio `EmailTemplateService` y `DefaultEmailService` con buffer en memoria para pruebas.
+- **Migración Flyway V010: MFA y Recuperación de Contraseña (F2.1.1, ADR-014)**:
+  - Archivo `database/migrations/V010__mfa_y_recuperacion_password.sql` con soporte TOTP en `USUARIO`, tabla `CODIGO_VERIFICACION` y tabla `MFA_BACKUP_CODE`.
+
 ## [1.0.0-mvp] - 2026-10-03
 
 ### Added

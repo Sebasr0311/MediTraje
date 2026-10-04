@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** MVP COMPLETADO (v1.0-mvp)
-- **Tarea actual:** Todas las tareas de M0 a M8 completadas
-- **Última etiqueta:** v1.0-mvp (lista para etiquetar)
-- **Rama de trabajo:** feature/m8-frontend
+- **Fase actual:** Fase 2 — Extensiones y Robustecimiento
+- **Tarea actual:** Cierre de Fase F2.1 completado (Listo para merge a develop)
+- **Última etiqueta:** v1.0-mvp (MVP completado)
+- **Rama de trabajo:** feature/f2.1-mfa-recuperacion
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -79,10 +79,20 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] M8.5 Endurecimiento
 - [x] M8.6 Documentación final y demo
 
+### F2.1 — MFA para Profesionales y Recuperación de Contraseña
+- [x] F2.1.1 Migración Flyway V010 (columnas MFA, CODIGO_VERIFICACION, MFA_BACKUP_CODE)
+- [x] F2.1.2 Servicio de correo y plantilla HTML institucional
+- [x] F2.1.3 Endpoints y lógica de recuperación de contraseña con código OTP
+- [x] F2.1.4 Autenticación Multifactor (MFA TOTP) en Backend
+- [x] F2.1.5 Pantallas en Frontend (Login, Recuperación y Enrolamiento MFA)
+- [x] F2.1.6 Pruebas, colección HTTP y cierre F2.1
+
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
 - 2026-10-01 · Aprobación formal de decisiones de arquitectura ADR-001 a ADR-013, Casos de Uso, Reglas de Negocio, MER y Modelo Relacional · Cierre exitoso de Fase M0 · Todos los ADRs
 - 2026-10-01 · Ajustes finales aprobados de M0: ES_ALARMA exclusivamente en SINTOMA con corte de emergencia (alarma O Nivel I) y default conservador Nivel III; EVOLUCION en VARCHAR2(4000 CHAR) con validación DTO @Size(max=4000) por MAX_STRING_SIZE; segregación dual de usuarios DB (MEDITRIAJE_OWNER y MEDITRIAJE_APP); SIGNO_VITAL trigger bloquea INSERT en atención CERRADA; RECETA emitida sobre atención CERRADA con inmutabilidad desde INSERT; coherencia CITA-TRIAJE por clave foránea compuesta UQ(ID, PACIENTE_ID) y FK(TRIAJE_ID, PACIENTE_ID); TIME_ZONE configurado en connectionInitSql de HikariCP · Robustez técnica y seguridad relacional en Oracle ATP · ADR-005, ADR-008, ADR-009, ADR-012
+- 2026-10-03 · Aprobación de ADR-014: Recuperación de contraseña mediante código numérico de 6 dígitos con expiración a 15 minutos enviado por correo con plantilla HTML institucional de MediTriaje 2.0 y hasheado en BD; MFA TOTP (RFC 6238) con secreto Base32 y códigos de respaldo para profesionales y administradores · Elevación de seguridad en Fase 2 · ADR-014
+
 
 ## Pendientes y dudas abiertas
 (Todo lo marcado como PENDIENTE DE DECISIÓN)
@@ -155,6 +165,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-03 · M8.5 · Endurecimiento y revisión final de seguridad: informe exhaustivo de auditoría en docs/security/REVISION_FINAL.md; cabeceras HTTP de seguridad explícitas (CSP default-src 'self', Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy y FrameOptions deny) en SecurityConfig.java; forzado de security.cookie.secure: true y restricción de detalles en Actuator Health (show-details: when-authorized) en application-prod.yml; prueba de integración en PingControllerTest; backend 100% verde (501 pruebas) · feat(security): endurecimiento de cabeceras cookies y actuator (M8.5)
 - 2026-10-03 · M8.6 · Documentación técnica integral y guion interactivo de demo: creación y actualización de README.md, docs/architecture/ARCHITECTURE.md, docs/api/API.md, docs/database/DATABASE.md, docs/security/SECURITY.md y docs/demo/GUION_DEMO.md con el sistema real implementado (Java 21, Spring Boot 3.3.4, Oracle ATP, Flyway V1-V9, triggers PL/SQL, SPA ES Modules, 17 controladores, 24 tablas, matriz OWASP y guion paso a paso con datos ficticios); formalización de versión v1.0.0-mvp en CHANGELOG.md; suite completa de 501 pruebas unitarias y de integración pasando al 100% · docs: documentacion integral del sistema y guion de demo mvp (M8.6)
 - 2026-10-03 · Cierre M8 / MVP Final · Cumplimiento formal y pleno de la Puerta de Salida M8 (docs/MVP.md §7 y §8): checklist de historias HU-01 a HU-11 verificado, demo ejecutable de principio a fin, repositorio 100% libre de secretos y datos reales, 501 pruebas verdes, suite visual y responsiva con Playwright aprobada, consolidación de la versión 1.0.0-mvp y preparación para merge a develop y tag v1.0-mvp. · release: cierre exitoso de fase m8 y entrega final del mvp v1.0 (v1.0-mvp)
+- 2026-10-03 · F2.1.1 · Migración Flyway V010__mfa_y_recuperacion_password.sql: soporte TOTP en USUARIO (MFA_HABILITADO, MFA_SECRET, MFA_CONFIGURADO_AT), tabla CODIGO_VERIFICACION para OTP de 6 dígitos con hash SHA-256 y contador de intentos, tabla MFA_BACKUP_CODE para códigos de respaldo uniuso y privilegios mínimos a MEDITRIAJE_APP (ADR-012, ADR-014); OracleIntegrationTest actualizado a V10; 501 pruebas verdes · feat(database): migracion flyway v010 mfa y recuperacion de password (F2.1.1)
+- 2026-10-03 · F2.1.2 · Servicio de correo y plantilla HTML institucional: creación de resources/templates/email/recuperacion-password.html con diseño alineado a tokens.css, caja destacada de código de 6 dígitos, expiración a 15 min y advertencia de seguridad; implementación de EmailTemplateService y DefaultEmailService con buffer en memoria para pruebas y trazabilidad; suite de pruebas unitarias EmailServiceTest verde · feat(email): servicio de correo y plantilla html institucional para recuperacion (F2.1.2)
+- 2026-10-03 · F2.1.3 · Endpoints y lógica de recuperación de contraseña con código OTP (ADR-014, F2.1): modelo CodigoVerificacion, repositorio CodigoVerificacionRepository con JDBC parametrizado, DTOs SolicitarRecuperacionRequest/Response y RestablecerPasswordRequest/Response con validación de código numérico de 6 dígitos (^[0-9]{6}$); lógica transaccional en AuthService (generación SecureRandom, hash SHA-256 con TokenHashUtil, envío de correo con plantilla institucional, mitigación de enumeración de usuarios, control de expiración a 15 min y máximo 3 intentos, actualización segura de contraseña con Argon2id, revocación total de sesiones previas en RefreshTokenRepository y auditoría inmutable de SOLICITUD_RECUPERACION_PASSWORD, RECUPERACION_PASSWORD_EXITO y RECUPERACION_PASSWORD_FALLO); endpoints públicos /api/v1/auth/forgot-password y /api/v1/auth/reset-password en AuthController y SecurityConfig; 20 pruebas unitarias y de integración nuevas en CodigoVerificacionRepositoryTest, AuthServiceTest y AuthControllerTest elevando la suite a 521 pruebas pasando al 100% · feat(auth): recuperacion de password con codigo otp y plantilla de correo (F2.1.3)
+- 2026-10-03 · F2.1.4 · Autenticación Multifactor (MFA TOTP RFC 6238) en Backend (ADR-014, F2.1): utilitarios Base32Util y TotpService (HMAC-SHA1, ventana ±30s, URI otpauth://); modelos MfaBackupCode y Usuario extendido; repositorio MfaBackupCodeRepository y actualización de UsuarioRepository; acciones auditables MFA_SETUP, MFA_VERIFY, MFA_LOGIN_EXITOSO, MFA_LOGIN_FALLIDO; DTOs MfaSetupResponse, MfaVerifyRequest, MfaVerifyResponse, MfaAuthenticateRequest y AuthSessionResponse con desafío MFA; JwtService con generación de mfaChallengeToken firmado (5 min, claim type=mfa_challenge), validación en JwtAuthenticationFilter (aislamiento estricto de tokens de desafío); bifurcación en AuthService.login (retorna desafío sin emitir cookies de sesión si mfaHabilitado=true); métodos setupMfa (secreto Base32), verifyMfa (activación y generación de 8 códigos de respaldo uniuso hasheados con SHA-256) y autenticarMfa (emisión de tokens definitivos tras validar TOTP o backup code); endpoints en AuthController (/mfa/setup, /mfa/verify, /mfa/authenticate); 35 pruebas automatizadas nuevas en Base32UtilTest, TotpServiceTest, MfaBackupCodeRepositoryTest, AuthServiceTest, AuthControllerTest y JwtServiceTest elevando la suite completa a 556 pruebas pasando al 100% · feat(auth): autenticacion multifactor mfa totp rfc 6238 (F2.1.4)
+- 2026-10-03 · F2.1.5 · Pantallas en Frontend (Login, Recuperación y Enrolamiento MFA): integración en auth.js de métodos para recuperación (forgotPassword, resetPassword) y MFA (setupMfa, verifyMfa, authenticateMfa); enlace '¿Olvidaste tu contraseña?' y vista interactiva forgotPasswordView (#/forgot-password) en dos pasos (solicitud de correo y validación de código numérico OTP de 6 dígitos con nueva contraseña segura); soporte de segundo factor en loginView renderizando renderMfaChallengeStep ante mfaRequerido (código TOTP o código de respaldo); modal accesible de enrolamiento TOTP mfa-setup-modal.js con trampa de foco y Escape, visualización formateada de clave secreta, enlace otpauth:// y entrega de los 8 códigos de respaldo uniuso con botón de copiado; botones 'Seguridad MFA' en las cabeceras de agenda profesional y panel administrativo; validación de sintaxis con node --check y compilación exitosa. · feat(frontend): pantallas de recuperacion login con mfa y enrolamiento totp (F2.1.5)
+- 2026-10-04 · F2.1.6 · Colección HTTP y verificación integral de MFA y Recuperación (F2.1, ADR-014): creación de docs/api/F2.1.http con 4 secciones y 12 escenarios de prueba cubriendo healthcheck, recuperación de contraseña por OTP (solicitud, mitigación de enumeración, código inválido 400, restablecimiento exitoso y login), enrolamiento MFA TOTP (setup, verify con emisión de backup codes) y desafío de segundo factor en login (código TOTP de 6 dígitos, código de respaldo, código reusado 401 y token inválido 401); ejecución de suite Maven completa con 556 pruebas verdes al 100% y cero regresiones. Cierre exitoso del módulo F2.1. · test(api): coleccion f2.1.http y verificacion de mfa y recuperacion (F2.1.6)
+
 
 
 
