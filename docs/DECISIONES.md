@@ -170,6 +170,24 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
    - Personal administrativo tiene acceso estrictamente bloqueado (403 Forbidden) a seguimientos post-atención y reportes de evolución.
    - Cero contenido clínico ni indicaciones en logs ni en la tabla de auditoría.
 
+## ADR-016 Dispensación y reclamación farmacéutica de recetas
+**Estado:** APROBADO por Juan (2026-10-04).
+**Contexto:** En el marco asistencial colombiano (Decreto 780 de 2016 y Resolución 1403 de 2007), la prescripción médica generada en la consulta debe ser dispensada de forma controlada por el servicio farmacéutico hospitalario o ambulatorio. Es imperativo garantizar que los medicamentos no se entreguen después de la vigencia de la receta, que no se sobrepase la cantidad formulada (control de entregas parciales y totales), que exista trazabilidad de lotes INVIMA y que el personal farmacéutico no acceda a evoluciones médicas reservadas (ADR-007).
+**Decisión:**
+1. **Rol de Farmacia (`ROLE_FARMACEUTICO`):**
+   - Se crea el rol `ROLE_FARMACEUTICO` en `ROL`. Los usuarios con este rol representan al regente de farmacia o químico farmacéutico responsable de la entrega.
+   - Segregación estricta (ADR-007): Tienen autorización para buscar y consultar recetas médicas vigentes y registrar dispensaciones. Tienen **prohibido el acceso** a notas de evolución médica, historias clínicas completas, triajes y gestión administrativa.
+2. **Modelo Relacional de Dispensación:**
+   - Tabla `DISPENSACION`: Registra cada evento de entrega en farmacia (`ID`, `PUBLIC_ID`, `RECETA_ID`, `SEDE_ID`, `USUARIO_ID`, `OBSERVACIONES`, `CREATED_AT`).
+   - Tabla `DISPENSACION_DETALLE`: Registra los medicamentos entregados en ese evento (`ID`, `DISPENSACION_ID`, `RECETA_DETALLE_ID`, `CANTIDAD_ENTREGADA`, `LOTE`, `FECHA_VENCIMIENTO_LOTE`, `CREATED_AT`).
+   - Triggers de inmutabilidad: `TR_DISPENSACION_INMUTABILIDAD` y `TR_DISP_DETALLE_INMUTABILIDAD` bloquean `UPDATE` y `DELETE`.
+3. **Reglas de Negocio:**
+   - **Vigencia estricta:** Una receta solo puede dispensarse si `CREATED_AT + VIGENCIA_DIAS >= CURRENT_TIMESTAMP`. Si está vencida, el sistema rechaza la dispensación con código `400 DatosInvalidosException`.
+   - **Control de saldo y entregas parciales:** Para cada `RECETA_DETALLE`, la sumatoria de `CANTIDAD_ENTREGADA` histórica no puede exceder `CANTIDAD` prescrita (`saldo = prescrita - entregada`). Si el saldo es 0, no se puede dispensar más de ese ítem. Si todos los ítems de la receta alcanzan saldo 0, el estado calculado de la receta es `DISPENSADA_TOTAL`; si al menos uno tiene entrega mayor a 0 pero saldo > 0, es `DISPENSADA_PARCIAL`; si no tiene entregas, es `PENDIENTE`.
+   - **Código de Reclamación:** Cada receta expone un código alfanumérico legible de reclamación derivado de su `PUBLIC_ID` (o token corto) para que el paciente lo presente en farmacia junto con su documento de identidad.
+4. **Auditoría Obligatoria (ADR-011):**
+   - Toda entrega farmacéutica genera un evento `DISPENSACION_RECETA` en `AUDITORIA` con el ID del dispensador, IP de origen y el `publicId` de la receta. Cero nombres de fármacos o diagnósticos en los logs o auditoría.
+
 ---
 
 ## Pendientes reales

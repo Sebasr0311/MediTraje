@@ -8,6 +8,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Migración Flyway V013: Dispensación Farmacéutica y Rol ROLE_FARMACEUTICO (F2.4.1, ADR-016)**:
+  - Archivo de migración `database/migrations/V013__dispensacion_farmacia.sql` creando:
+    - Semilla del rol `ROLE_FARMACEUTICO` en `ROL` (actualizando la restricción `CK_ROL_NOMBRE`).
+    - Tabla `DISPENSACION`: cabecera inmutable de entrega farmacéutica vinculada a `RECETA`, `SEDE` y `USUARIO` dispensador.
+    - Tabla `DISPENSACION_DETALLE`: ítem entregado con cantidad, lote y fecha de vencimiento para trazabilidad INVIMA.
+    - Triggers de inmutabilidad `TR_DISPENSACION_INMUTABILIDAD` y `TR_DISP_DETALLE_INMUTABILIDAD` bloqueando `UPDATE` y `DELETE`.
+    - Índices relacionales y concesión de privilegios mínimos `SELECT, INSERT` a `MEDITRIAJE_APP` (ADR-012).
+  - Actualización de `OracleIntegrationTest.java` para verificar 13 migraciones Flyway y privilegios de lectura en las nuevas tablas.
+  - Documentación en `docs/DECISIONES.md` (ADR-016) y `docs/database/MODELO_RELACIONAL.md`.
 - **Colección HTTP y Cierre de Resumen QR de Emergencia (F2.3.6, ADR-010, §5.17, §5.18)**:
   - Creación de `docs/api/F2.3.http` con 7 secciones y 17 escenarios de prueba completos:
     - Healthcheck y autenticación de roles (Admin, Paciente 1, Paciente 2).

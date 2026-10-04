@@ -109,13 +109,28 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV12() {
+    void flyway_schema_history_tieneAlMenosV13() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(12);
+        assertThat(count).isGreaterThanOrEqualTo(13);
+    }
+
+    @Test
+    void app_puedeConsultarTablasDispensacion() {
+        // MEDITRIAJE_APP puede consultar tablas de V013 y rol farmacéutico existe
+        JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
+        for (String tabla : new String[] {"DISPENSACION", "DISPENSACION_DETALLE"}) {
+            assertThat(appTemplate.queryForObject("SELECT COUNT(*) FROM " + OWNER_USER + "." + tabla, Integer.class))
+                    .as("SELECT en " + tabla).isNotNull();
+        }
+        Integer rolCount = appTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".ROL WHERE NOMBRE = 'ROLE_FARMACEUTICO'",
+                Integer.class
+        );
+        assertThat(rolCount).isEqualTo(1);
     }
 
     @Test
