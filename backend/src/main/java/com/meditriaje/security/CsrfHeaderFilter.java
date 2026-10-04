@@ -76,6 +76,12 @@ public class CsrfHeaderFilter extends OncePerRequestFilter {
     }
 
     private boolean esRutaExenta(String path) {
+        if (path == null) {
+            return false;
+        }
+        if (path.startsWith("/api/v1/emergency-summary/")) {
+            return true;
+        }
         return RUTAS_EXENTAS.stream().anyMatch(path::equalsIgnoreCase);
     }
 }

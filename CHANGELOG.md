@@ -8,6 +8,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Endpoints REST de Resumen y QR de Emergencia (F2.3.4, ADR-010, §5.17, §5.18)**:
+  - Endpoints protegidos en `PacienteController.java` para pacientes (`ROLE_PACIENTE`):
+    - `POST /api/v1/patients/me/emergency-qr`: generación de código QR con PIN opcional y flags de alcance (201 Created).
+    - `GET /api/v1/patients/me/emergency-qr`: listado de tokens generados y estado dinámico calculado.
+    - `PATCH /api/v1/patients/me/emergency-qr/{publicId}/revoke`: revocación inmediata de token temporal (204 No Content).
+  - Controlador público prehospitalario `EmergencySummaryController.java`:
+    - `GET /api/v1/emergency-summary/{token}/check`: verificación pública de vigencia preliminar y si requiere PIN (200 OK).
+    - `POST /api/v1/emergency-summary/{token}`: consulta pública del resumen de salud con PIN opcional, consumo atómico de lecturas y registro de auditoría (200 OK).
+  - Configuración de seguridad:
+    - `SecurityConfig.java`: permitAll para `/api/v1/emergency-summary/**`.
+    - `CsrfHeaderFilter.java`: exención de rutas `/api/v1/emergency-summary/` para consumo sin cookies.
+  - 16 pruebas MockMvc nuevas en `PacienteControllerTest` y `EmergencySummaryControllerTest` elevando la suite completa a 629 pruebas verdes.
 - **Servicio de Agregación de Resumen Clínico de Salud (F2.3.3, ADR-010, §5.17, §5.18)**:
   - Modelo de dominio `Alergia.java` y repositorio `AlergiaRepository.java` con JDBC parametrizado para consultar hipersensibilidades del paciente registradas en `ALERGIA`.
   - DTOs de agregación clínica en `com.meditriaje.dto.emergency.summary`:

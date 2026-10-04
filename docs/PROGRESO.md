@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** F2.3.4 — Endpoints REST de resumen y QR de emergencia
+- **Tarea actual:** F2.3.5 — Pantallas en Frontend (Generador en portal del paciente y visor público)
 - **Última etiqueta:** v1.2-seguimiento (Fase F2.2 completada)
 - **Rama de trabajo:** feature/f2.3-resumen-qr
 
@@ -98,7 +98,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] F2.3.1 Migración Flyway V012 (Acceso temporal QR)
 - [x] F2.3.2 Repositorio y lógica de tokens temporales criptográficos
 - [x] F2.3.3 Servicio de agregación de resumen clínico de salud
-- [ ] F2.3.4 Endpoints REST de resumen y QR de emergencia
+- [x] F2.3.4 Endpoints REST de resumen y QR de emergencia
 - [ ] F2.3.5 Pantallas en Frontend (Generador en portal del paciente y visor público)
 - [ ] F2.3.6 Pruebas, colección HTTP y cierre F2.3
 
@@ -195,6 +195,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · F2.3.1 · Migración Flyway V012 Acceso Temporal QR y Resumen de Emergencia (ADR-010, F2.3): creación de database/migrations/V012__acceso_temporal_qr.sql con tabla ACCESO_TEMPORAL_QR (token hash SHA-256, PIN hash opcional, flags de alcance, límite de 3 lecturas, expiración a 15 min, revocación), índices y concesión de privilegios mínimos a MEDITRIAJE_APP; actualización de OracleIntegrationTest a V12; suite de 594 pruebas verdes al 100%. · feat(database): migracion flyway v012 acceso temporal qr y resumen de emergencia (F2.3.1)
 - 2026-10-04 · F2.3.2 · Repositorio y lógica de tokens temporales criptográficos (ADR-010, §5.17, §5.18): creación de AccesoTemporalQr, EstadoAccesoQr, DTOs de emergencia, repositorio AccesoTemporalQrRepository con SQL parametrizado, control de vigencia (15 min) e incremento atómico de lecturas; servicio EmergencyQrService con generación de token seguro de 256 bits, hash SHA-256 en reposo (TokenHashUtil), PIN opcional hasheado con PasswordEncoder (Argon2id), revocación por paciente titular, verificación pública de tokens y auditoría inmutable de GENERACION_QR_EMERGENCIA y REVOCACION_QR_EMERGENCIA; 14 pruebas unitarias nuevas en AccesoTemporalQrRepositoryTest y EmergencyQrServiceTest elevando el backend a 601 pruebas verdes al 100%. · feat(emergency): repositorio y logica de tokens temporales criptograficos qr (F2.3.2)
 - 2026-10-04 · F2.3.3 · Servicio de agregación de resumen clínico de salud (ADR-010, §5.17, §5.18): creación de modelo Alergia y AlergiaRepository con SQL parametrizado; DTOs de agregación clínica PacienteEmergenciaDto, AlergiaEmergenciaDto, MedicamentoActivoDto, AtencionResumenDto y ResumenSaludResponse con advertencia legal; servicio EmergencySummaryService con validación de token y PIN, decremento atómico de cupo en BD, cálculo de edad, filtrado según flags de alcance autorizados por el paciente (alergias, medicamentos activos de recetas vigentes, atenciones recientes con CIE-10 y contacto) y auditoría inmutable ACCESO_EMERGENCIA_QR; 12 pruebas unitarias nuevas en AlergiaRepositoryTest y EmergencySummaryServiceTest elevando el backend a 613 pruebas verdes al 100%. · feat(emergency): servicio de agregacion de resumen clinico de salud (F2.3.3)
+- 2026-10-04 · F2.3.4 · Endpoints REST de resumen y QR de emergencia (ADR-010, §5.17, §5.18): implementación de endpoints protegidos en PacienteController (POST /me/emergency-qr con 201 Created, GET /me/emergency-qr y PATCH /me/emergency-qr/{publicId}/revoke con 204 No Content para ROLE_PACIENTE); creación de controlador público EmergencySummaryController (GET /api/v1/emergency-summary/{token}/check y POST /api/v1/emergency-summary/{token} para lectura protegida con PIN y registro de auditoría); actualización de SecurityConfig y CsrfHeaderFilter permitiendo acceso prehospitalario sin sesión previa; 16 pruebas automatizadas nuevas en PacienteControllerTest y EmergencySummaryControllerTest elevando el backend a 629 pruebas verdes al 100%. · feat(emergency): endpoints rest de resumen y qr de emergencia (F2.3.4)
 
 
 
