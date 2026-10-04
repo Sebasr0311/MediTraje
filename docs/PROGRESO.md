@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** F2.4.3 — Servicio de dispensación farmacéutica y reglas de negocio
+- **Tarea actual:** F2.4.4 — Controladores REST para farmacia y portal del paciente
 - **Última etiqueta:** v1.3-resumen-qr (Fase F2.3 completada)
 - **Rama de trabajo:** feature/f2.4-dispensacion-farmacia
 
@@ -105,7 +105,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ### F2.4 — Dispensación y Reclamación Farmacéutica de Recetas
 - [x] F2.4.1 Migración Flyway V013 (Dispensación de farmacia y rol)
 - [x] F2.4.2 Modelos de dominio y repositorios JDBC
-- [ ] F2.4.3 Servicio de dispensación farmacéutica y reglas de negocio
+- [x] F2.4.3 Servicio de dispensación farmacéutica y reglas de negocio
 - [ ] F2.4.4 Controladores REST para farmacia y portal del paciente
 - [ ] F2.4.5 Pantallas en Frontend (Ventanilla de farmacia y reclamación del paciente)
 - [ ] F2.4.6 Pruebas, colección HTTP y cierre F2.4
@@ -209,6 +209,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · F2.3.6 · Pruebas, colección HTTP y cierre F2.3 (ADR-010, §5.17, §5.18): creación de docs/api/F2.3.http con 7 secciones y 17 escenarios de prueba cubriendo healthcheck, registro y autenticación de pacientes y admin, generación de QR con/sin PIN y alcance clínico configurable, validación de PIN inválido (400), rechazo de rol no paciente (403), consulta de historial del paciente y aislamiento de revocación entre pacientes (403), consulta pública prehospitalaria (/check, lectura libre, desafío y rechazo de PIN incorrecto 403, lectura efectiva con PIN), agotamiento estricto de cupo al tercer acceso auditado (cuarta lectura rechazada) y revocación inmediata por paciente titular con invalidación pública; verificación completa de la suite Maven con 629 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.3. · test(api): coleccion f2.3.http y verificacion de resumen qr de emergencia (F2.3.6)
 - 2026-10-04 · F2.4.1 · Migración Flyway V013 Dispensación Farmacéutica y Rol ROLE_FARMACEUTICO (ADR-016, F2.4): creación de database/migrations/V013__dispensacion_farmacia.sql con habilitación del rol ROLE_FARMACEUTICO en la tabla ROL, creación de tabla DISPENSACION (FK receta, sede, usuario dispensador), tabla DISPENSACION_DETALLE (FK receta_detalle, cantidad entregada > 0, lote, fecha vencimiento), triggers de inmutabilidad TR_DISPENSACION_INMUTABILIDAD y TR_DISP_DETALLE_INMUTABILIDAD bloqueando UPDATE y DELETE, índices de búsqueda y concesión de privilegios mínimos SELECT, INSERT a MEDITRIAJE_APP (ADR-012); actualización de OracleIntegrationTest a V13; compilación y suite verificada. · feat(database): migracion flyway v013 dispensacion farmacia y rol (F2.4.1)
 - 2026-10-04 · F2.4.2 · Modelos de Dominio, DTOs y Repositorio JDBC de Dispensación Farmacéutica (ADR-016, F2.4): creación de modelos inmutables Dispensacion, DispensacionDetalle y EstadoRecetaDispensacion (PENDIENTE, DISPENSADA_PARCIAL, DISPENSADA_TOTAL); DTOs en com.meditriaje.dto.pharmacy (DetalleEntregaRequest, RegistrarDispensacionRequest, DispensacionDetalleResponse, DispensacionResponse, SaldoMedicamentoDto y RecetaDispensacionResponse con código de reclamación REC-XXXXXXXX); repositorio DispensacionRepository con inserciones inmutables con GeneratedKeyHolder, batchUpdate de detalles, consultas de saldos dinámicos por ítem prescrito y búsqueda de recetas para ventanilla de farmacia por documento o código; 9 pruebas unitarias en DispensacionRepositoryTest elevando la suite completa a 638 pruebas pasando al 100%. · feat(pharmacy): modelos de dominio y repositorio jdbc de dispensacion (F2.4.2)
+- 2026-10-04 · F2.4.3 · Servicio de Dispensación Farmacéutica y Reglas de Negocio (ADR-016, F2.4): implementación de DispensationService con validación de rol del dispensador (ROLE_FARMACEUTICO), validación estricta de vigencia de receta (rechazo ante recetas expiradas con DatosInvalidosException), control matemático de saldos acumulados por ítem prescrito (rechazo de sobre-dispensación y de ítems con saldo agotado), prevención de duplicados, persistencia atómica transaccional en DISPENSACION y DISPENSACION_DETALLE con lote INVIMA y fecha de caducidad, auditoría inmutable obligatoria DISPENSACION_RECETA vía AuditoriaService y consultas seguras para farmacia y portal del paciente; 12 pruebas unitarias en DispensationServiceTest elevando la suite completa a 650 pruebas pasando al 100%. · feat(pharmacy): servicio de dispensacion farmaceutica y reglas de negocio (F2.4.3)
+
 
 
 

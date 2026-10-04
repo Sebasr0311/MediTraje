@@ -8,6 +8,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Servicio de Dispensación Farmacéutica y Reglas de Negocio (F2.4.3, ADR-016)**:
+  - Implementación de `DispensationService` en `com.meditriaje.service`:
+    - Validación de rol del dispensador (`ROLE_FARMACEUTICO`) con rechazo inmediato para otros roles (`AccesoNoAutorizadoException`).
+    - Validación estricta de vigencia de la receta médica (`createdAt + vigenciaDias >= now`) con rechazo de recetas vencidas (`DatosInvalidosException`).
+    - Validación y control matemático de saldos acumulados por ítem prescrito (rechazo de sobre-dispensación y de ítems con saldo agotado).
+    - Prevención de duplicados en la lista de medicamentos de la solicitud.
+    - Persistencia transaccional atómica de cabecera `DISPENSACION` y detalles `DISPENSACION_DETALLE` con lote INVIMA y fecha de caducidad.
+    - Registro inmutable de auditoría `DISPENSACION_RECETA` vía `AuditoriaService` con ID del dispensador, IP de origen y UUID de la receta (cero datos clínicos en logs/auditoría).
+    - Consultas de saldos y código de reclamación para ventanilla de farmacia y portal del paciente titular con aislamiento de pacientes.
+  - Pruebas unitarias exhaustivas en `DispensationServiceTest` (12 pruebas pasando al 100%, suite global en 650 pruebas verdes).
 - **Modelos de Dominio, DTOs y Repositorio JDBC de Dispensación Farmacéutica (F2.4.2, ADR-016)**:
   - Modelos inmutables de dominio:
     - `Dispensacion`: cabecera inmutable con `publicId`, `recetaId`, `sedeId`, `usuarioId`, `observaciones` y `createdAt`.
