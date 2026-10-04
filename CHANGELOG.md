@@ -8,6 +8,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Pantallas de Seguimiento Post-Atención y Reporte del Paciente en Frontend (F2.2.4, ADR-015, §5.16)**:
+  - Nueva vista interactiva para el paciente `frontend/js/views/patient-follow-ups.js`:
+    - Listado reactivo de planes de seguimiento post-atención agrupados y filtrables por estado (`PENDIENTE`, `COMPLETADO`).
+    - Badges accesibles e informativos para cada tipo de tarea (`Control Médico`, `Evolución de Síntomas`, `Examen Pendiente`, `Adherencia a Tratamiento`).
+    - Modal accesible para el reporte de evolución clínica con advertencia explícita (§5.16) de que el reporte es un insumo médico confidencial y no genera diagnósticos automáticos ni sustituye urgencias.
+  - Integración en `frontend/js/views/patient-dashboard.js`:
+    - Tarjeta destacada de 'Seguimiento Post-Atención' con carga paralela de tareas activas e hipervínculos directos.
+  - Integración en `frontend/js/views/professional-attention.js`:
+    - Sección 'Plan de Seguimiento Post-Atención' en atenciones cerradas con formulario colapsable para prescribir nuevas tareas (tipo, fecha sugerida de control e indicaciones).
+    - Visualización destacada del reporte de evolución ingresado por el paciente con fecha y hora local de respuesta.
+    - Botón de cancelación de seguimientos pendientes con confirmación modal.
+  - Configuración y registro de la ruta protegida `#/patient/follow-ups` en `frontend/js/app.js`.
 - **Lógica de Dominio y Endpoints de Seguimiento Post-Atención (F2.2.3, ADR-015, §5.16)**:
   - Enums de dominio `TipoSeguimiento` (`CONTROL_MEDICO`, `EVOLUCION_SINTOMAS`, `EXAMEN_PENDIENTE`, `ADHERENCIA_TRATAMIENTO`) y `EstadoSeguimiento` (`PENDIENTE`, `COMPLETADO`, `CANCELADO`).
   - Modelo inmutable `SeguimientoPostAtencion.java` y DTOs `CrearSeguimientoRequest`, `ReportarEvolucionRequest` y `SeguimientoResponse` (sin exponer IDs numéricos autonuméricos internos).

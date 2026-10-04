@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** Fase 2 — Extensiones y Robustecimiento
-- **Tarea actual:** F2.2.1 — Migración Flyway V011 (Seguimiento post-atención y recordatorios)
+- **Tarea actual:** F2.2.5 — Pruebas, colección HTTP y cierre F2.2
 - **Última etiqueta:** v1.1-mfa (Fase F2.1 completada)
 - **Rama de trabajo:** feature/f2.2-seguimiento-notificaciones
 
@@ -91,7 +91,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] F2.2.1 Migración Flyway V011 (Seguimiento post-atención y recordatorios)
 - [x] F2.2.2 Plantillas HTML y notificaciones por correo de citas y atención
 - [x] F2.2.3 Lógica de dominio y endpoints de seguimiento post-atención
-- [ ] F2.2.4 Pantallas en Frontend (Seguimiento del paciente y revisión médica)
+- [x] F2.2.4 Pantallas en Frontend (Seguimiento del paciente y revisión médica)
 - [ ] F2.2.5 Pruebas, colección HTTP y cierre F2.2
 
 ## Decisiones tomadas durante el desarrollo
@@ -182,6 +182,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · F2.2.1 · Migración Flyway V011 Seguimiento Post-Atención y Recordatorios (ADR-015, F2.2): creación de database/migrations/V011__seguimiento_post_atencion.sql con tabla SEGUIMIENTO_POST_ATENCION (tareas de control, evolución, exámenes y adherencia con reporte del paciente sin diagnóstico automático, §5.16), tabla RECORDATORIO_CITA para auditoría de notificaciones de citas por correo, índices relacionales y concesión de privilegios mínimos a MEDITRIAJE_APP; actualización de OracleIntegrationTest a V11 y verificación de consultas; suite de 556 pruebas pasando al 100%. · feat(database): migracion flyway v011 seguimiento post atencion y recordatorios (F2.2.1)
 - 2026-10-04 · F2.2.2 · Plantillas HTML y Notificaciones de Citas y Atención (ADR-015, F2.2): plantillas institucionales HTML responsivas en templates/email/ (confirmacion-cita.html, cancelacion-cita.html, resumen-atencion-seguimiento.html); modelo RecordatorioCita y repositorio RecordatorioCitaRepository con JDBC parametrizado; servicio AppointmentNotificationService con despacho asíncrono y tolerante a fallos SMTP registrando estado en RECORDATORIO_CITA; integración en AppointmentService (reservarCita y cancelarCita); 12 pruebas unitarias nuevas en AppointmentNotificationServiceTest, RecordatorioCitaRepositoryTest y EmailServiceTest elevando la suite completa a 568 pruebas al 100% de éxito. · feat(notifications): plantillas html y despacho de notificaciones de citas (F2.2.2)
 - 2026-10-04 · F2.2.3 · Lógica de Dominio y Endpoints de Seguimiento Post-Atención (ADR-015, F2.2, §5.16): enums TipoSeguimiento y EstadoSeguimiento; modelo SeguimientoPostAtencion; DTOs CrearSeguimientoRequest, ReportarEvolucionRequest y SeguimientoResponse (sin exponer IDs numéricos internos); repositorio SeguimientoRepository con SQL 100% parametrizado, GeneratedKeyHolder y paginación ANSI; servicio FollowUpService con prescripción médica (autor o relación asistencial activa sobre atenciones cerradas), notificación por correo al paciente, reporte de evolución del paciente sin diagnósticos automáticos (§5.16), cancelación y aislamiento estricto de roles (admin 403, paciente ajeno 403); acciones auditables inmutables CREACION_SEGUIMIENTO y REPORTE_EVOLUCION_SEGUIMIENTO; controladores FollowUpController (/api/v1/attentions/{id}/follow-ups, /api/v1/follow-ups/{id}, cancel) y PacienteController (/api/v1/patients/me/follow-ups, report); suite de 26 pruebas automatizadas nuevas en SeguimientoRepositoryTest, FollowUpServiceTest, FollowUpControllerTest y PacienteControllerTest elevando el backend a 594 pruebas verdes al 100%. · feat(followup): logica de dominio y endpoints de seguimiento post-atencion (F2.2.3)
+- 2026-10-04 · F2.2.4 · Pantallas en Frontend para Seguimiento Post-Atención y Reporte del Paciente (ADR-015, F2.2, §5.16): creación de frontend/js/views/patient-follow-ups.js con listado interactivo de seguimientos por estado (PENDIENTE, COMPLETADO), badges accesibles por tipo de tarea (Control Médico, Evolución de Síntomas, Examen Pendiente, Adherencia a Tratamiento), modal accesible con aviso legal §5.16 para reporte de evolución del paciente y consumo de POST /api/v1/patients/me/follow-ups/{id}/report; integración de tarjeta de seguimientos activos en patient-dashboard.js; integración en professional-attention.js de sección 'Plan de Seguimiento Post-Atención' sobre atenciones cerradas con formulario de prescripción médica (tipo, fecha sugerida de control e indicaciones), visualización destacada de reportes del paciente y botón de cancelación de seguimientos pendientes; registro de la ruta /patient/follow-ups en app.js; validación sintáctica limpia con node --check. · feat(frontend): pantallas de seguimiento post-atencion y reporte del paciente (F2.2.4)
 
 
 
