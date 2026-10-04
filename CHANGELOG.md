@@ -8,6 +8,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Colección HTTP y Cierre de Seguimiento y Notificaciones (F2.2.5, ADR-015)**:
+  - Creación de la colección interactiva `docs/api/F2.2.http` con 7 secciones y 20 escenarios de prueba:
+    - Healthcheck técnico (`/ping`).
+    - Autenticación y roles (Administrador, Paciente 1, Paciente 2, Médico autor, Médico sin relación).
+    - Despacho de notificaciones por correo en reservas y cancelaciones de citas con registro en `RECORDATORIO_CITA`.
+    - Prescripción médica asistencial sobre atenciones cerradas con notificación al paciente y validaciones de autorización (403 para admin, paciente y médicos ajenos).
+    - Consulta y aislamiento estricto de tareas de seguimiento (personal administrativo y pacientes ajenos reciben 403 Forbidden).
+    - Portal del paciente: consulta, filtros por estado y reporte de evolución clínica sin diagnóstico automático (§5.16).
+    - Cancelación de tareas de seguimiento por profesionales autorizados.
+  - Verificación exitosa de la suite completa de pruebas de backend con 594 pruebas verdes al 100% (0 fallos, 0 errores).
 - **Pantallas de Seguimiento Post-Atención y Reporte del Paciente en Frontend (F2.2.4, ADR-015, §5.16)**:
   - Nueva vista interactiva para el paciente `frontend/js/views/patient-follow-ups.js`:
     - Listado reactivo de planes de seguimiento post-atención agrupados y filtrables por estado (`PENDIENTE`, `COMPLETADO`).
