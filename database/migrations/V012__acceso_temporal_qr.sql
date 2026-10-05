@@ -41,7 +41,7 @@ CREATE TABLE ACCESO_TEMPORAL_QR (
 );
 
 CREATE INDEX IX_ACCESO_QR_PACIENTE ON ACCESO_TEMPORAL_QR (PACIENTE_ID, REVOCADO);
-CREATE INDEX IX_ACCESO_QR_TOKEN ON ACCESO_TEMPORAL_QR (TOKEN_HASH);
+-- Nota: TOKEN_HASH ya está indexado automáticamente por UQ_ACCESO_QR_TOKEN_HASH.
 
 -- -----------------------------------------------------------------------------
 -- 2. Concesión de privilegios a MEDITRIAJE_APP (ADR-012)
