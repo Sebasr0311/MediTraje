@@ -30,8 +30,8 @@ spring:
   mail:
     host: ${SMTP_HOST:smtp-relay.brevo.com}
     port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:}
-    password: ${SMTP_PASSWORD:}
+    username: ${SMTP_USERNAME:${BREVO_SMTP_LOGIN:${SMTP_FROM:}}}
+    password: ${SMTP_PASSWORD:${BREVO_API_KEY:}}
     default-encoding: UTF-8
     properties:
       mail:
