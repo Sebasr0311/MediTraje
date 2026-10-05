@@ -163,7 +163,7 @@ export function initSystemAssistantWidget() {
     scrollAlFinal();
 
     try {
-      const resp = await api.post('/api/v1/assistant/chat', { mensaje: consultaTexto });
+      const resp = await api.post('/assistant/chat', { mensaje: consultaTexto });
       removerIndicadorTipeo(loaderId);
       agregarMensajeBot(resp);
     } catch (err) {

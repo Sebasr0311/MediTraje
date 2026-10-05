@@ -31,6 +31,21 @@ class ApiClient {
   }
 
   /**
+   * Construye la URL final deduplicando prefijos si el endpoint ya incluye /api/v1.
+   */
+  buildUrl(endpoint) {
+    if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+      return endpoint;
+    }
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const base = this.baseUrl.replace(/\/+$/, '');
+    if (base.endsWith('/api/v1') && cleanEndpoint.startsWith('/api/v1')) {
+      return `${base}${cleanEndpoint.substring(7)}`;
+    }
+    return `${base}${cleanEndpoint}`;
+  }
+
+  /**
    * Ejecuta una petición HTTP con credenciales (cookies), cabecera CSRF y manejo central de errores.
    *
    * @param {string} endpoint Ruta relativa o absoluta a la API
@@ -38,7 +53,7 @@ class ApiClient {
    * @returns {Promise<any>} Respuesta deserializada de JSON (o null en 204 No Content)
    */
   async request(endpoint, options = {}) {
-    const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+    const url = this.buildUrl(endpoint);
 
     const headers = new Headers(options.headers || {});
     headers.set('Accept', 'application/json');
@@ -86,7 +101,7 @@ class ApiClient {
         this.isRefreshing = true;
         try {
           // Intentar renovar el access_token mediante el refresh_token de la cookie
-          const refreshRes = await fetch(`${this.baseUrl}/auth/refresh`, {
+          const refreshRes = await fetch(this.buildUrl('/auth/refresh'), {
             method: 'POST',
             credentials: 'include',
             headers: {

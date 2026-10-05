@@ -17,7 +17,7 @@ import java.util.Optional;
 
 /**
  * Repositorio JDBC para la entidad {@code PROFESIONAL}.
- * Implementa consultas 100% parametrizadas y paginación estándar Oracle (ADR-001, ADR-003, ADR-006, HU-10).
+ * Implementa consultas 100% parametrizadas y paginación estándar Oracle (ADR-001, ADR-003, ADR-006, HU-10, Ley 1164/2007).
  */
 @Repository
 public class ProfesionalRepository {
@@ -32,9 +32,12 @@ public class ProfesionalRepository {
                 rs.getLong("USUARIO_ID"),
                 rs.getString("PUBLIC_ID"),
                 rs.getLong("ESPECIALIDAD_ID"),
+                rs.getString("TIPO_DOCUMENTO"),
+                rs.getString("NUMERO_DOCUMENTO"),
                 rs.getString("REGISTRO_MEDICO"),
                 rs.getString("NOMBRES"),
                 rs.getString("APELLIDOS"),
+                rs.getString("TELEFONO"),
                 tsCreated != null ? tsCreated.toInstant() : null,
                 tsUpdated != null ? tsUpdated.toInstant() : null
         );
@@ -45,10 +48,13 @@ public class ProfesionalRepository {
         return new ProfesionalResponse(
                 rs.getString("PUBLIC_ID"),
                 rs.getString("USUARIO_PUBLIC_ID"),
+                rs.getString("TIPO_DOCUMENTO"),
+                rs.getString("NUMERO_DOCUMENTO"),
                 rs.getString("REGISTRO_MEDICO"),
                 rs.getString("NOMBRES"),
                 rs.getString("APELLIDOS"),
                 rs.getString("EMAIL"),
+                rs.getString("TELEFONO"),
                 rs.getString("ESPECIALIDAD_PUBLIC_ID"),
                 rs.getString("ESPECIALIDAD_NOMBRE"),
                 rs.getString("ESTADO"),
@@ -63,8 +69,8 @@ public class ProfesionalRepository {
 
     public Long crear(Profesional profesional) {
         final String sql = """
-            INSERT INTO PROFESIONAL (USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO PROFESIONAL (USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, TIPO_DOCUMENTO, NUMERO_DOCUMENTO, REGISTRO_MEDICO, NOMBRES, APELLIDOS, TELEFONO)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -73,9 +79,12 @@ public class ProfesionalRepository {
             ps.setLong(1, profesional.usuarioId());
             ps.setString(2, profesional.publicId());
             ps.setLong(3, profesional.especialidadId());
-            ps.setString(4, profesional.registroMedico());
-            ps.setString(5, profesional.nombres());
-            ps.setString(6, profesional.apellidos());
+            ps.setString(4, profesional.tipoDocumento() != null ? profesional.tipoDocumento() : "CC");
+            ps.setString(5, profesional.numeroDocumento());
+            ps.setString(6, profesional.registroMedico());
+            ps.setString(7, profesional.nombres());
+            ps.setString(8, profesional.apellidos());
+            ps.setString(9, profesional.telefono());
             return ps;
         }, keyHolder);
 
@@ -89,7 +98,7 @@ public class ProfesionalRepository {
     public void actualizar(Profesional profesional) {
         final String sql = """
             UPDATE PROFESIONAL
-            SET ESPECIALIDAD_ID = ?, NOMBRES = ?, APELLIDOS = ?, UPDATED_AT = CURRENT_TIMESTAMP
+            SET ESPECIALIDAD_ID = ?, NOMBRES = ?, APELLIDOS = ?, TELEFONO = ?, UPDATED_AT = CURRENT_TIMESTAMP
             WHERE PUBLIC_ID = ?
             """;
         jdbcTemplate.update(
@@ -97,13 +106,14 @@ public class ProfesionalRepository {
                 profesional.especialidadId(),
                 profesional.nombres(),
                 profesional.apellidos(),
+                profesional.telefono(),
                 profesional.publicId()
         );
     }
 
     public Optional<Profesional> buscarPorPublicId(String publicId) {
         final String sql = """
-            SELECT ID, USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS, CREATED_AT, UPDATED_AT
+            SELECT ID, USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, TIPO_DOCUMENTO, NUMERO_DOCUMENTO, REGISTRO_MEDICO, NOMBRES, APELLIDOS, TELEFONO, CREATED_AT, UPDATED_AT
             FROM PROFESIONAL
             WHERE PUBLIC_ID = ?
             """;
@@ -113,7 +123,7 @@ public class ProfesionalRepository {
 
     public Optional<Profesional> buscarPorId(Long id) {
         final String sql = """
-            SELECT ID, USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS, CREATED_AT, UPDATED_AT
+            SELECT ID, USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, TIPO_DOCUMENTO, NUMERO_DOCUMENTO, REGISTRO_MEDICO, NOMBRES, APELLIDOS, TELEFONO, CREATED_AT, UPDATED_AT
             FROM PROFESIONAL
             WHERE ID = ?
             """;
@@ -123,7 +133,7 @@ public class ProfesionalRepository {
 
     public Optional<Profesional> buscarPorUsuarioId(Long usuarioId) {
         final String sql = """
-            SELECT ID, USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS, CREATED_AT, UPDATED_AT
+            SELECT ID, USUARIO_ID, PUBLIC_ID, ESPECIALIDAD_ID, TIPO_DOCUMENTO, NUMERO_DOCUMENTO, REGISTRO_MEDICO, NOMBRES, APELLIDOS, TELEFONO, CREATED_AT, UPDATED_AT
             FROM PROFESIONAL
             WHERE USUARIO_ID = ?
             """;
@@ -148,10 +158,30 @@ public class ProfesionalRepository {
         return count != null && count > 0;
     }
 
+    public boolean existePorDocumento(String tipoDocumento, String numeroDocumento) {
+        if (tipoDocumento == null || numeroDocumento == null) return false;
+        final String sql = "SELECT COUNT(*) FROM PROFESIONAL WHERE UPPER(TRIM(TIPO_DOCUMENTO)) = UPPER(TRIM(?)) AND UPPER(TRIM(NUMERO_DOCUMENTO)) = UPPER(TRIM(?))";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, tipoDocumento, numeroDocumento);
+        return count != null && count > 0;
+    }
+
+    public boolean existePorDocumentoYNoPublicId(String tipoDocumento, String numeroDocumento, String publicId) {
+        if (tipoDocumento == null || numeroDocumento == null) return false;
+        final String sql = """
+            SELECT COUNT(*)
+            FROM PROFESIONAL
+            WHERE UPPER(TRIM(TIPO_DOCUMENTO)) = UPPER(TRIM(?))
+              AND UPPER(TRIM(NUMERO_DOCUMENTO)) = UPPER(TRIM(?))
+              AND PUBLIC_ID <> ?
+            """;
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, tipoDocumento, numeroDocumento, publicId);
+        return count != null && count > 0;
+    }
+
     public List<ProfesionalResponse> listar(int page, int size, String especialidadPublicId, String estado) {
         StringBuilder sql = new StringBuilder("""
-            SELECT p.PUBLIC_ID, u.PUBLIC_ID AS USUARIO_PUBLIC_ID, p.REGISTRO_MEDICO,
-                   p.NOMBRES, p.APELLIDOS, u.EMAIL, e.PUBLIC_ID AS ESPECIALIDAD_PUBLIC_ID,
+            SELECT p.PUBLIC_ID, u.PUBLIC_ID AS USUARIO_PUBLIC_ID, p.TIPO_DOCUMENTO, p.NUMERO_DOCUMENTO, p.REGISTRO_MEDICO,
+                   p.NOMBRES, p.APELLIDOS, u.EMAIL, p.TELEFONO, e.PUBLIC_ID AS ESPECIALIDAD_PUBLIC_ID,
                    e.NOMBRE AS ESPECIALIDAD_NOMBRE, u.ESTADO, u.DEBE_CAMBIAR_PASSWORD, p.CREATED_AT
             FROM PROFESIONAL p
             JOIN USUARIO u ON p.USUARIO_ID = u.ID

@@ -1028,29 +1028,47 @@ async function renderProfessionals(container) {
         <form id="newProfForm" novalidate>
           <div class="grid grid-cols-1 grid-cols-2-md gap-4 mb-3">
             <div class="form-group m-0">
-              <label for="profRegistro" class="form-label text-xs">Registro médico <span class="required">*</span></label>
-              <input type="text" id="profRegistro" class="form-input" maxlength="30" placeholder="Ej. RM-987654" required>
+              <label for="profTipoDoc" class="form-label text-xs">Tipo de documento (Ley 1164/2007) <span class="required">*</span></label>
+              <select id="profTipoDoc" class="form-select" required>
+                <option value="CC" selected>CC — Cédula de Ciudadanía</option>
+                <option value="CE">CE — Cédula de Extranjería</option>
+              </select>
             </div>
             <div class="form-group m-0">
-              <label for="profEspecialidad" class="form-label text-xs">Especialidad <span class="required">*</span></label>
+              <label for="profNumDoc" class="form-label text-xs">Número de identificación <span class="required">*</span></label>
+              <input type="text" id="profNumDoc" class="form-input" maxlength="20" placeholder="Ej. 1020304050" required>
+              <span class="form-error text-xs" id="profNumDocError" style="display: none;" role="alert"></span>
+            </div>
+            <div class="form-group m-0">
+              <label for="profRegistro" class="form-label text-xs">Registro médico / ReTHUS <span class="required">*</span></label>
+              <input type="text" id="profRegistro" class="form-input" maxlength="30" placeholder="Ej. RM-987654 o ReTHUS" required>
+              <span class="form-error text-xs" id="profRegistroError" style="display: none;" role="alert"></span>
+            </div>
+            <div class="form-group m-0">
+              <label for="profEspecialidad" class="form-label text-xs">Especialidad médica (Res. 3100/2019) <span class="required">*</span></label>
               <select id="profEspecialidad" class="form-select" required>
                 <option value="">Selecciona especialidad...</option>
               </select>
             </div>
             <div class="form-group m-0">
-              <label for="profNombres" class="form-label text-xs">Nombres <span class="required">*</span></label>
+              <label for="profNombres" class="form-label text-xs">Nombres completos <span class="required">*</span></label>
               <input type="text" id="profNombres" class="form-input" maxlength="60" placeholder="Ej. Camila" required>
               <span class="form-error text-xs" id="profNombresError" style="display: none;" role="alert"></span>
             </div>
             <div class="form-group m-0">
-              <label for="profApellidos" class="form-label text-xs">Apellidos <span class="required">*</span></label>
+              <label for="profApellidos" class="form-label text-xs">Apellidos completos <span class="required">*</span></label>
               <input type="text" id="profApellidos" class="form-input" maxlength="60" placeholder="Ej. Gómez Silva" required>
               <span class="form-error text-xs" id="profApellidosError" style="display: none;" role="alert"></span>
             </div>
-            <div class="form-group m-0 grid-cols-2-span">
-              <label for="profEmail" class="form-label text-xs">Correo electrónico institucional <span class="required">*</span></label>
+            <div class="form-group m-0">
+              <label for="profEmail" class="form-label text-xs">Correo institucional <span class="required">*</span></label>
               <input type="email" id="profEmail" class="form-input" maxlength="100" placeholder="Ej. dra.gomez@meditriaje.com" required>
               <span class="form-error text-xs" id="profEmailError" style="display: none;" role="alert"></span>
+            </div>
+            <div class="form-group m-0">
+              <label for="profTelefono" class="form-label text-xs">Celular Colombia <span class="text-muted">(10 dígitos)</span></label>
+              <input type="tel" id="profTelefono" class="form-input" maxlength="15" placeholder="Ej. 3001234567">
+              <span class="form-error text-xs" id="profTelefonoError" style="display: none;" role="alert"></span>
             </div>
           </div>
           <p id="newProfError" class="text-xs text-danger mb-3" role="alert"></p>
@@ -1104,15 +1122,96 @@ async function renderProfessionals(container) {
     newCard.style.display = 'none';
   });
 
+  const tipoDocSelect = container.querySelector('#profTipoDoc');
+  const numDocInput = container.querySelector('#profNumDoc');
+  const numDocError = container.querySelector('#profNumDocError');
   const regInput = container.querySelector('#profRegistro');
+  const regError = container.querySelector('#profRegistroError');
   const specSelect = container.querySelector('#profEspecialidad');
   const nombresInput = container.querySelector('#profNombres');
   const apellidosInput = container.querySelector('#profApellidos');
   const emailInput = container.querySelector('#profEmail');
+  const telefonoInput = container.querySelector('#profTelefono');
   const nombresError = container.querySelector('#profNombresError');
   const apellidosError = container.querySelector('#profApellidosError');
   const emailError = container.querySelector('#profEmailError');
+  const telefonoError = container.querySelector('#profTelefonoError');
   const errEl = container.querySelector('#newProfError');
+
+  const validateNumDoc = (isLive = false) => {
+    const tipo = tipoDocSelect.value;
+    const val = numDocInput.value.trim();
+    numDocError.style.display = 'none';
+    numDocError.textContent = '';
+    numDocInput.classList.remove('has-error', 'has-success', 'form-input--success');
+    if (!val) {
+      if (!isLive) {
+        numDocInput.classList.add('has-error');
+        numDocError.textContent = 'El número de identificación es obligatorio.';
+        numDocError.style.display = 'block';
+        return false;
+      }
+      return true;
+    }
+    if (tipo === 'CC') {
+      if (!/^\d{6,10}$/.test(val)) {
+        numDocInput.classList.add('has-error');
+        numDocError.textContent = 'La Cédula de Ciudadanía (CC) debe tener entre 6 y 10 dígitos numéricos.';
+        numDocError.style.display = 'block';
+        return false;
+      }
+    } else if (tipo === 'CE') {
+      if (!/^[a-zA-Z0-9]{3,10}$/.test(val)) {
+        numDocInput.classList.add('has-error');
+        numDocError.textContent = 'La Cédula de Extranjería (CE) debe tener entre 3 y 10 caracteres alfanuméricos.';
+        numDocError.style.display = 'block';
+        return false;
+      }
+    }
+    numDocInput.classList.add('has-success', 'form-input--success');
+    return true;
+  };
+
+  const validateRegistro = (isLive = false) => {
+    const val = regInput.value.trim();
+    regError.style.display = 'none';
+    regError.textContent = '';
+    regInput.classList.remove('has-error', 'has-success', 'form-input--success');
+    if (!val) {
+      if (!isLive) {
+        regInput.classList.add('has-error');
+        regError.textContent = 'El registro médico / ReTHUS es obligatorio.';
+        regError.style.display = 'block';
+        return false;
+      }
+      return true;
+    }
+    if (val.length < 4 || val.length > 30) {
+      regInput.classList.add('has-error');
+      regError.textContent = 'El registro médico debe tener entre 4 y 30 caracteres.';
+      regError.style.display = 'block';
+      return false;
+    }
+    regInput.classList.add('has-success', 'form-input--success');
+    return true;
+  };
+
+  const validateTelefono = (isLive = false) => {
+    const val = telefonoInput.value.trim();
+    telefonoError.style.display = 'none';
+    telefonoError.textContent = '';
+    telefonoInput.classList.remove('has-error', 'has-success', 'form-input--success');
+    if (!val) return true; // Celular opcional
+    const normalizado = val.replace(/\s+/g, '');
+    if (!/^(\+57)?3[0-9]{9}$/.test(normalizado)) {
+      telefonoInput.classList.add('has-error');
+      telefonoError.textContent = 'Debe ser un celular colombiano válido de 10 dígitos iniciando por 3 (ej. 3001234567 o +573001234567).';
+      telefonoError.style.display = 'block';
+      return false;
+    }
+    telefonoInput.classList.add('has-success', 'form-input--success');
+    return true;
+  };
 
   const validateNombres = (isLive = false) => {
     const val = nombresInput.value.trim();
@@ -1186,26 +1285,44 @@ async function renderProfessionals(container) {
     return true;
   };
 
+  tipoDocSelect.addEventListener('change', () => validateNumDoc(true));
+  numDocInput.addEventListener('input', () => validateNumDoc(true));
+  numDocInput.addEventListener('blur', () => validateNumDoc(false));
+  regInput.addEventListener('input', () => validateRegistro(true));
+  regInput.addEventListener('blur', () => validateRegistro(false));
   nombresInput.addEventListener('input', () => validateNombres(true));
   nombresInput.addEventListener('blur', () => validateNombres(false));
   apellidosInput.addEventListener('input', () => validateApellidos(true));
   apellidosInput.addEventListener('blur', () => validateApellidos(false));
   emailInput.addEventListener('input', () => validateEmail(true));
   emailInput.addEventListener('blur', () => validateEmail(false));
+  telefonoInput.addEventListener('input', () => validateTelefono(true));
+  telefonoInput.addEventListener('blur', () => validateTelefono(false));
 
   container.querySelector('#newProfForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     errEl.textContent = '';
 
+    const tipoDocumento = tipoDocSelect.value;
+    const numeroDocumento = numDocInput.value.trim();
     const registroMedico = regInput.value.trim();
     const especialidadPublicId = specSelect.value;
+    const nombres = nombresInput.value.trim();
+    const apellidos = apellidosInput.value.trim();
+    const email = emailInput.value.trim().toLowerCase();
+    const telefono = telefonoInput.value.trim() || undefined;
+
+    const vDoc = validateNumDoc(false);
+    const vReg = validateRegistro(false);
     const vNombres = validateNombres(false);
     const vApellidos = validateApellidos(false);
     const vEmail = validateEmail(false);
+    const vTel = validateTelefono(false);
 
-    if (!registroMedico || !especialidadPublicId || !vNombres || !vApellidos || !vEmail) {
-      if (!registroMedico) {
-        errEl.textContent = 'El registro médico es obligatorio.';
+    if (!vDoc || !vReg || !especialidadPublicId || !vNombres || !vApellidos || !vEmail || !vTel) {
+      if (!vDoc) {
+        numDocInput.focus();
+      } else if (!vReg) {
         regInput.focus();
       } else if (!especialidadPublicId) {
         errEl.textContent = 'Debes seleccionar una especialidad médica.';
@@ -1216,39 +1333,51 @@ async function renderProfessionals(container) {
         apellidosInput.focus();
       } else if (!vEmail) {
         emailInput.focus();
+      } else if (!vTel) {
+        telefonoInput.focus();
       }
       return;
     }
-
-    const nombres = nombresInput.value.trim();
-    const apellidos = apellidosInput.value.trim();
-    const email = emailInput.value.trim().toLowerCase();
 
     const saveBtn = container.querySelector('#btnSaveNewProf');
     ui.setButtonLoading(saveBtn, true);
     try {
       const res = await api.post('/admin/professionals', {
+        tipoDocumento,
+        numeroDocumento,
         registroMedico,
         nombres,
         apellidos,
         email,
+        telefono,
         especialidadPublicId
       });
 
       newCard.style.display = 'none';
       container.querySelector('#newProfForm').reset();
+      numDocInput.classList.remove('has-success', 'form-input--success');
+      regInput.classList.remove('has-success', 'form-input--success');
       nombresInput.classList.remove('has-success', 'form-input--success');
       apellidosInput.classList.remove('has-success', 'form-input--success');
       emailInput.classList.remove('has-success', 'form-input--success');
+      telefonoInput.classList.remove('has-success', 'form-input--success');
       load();
 
-      // Modal destacado con la contraseña temporal generada y aviso de envío Brevo
+      // Modal destacado con la identificación legal, ReTHUS y la contraseña temporal generada
       ui.showModal({
         title: '¡Profesional dado de alta!',
         message: `
           <p class="mb-2 text-sm">
             Se ha creado la cuenta asistencial para <strong>${esc(res.nombres)} ${esc(res.apellidos)}</strong> (${esc(res.especialidadNombre)}).
           </p>
+          <div class="card p-3 mb-3" style="background: var(--surface-1); border-left: 4px solid var(--primary);">
+            <div class="text-xs grid grid-cols-2 gap-2 mb-2">
+              <div><strong class="text-muted">Documento:</strong> ${esc(res.tipoDocumento || 'CC')} ${esc(res.numeroDocumento || '—')}</div>
+              <div><strong class="text-muted">Registro ReTHUS:</strong> ${esc(res.registroMedico)}</div>
+              <div><strong class="text-muted">Correo:</strong> ${esc(res.email)}</div>
+              <div><strong class="text-muted">Celular:</strong> ${esc(res.telefono || 'Sin registrar')}</div>
+            </div>
+          </div>
           <div class="alert alert--info mb-3 text-xs" style="padding: var(--space-2) var(--space-3);">
             ${ui.icon('mail', 'icon icon--sm mr-1')}
             <span>Las credenciales iniciales fueron despachadas automáticamente al correo institucional <strong>${esc(res.email)}</strong> vía Brevo SMTP.</span>
@@ -1261,7 +1390,7 @@ async function renderProfessionals(container) {
             </div>
           </div>
           <p class="text-xs text-muted m-0">
-            ⚠️ <em>En su primer inicio de sesión se le exigirá cambiar la contraseña de inmediato por una de su exclusiva custodia.</em>
+            ⚠️ <em>En su primer inicio de sesión se le exigirá cambiar la contraseña de inmediato por una de su exclusiva custodia (Ley 1581/2012).</em>
           </p>
         `,
         confirmText: 'Entendido y guardada',
@@ -1333,7 +1462,8 @@ async function renderProfessionals(container) {
           <thead>
             <tr>
               <th>Profesional</th>
-              <th>Registro</th>
+              <th>Documento</th>
+              <th>Registro ReTHUS</th>
               <th>Contacto</th>
               <th>Especialidad</th>
               <th>Estado</th>
@@ -1344,8 +1474,16 @@ async function renderProfessionals(container) {
             ${list.map(it => `
               <tr>
                 <td data-label="Profesional"><strong>${esc(it.nombres)} ${esc(it.apellidos)}</strong></td>
-                <td data-label="Registro"><span class="font-mono text-xs">${esc(it.registroMedico)}</span></td>
-                <td data-label="Contacto"><span class="text-sm">${esc(it.email)}</span></td>
+                <td data-label="Documento">
+                  <span class="badge badge--neutral">${esc(it.tipoDocumento || 'CC')} ${esc(it.numeroDocumento || '—')}</span>
+                </td>
+                <td data-label="Registro ReTHUS"><span class="font-mono text-xs">${esc(it.registroMedico)}</span></td>
+                <td data-label="Contacto">
+                  <div class="text-xs">
+                    <div>${esc(it.email)}</div>
+                    ${it.telefono ? `<div class="text-muted">📱 ${esc(it.telefono)}</div>` : ''}
+                  </div>
+                </td>
                 <td data-label="Especialidad"><span class="badge badge--scheduled">${esc(it.especialidadNombre)}</span></td>
                 <td data-label="Estado">${statusBadge(it.estado)}</td>
                 <td data-label="Acciones" style="text-align: right;">
@@ -1353,7 +1491,8 @@ async function renderProfessionals(container) {
                     data-id="${esc(it.publicId)}"
                     data-nombres="${esc(it.nombres)}"
                     data-apellidos="${esc(it.apellidos)}"
-                    data-spec="${esc(it.especialidadPublicId)}">
+                    data-spec="${esc(it.especialidadPublicId)}"
+                    data-telefono="${esc(it.telefono || '')}">
                     Editar
                   </button>
                   ${it.estado === 'ACTIVO' ? `
@@ -1388,6 +1527,7 @@ async function renderProfessionals(container) {
         const curNombres = btn.dataset.nombres;
         const curApellidos = btn.dataset.apellidos;
         const curSpec = btn.dataset.spec;
+        const curTelefono = btn.dataset.telefono || '';
 
         const optionsHtml = activeSpecialties.map(sp => `
           <option value="${esc(sp.publicId)}" ${sp.publicId === curSpec ? 'selected' : ''}>${esc(sp.nombre)}</option>
@@ -1408,18 +1548,32 @@ async function renderProfessionals(container) {
               <label for="editProfSpec" class="form-label text-xs">Especialidad</label>
               <select id="editProfSpec" class="form-select">${optionsHtml}</select>
             </div>
+            <div class="form-group mb-2">
+              <label for="editProfTelefono" class="form-label text-xs">Celular Colombia (10 dígitos)</label>
+              <input type="tel" id="editProfTelefono" class="form-input" value="${esc(curTelefono)}" maxlength="15" placeholder="Ej. 3001234567">
+            </div>
           `,
           confirmText: 'Guardar cambios',
           onConfirm: async () => {
             const nombres = document.querySelector('#editProfNombres')?.value.trim();
             const apellidos = document.querySelector('#editProfApellidos')?.value.trim();
             const especialidadPublicId = document.querySelector('#editProfSpec')?.value;
+            const telefonoRaw = document.querySelector('#editProfTelefono')?.value.trim();
             if (!nombres || !apellidos || !especialidadPublicId) {
-              ui.showToast('Todos los campos son obligatorios.', 'warning');
+              ui.showToast('Nombres, apellidos y especialidad son obligatorios.', 'warning');
               return;
             }
+            let telefono = undefined;
+            if (telefonoRaw) {
+              const normalizado = telefonoRaw.replace(/\s+/g, '');
+              if (!/^(\+57)?3[0-9]{9}$/.test(normalizado)) {
+                ui.showToast('El celular debe ser un número colombiano válido de 10 dígitos iniciando en 3.', 'warning');
+                return;
+              }
+              telefono = normalizado;
+            }
             try {
-              await api.put(`/admin/professionals/${id}`, { nombres, apellidos, especialidadPublicId });
+              await api.put(`/admin/professionals/${id}`, { nombres, apellidos, especialidadPublicId, telefono });
               ui.showToast('Profesional actualizado.', 'success');
               load();
             } catch (err) {

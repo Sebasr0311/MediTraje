@@ -32,9 +32,9 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Servicio de administración de profesionales asistenciales (HU-10, ADR-002, ADR-003, ADR-011).
- * Gestiona el alta con contraseña temporal de un solo uso, actualización de perfil asistencial,
- * activación/desactivación y auditoría inmutable de cada cambio administrativo.
+ * Servicio de administración de profesionales asistenciales (HU-10, ADR-002, ADR-003, ADR-011, Ley 1164/2007).
+ * Gestiona el alta con validaciones de talento humano en salud de Colombia (ReTHUS), contraseña temporal
+ * de un solo uso, actualización de perfil asistencial, activación/desactivación y auditoría inmutable.
  */
 @Service
 public class AdminProfessionalService {
@@ -79,18 +79,44 @@ public class AdminProfessionalService {
     }
 
     /**
-     * Da de alta a un profesional asistencial creando su cuenta de usuario con contraseña temporal segura,
+     * Da de alta a un profesional asistencial validando exhaustivamente sus datos conforme a la ley colombiana
+     * (Ley 1164 de 2007, Decreto 780 de 2016, ReTHUS), creando su cuenta de usuario con contraseña temporal segura,
      * asignando el rol asistencial y registrando el evento en la bitácora inmutable.
      */
     @Transactional
     public CrearProfesionalResponse altaProfesional(CrearProfesionalRequest request, String adminPublicId, String ipOrigen) {
         Objects.requireNonNull(request, "La solicitud de creacion no puede ser nula");
 
-        // 0. Validar nombres y apellidos según norma colombiana
+        // 0. Validar tipo y número de documento conforme a la ley colombiana (Ley 1164/2007)
+        String tipoDoc = (request.tipoDocumento() != null && !request.tipoDocumento().isBlank())
+                ? request.tipoDocumento().trim().toUpperCase(Locale.ROOT)
+                : "CC";
+        if (!"CC".equals(tipoDoc) && !"CE".equals(tipoDoc)) {
+            throw new DatosInvalidosException("Tipo de documento no valido para profesionales en Colombia. Permitidos: CC, CE.");
+        }
+
+        String numDoc = (request.numeroDocumento() != null) ? request.numeroDocumento().trim() : "";
+        if (numDoc.isBlank()) {
+            throw new DatosInvalidosException("El numero de documento es obligatorio.");
+        }
+        NormaColombianaValidator.validarDocumento(tipoDoc, numDoc);
+
+        if (profesionalRepository.existePorDocumento(tipoDoc, numDoc)) {
+            throw new DatosInvalidosException("Ya existe un profesional registrado con el documento ingresado.");
+        }
+
+        // 1. Validar nombres y apellidos según norma colombiana
         NormaColombianaValidator.validarNombresOApellidos("nombres", request.nombres());
         NormaColombianaValidator.validarNombresOApellidos("apellidos", request.apellidos());
 
-        // 1. Validar especialidad existente y activa
+        // 2. Validar teléfono celular Colombia si fue provisto
+        String telefonoNormalizado = null;
+        if (request.telefono() != null && !request.telefono().isBlank()) {
+            NormaColombianaValidator.validarCelularColombia(request.telefono());
+            telefonoNormalizado = request.telefono().trim().replaceAll("\\s+", "");
+        }
+
+        // 3. Validar especialidad existente y activa
         Especialidad esp = especialidadRepository.buscarPorPublicId(request.especialidadPublicId().trim())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Especialidad no encontrada: " + request.especialidadPublicId()));
 
@@ -98,44 +124,50 @@ public class AdminProfessionalService {
             throw new DatosInvalidosException("La especialidad seleccionada no se encuentra activa.");
         }
 
-        // 2. Validar correo electronico unico
+        // 4. Validar correo electronico unico
         String emailNormalizado = request.email().trim().toLowerCase(Locale.ROOT);
         if (usuarioRepository.existePorEmail(emailNormalizado)) {
             throw new DatosInvalidosException("El correo electronico ya se encuentra registrado.");
         }
 
-        // 3. Validar registro medico unico
+        // 5. Validar registro medico / ReTHUS unico y formato
         String registroMedicoNormalizado = request.registroMedico().trim();
+        if (registroMedicoNormalizado.length() < 4) {
+            throw new DatosInvalidosException("El registro medico / ReTHUS debe tener al menos 4 caracteres.");
+        }
         if (profesionalRepository.existePorRegistroMedico(registroMedicoNormalizado)) {
             throw new DatosInvalidosException("El registro medico ya se encuentra registrado.");
         }
 
-        // 4. Generar contraseña temporal segura (mínimo 12 caracteres: mayúsculas, minúsculas, dígitos, símbolos)
+        // 6. Generar contraseña temporal segura (mínimo 12 caracteres: mayúsculas, minúsculas, dígitos, símbolos)
         String passwordTemporal = generarPasswordTemporal();
         String passwordHash = passwordEncoder.encode(passwordTemporal);
 
-        // 5. Crear USUARIO con debeCambiarPassword = true y estado ACTIVO
+        // 7. Crear USUARIO con debeCambiarPassword = true y estado ACTIVO
         String usuarioPublicId = UUID.randomUUID().toString();
         Long usuarioId = usuarioRepository.crear(usuarioPublicId, emailNormalizado, passwordHash, true);
 
-        // 6. Asignar rol ROLE_PROFESIONAL
+        // 8. Asignar rol ROLE_PROFESIONAL
         Long rolId = usuarioRepository.buscarRolIdPorNombre("ROLE_PROFESIONAL")
                 .orElseThrow(() -> new IllegalStateException("El rol ROLE_PROFESIONAL no existe en el sistema."));
         usuarioRepository.asignarRol(usuarioId, rolId);
 
-        // 7. Crear PROFESIONAL vinculado a usuarioId y especialidadId
+        // 9. Crear PROFESIONAL vinculado a usuarioId y especialidadId
         String profesionalPublicId = UUID.randomUUID().toString();
         Profesional profesional = new Profesional(
                 usuarioId,
                 profesionalPublicId,
                 esp.id(),
+                tipoDoc,
+                numDoc,
                 registroMedicoNormalizado,
                 request.nombres().trim(),
-                request.apellidos().trim()
+                request.apellidos().trim(),
+                telefonoNormalizado
         );
         profesionalRepository.crear(profesional);
 
-        // 8. Auditar evento administrativo
+        // 10. Auditar evento administrativo
         Long adminId = obtenerAdminUsuarioId(adminPublicId);
         auditoriaService.registrarEvento(
                 adminId,
@@ -146,7 +178,7 @@ public class AdminProfessionalService {
                 ipOrigen
         );
 
-        // 9. Despachar credenciales de acceso inicial por correo electrónico (Brevo SMTP)
+        // 11. Despachar credenciales de acceso inicial por correo electrónico (Brevo SMTP)
         if (emailService != null) {
             try {
                 String nombreCompleto = request.nombres().trim() + " " + request.apellidos().trim();
@@ -160,10 +192,13 @@ public class AdminProfessionalService {
         return new CrearProfesionalResponse(
                 profesionalPublicId,
                 usuarioPublicId,
+                tipoDoc,
+                numDoc,
                 registroMedicoNormalizado,
                 request.nombres().trim(),
                 request.apellidos().trim(),
                 emailNormalizado,
+                telefonoNormalizado,
                 esp.publicId(),
                 esp.nombre(),
                 passwordTemporal,
@@ -173,7 +208,7 @@ public class AdminProfessionalService {
     }
 
     /**
-     * Actualiza los datos asistenciales del profesional (nombres, apellidos, especialidad).
+     * Actualiza los datos asistenciales del profesional (nombres, apellidos, especialidad, teléfono).
      */
     @Transactional
     public ProfesionalResponse actualizarProfesional(
@@ -197,14 +232,27 @@ public class AdminProfessionalService {
             throw new DatosInvalidosException("La especialidad seleccionada no se encuentra activa.");
         }
 
+        String telefonoActualizado = actual.telefono();
+        if (request.telefono() != null) {
+            if (!request.telefono().isBlank()) {
+                NormaColombianaValidator.validarCelularColombia(request.telefono());
+                telefonoActualizado = request.telefono().trim().replaceAll("\\s+", "");
+            } else {
+                telefonoActualizado = null;
+            }
+        }
+
         Profesional actualizado = new Profesional(
                 actual.id(),
                 actual.usuarioId(),
                 actual.publicId(),
                 esp.id(),
+                actual.tipoDocumento(),
+                actual.numeroDocumento(),
                 actual.registroMedico(),
                 request.nombres().trim(),
                 request.apellidos().trim(),
+                telefonoActualizado,
                 actual.createdAt(),
                 Instant.now()
         );
@@ -226,10 +274,13 @@ public class AdminProfessionalService {
         return new ProfesionalResponse(
                 actual.publicId(),
                 usuario.publicId(),
+                actual.tipoDocumento(),
+                actual.numeroDocumento(),
                 actual.registroMedico(),
                 request.nombres().trim(),
                 request.apellidos().trim(),
                 usuario.email(),
+                telefonoActualizado,
                 esp.publicId(),
                 esp.nombre(),
                 usuario.estado(),
@@ -269,10 +320,13 @@ public class AdminProfessionalService {
         return new ProfesionalResponse(
                 profesional.publicId(),
                 usuario.publicId(),
+                profesional.tipoDocumento(),
+                profesional.numeroDocumento(),
                 profesional.registroMedico(),
                 profesional.nombres(),
                 profesional.apellidos(),
                 usuario.email(),
+                profesional.telefono(),
                 esp.publicId(),
                 esp.nombre(),
                 estadoNormalizado,
@@ -298,10 +352,13 @@ public class AdminProfessionalService {
         return new ProfesionalResponse(
                 profesional.publicId(),
                 usuario.publicId(),
+                profesional.tipoDocumento(),
+                profesional.numeroDocumento(),
                 profesional.registroMedico(),
                 profesional.nombres(),
                 profesional.apellidos(),
                 usuario.email(),
+                profesional.telefono(),
                 esp.publicId(),
                 esp.nombre(),
                 usuario.estado(),

@@ -182,7 +182,7 @@ export async function renderAudit(container) {
       if (accionFiltro) params.accion = accionFiltro;
       if (resultadoFiltro) params.resultado = resultadoFiltro;
 
-      const data = await api.get('/api/v1/admin/audit', params);
+      const data = await api.get('/admin/audit', params);
       renderTable(data);
     } catch (err) {
       ui.renderError(tableContainer, {
