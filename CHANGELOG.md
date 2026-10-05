@@ -8,6 +8,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Ilustraciones 3D Médicas y Suite Integral de Glassmorphism (Landing Page)**:
+  - Generación e integración de ilustraciones 3D personalizadas adaptadas a la misión asistencial de MediTriaje 2.0:
+    - `hero-triage-3d.jpg`: Tablet médica en perspectiva isométrica con onda ECG viva en cian/teal, tarjetas acrílicas translúcidas con los 5 niveles de triaje (I al V), estetoscopio clínico y escudo de protección con cruz médica.
+    - `prescription-record-3d.jpg`: Receta médica digital en marco de vidrio esmerilado con sello de certificación criptográfica dorado en relieve, cápsulas con partículas luminiscentes y carné de emergencia QR para paramédicos.
+  - Suite de Glassmorphism y refracción óptica basada en tokens CSS (`--glass-bg`, `--glass-blur`, `--glass-border`, `--glass-shadow-glow`):
+    - Barra de navegación (`.navbar`) con efecto esmerilado translúcido y blur dinámico al scroll.
+    - Luces de ambiente difusas (`.ambient-glow--teal`, `.ambient-glow--cyan`, `.ambient-glow--emerald`) que aportan profundidad lumínica y tridimensionalidad al fondo.
+    - Ventana macOS del Hero con layout dual (arte 3D con micro-badges y flujo interactivo del paciente en tarjetas de vidrio esmerilado).
+    - Banner Spotlight entre Bento Grid y Simulador destacando la tecnología de prescripción digital con snapshot farmacológico y ficha QR.
+    - Acabado glassmórfico translúcido en tarjetas de métricas, Bento grid, simulador interactivo y acordeón FAQ.
 - **Rediseño Profesional del Landing Page (Estándar Radix UI / shadcn/ui & WCAG 2.1 AA)**:
   - Hero interactivo de alto impacto visual con pill badge animado, tipografía escalonada con `gradient-text`, micro-trust bar asistencial y mockup flotante con simulación en tiempo real (triaje de paciente, pulso de vida activo en agendamiento y receta electrónica inmutable sellada).
   - Bento Grid responsivo (1 columna en móvil, 2 en tablet, 3 en desktop) destacando los 6 pilares del sistema (corte 123, citas en tiempo real, historia clínica inmutable ADR-007, receta electrónica, ficha de emergencia QR y protocolo Break-Glass).
