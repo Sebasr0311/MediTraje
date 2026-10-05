@@ -11,6 +11,7 @@ import com.meditriaje.repository.CitaRepository;
 import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
@@ -58,6 +59,7 @@ public class AccesoClinicoService {
     private final Clock clock;
     private final int ventanaMeses;
 
+    @Autowired
     public AccesoClinicoService(
             UsuarioRepository usuarioRepository,
             PacienteRepository pacienteRepository,
