@@ -381,9 +381,9 @@ export async function landingView(container) {
             <span class="text-xs text-muted flex items-center gap-1">
               ${ui.icon('info', 'icon icon--xs')} Demostración puramente orientativa.
             </span>
-            <a href="#/register" class="btn btn-primary btn--sm">
-              <span>Agendar cita con esta prioridad</span>
-              ${ui.icon('arrow-right', 'icon icon--xs')}
+            <a href="#/register" id="simCtaBtn" class="btn btn-primary btn--sm">
+              <span id="simCtaText">Agendar cita con esta prioridad</span>
+              <span id="simCtaIcon" style="display: inline-flex;">${ui.icon('arrow-right', 'icon icon--xs')}</span>
             </a>
           </div>
         </div>
@@ -543,6 +543,9 @@ function initSimulator(container) {
   const textRuta = container.querySelector('#simRutaText');
   const textMensaje = container.querySelector('#simMensajeText');
   const resultadoBox = container.querySelector('#simResultadoBox');
+  const ctaBtn = container.querySelector('#simCtaBtn');
+  const ctaText = container.querySelector('#simCtaText');
+  const ctaIcon = container.querySelector('#simCtaIcon');
 
   if (!selectSintoma || !sliderIntensidad) return;
 
@@ -567,7 +570,21 @@ function initSimulator(container) {
 
       resultadoBox.style.borderColor = 'var(--danger)';
       resultadoBox.style.backgroundColor = 'var(--danger-bg)';
+
+      if (ctaBtn && ctaText) {
+        ctaBtn.href = 'tel:123';
+        ctaBtn.className = 'btn btn--danger btn--sm';
+        ctaText.textContent = 'Llamar a Emergencias (123)';
+        if (ctaIcon) ctaIcon.innerHTML = ui.icon('phone', 'icon icon--xs');
+      }
       return;
+    }
+
+    if (ctaBtn && ctaText) {
+      ctaBtn.href = auth.isAuthenticated() ? '#/triage' : '#/register';
+      ctaBtn.className = 'btn btn-primary btn--sm';
+      ctaText.textContent = auth.isAuthenticated() ? 'Continuar con mi triaje' : 'Agendar cita con esta prioridad';
+      if (ctaIcon) ctaIcon.innerHTML = ui.icon('arrow-right', 'icon icon--xs');
     }
 
     // 2. Cálculo determinista según intensidad y duración
