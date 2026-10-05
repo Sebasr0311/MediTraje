@@ -30,6 +30,7 @@ import com.meditriaje.repository.DisponibilidadSlotRepository;
 import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,6 +63,7 @@ public class ClinicalAttentionService {
     private final AuditoriaService auditoriaService;
     private final Clock clock;
 
+    @Autowired
     public ClinicalAttentionService(
             UsuarioRepository usuarioRepository,
             PacienteRepository pacienteRepository,

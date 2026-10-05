@@ -36,6 +36,7 @@ public class DefaultEmailService implements EmailService {
 
     private final ConcurrentLinkedDeque<CorreoEnviado> bufferCorreos = new ConcurrentLinkedDeque<>();
 
+    @Autowired
     public DefaultEmailService(
             EmailTemplateService templateService,
             @Autowired(required = false) JavaMailSender javaMailSender,

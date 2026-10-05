@@ -16,6 +16,7 @@ import com.meditriaje.repository.BreakGlassRepository;
 import com.meditriaje.repository.PacienteRepository;
 import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +45,7 @@ public class BreakGlassService {
     private final AuditoriaService auditoriaService;
     private final Clock clock;
 
+    @Autowired
     public BreakGlassService(
             UsuarioRepository usuarioRepository,
             ProfesionalRepository profesionalRepository,
