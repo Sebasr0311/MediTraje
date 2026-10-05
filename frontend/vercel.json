@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://meditriaje-backend.onrender.com/api/:path*"
+      "destination": "https://meditraje.onrender.com/api/:path*"
     }
   ],
   "headers": [
