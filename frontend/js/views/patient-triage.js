@@ -547,81 +547,134 @@ async function submitTriage(container, submitBtn) {
 export function renderEmergencyView(container, resultado) {
   window.scrollTo(0, 0);
 
-  const alarmSymptomsText = resultado.sintomasAlarma && resultado.sintomasAlarma.length > 0
-    ? resultado.sintomasAlarma.join(', ')
-    : 'Signos de alarma clínica detectados';
+  // Obtener nombres legibles de los síntomas de alarma
+  const alarmSymptomItems = (resultado.sintomasAlarma && resultado.sintomasAlarma.length > 0)
+    ? resultado.sintomasAlarma.map(codigo => {
+        const fromRes = (resultado.sintomas || []).find(s => s.codigo === codigo);
+        if (fromRes && fromRes.nombre) return fromRes.nombre;
+        const fromCat = (triageState.catalog || []).find(c => c.codigo === codigo);
+        if (fromCat && fromCat.nombre) return fromCat.nombre;
+        return codigo.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+      })
+    : ['Signos de alarma clínica detectados'];
 
   container.innerHTML = `
     <div style="max-width: var(--container-narrow); margin: 0 auto; padding-top: var(--space-6); padding-bottom: var(--space-12);">
       
-      <!-- Banner de Emergencia Severa -->
-      <div class="alert alert--emergency mb-8" role="alert" style="box-shadow: var(--shadow-lg);">
-        <div class="flex items-center gap-3 mb-4">
-          <div style="background-color: var(--danger); color: #FFFFFF; border-radius: 50%; padding: 12px; display: inline-flex;">
-            ${ui.icon('alert-triangle', 'icon icon--lg')}
-          </div>
-          <div>
-            <span class="badge badge--triage-1 font-bold text-sm mb-1" style="background-color: #FFFFFF; color: var(--danger); border-color: var(--danger);">
-              Nivel I · Emergencia Médica Inmediata
+      <!-- Tarjeta Principal de Emergencia Nivel I -->
+      <div class="card mb-6" style="border: 2px solid var(--danger); border-top: 8px solid var(--danger); box-shadow: var(--shadow-xl); overflow: hidden;">
+        
+        <!-- Header de Emergencia -->
+        <div class="p-6" style="background: linear-gradient(180deg, rgba(239, 68, 68, 0.08) 0%, var(--surface) 100%); border-bottom: 1px solid var(--border-color);">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <span class="badge badge--triage-1 text-sm font-bold flex items-center gap-1" style="background-color: var(--danger); color: #FFFFFF; padding: var(--space-1) var(--space-3); border-radius: var(--radius-full);">
+              ${ui.icon('alert-triangle', 'icon icon--sm')}
+              <span>Nivel I · Emergencia Médica Inmediata</span>
             </span>
-            <h1 class="alert-title text-2xl font-bold" style="color: var(--triage-1-fg); margin: 0;">
-              Busca atención de urgencias ahora
-            </h1>
+            ${resultado.publicId ? `<span class="text-xs text-muted font-mono">ID: ${resultado.publicId.slice(0, 8)}</span>` : ''}
+          </div>
+
+          <div class="flex items-start gap-4 mt-2">
+            <div style="background-color: var(--danger); color: #FFFFFF; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);">
+              ${ui.icon('alert-triangle', 'icon icon--lg')}
+            </div>
+            <div>
+              <h1 class="text-2xl font-bold m-0" style="color: var(--danger); line-height: var(--leading-tight);">
+                Busca atención de urgencias ahora
+              </h1>
+              <p class="text-base font-medium mt-2 mb-0" style="color: var(--text); line-height: var(--leading-normal);">
+                ${resultado.mensaje || 'Llama al 123 o acude a urgencias de inmediato.'}
+              </p>
+            </div>
           </div>
         </div>
 
-        <p class="text-md mb-5" style="color: var(--triage-1-fg); line-height: var(--leading-relaxed); font-weight: var(--weight-medium);">
-          ${resultado.mensaje || 'Se han identificado síntomas que requieren evaluación médica inmediata en un centro de urgencias.'}
-        </p>
+        <div class="card-body p-6">
+          
+          <!-- Bloque de Acción Inmediata: Botón de Llamada al 123 -->
+          <div class="text-center p-6 mb-6" style="background-color: var(--surface-2); border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+            <p class="text-sm font-semibold text-text mb-3">
+              Si tú o el paciente están en peligro inminente:
+            </p>
+            <a 
+              href="tel:123" 
+              class="btn btn-danger btn--lg" 
+              id="btnEmergencyCall"
+              style="font-size: var(--text-2xl); font-weight: var(--weight-bold); padding: var(--space-4) var(--space-8); min-height: 4.2rem; width: 100%; max-width: 400px; margin: 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-3); box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.3), 0 4px 6px -4px rgba(220, 38, 38, 0.2); text-decoration: none; border-radius: var(--radius-md);"
+            >
+              ${ui.icon('phone', 'icon icon--lg')}
+              <span>Llamar al 123</span>
+            </a>
+            <p class="text-xs text-muted font-medium mt-3 mb-0">
+              Línea Única de Emergencias Nacional (Colombia) · Gratuita desde cualquier teléfono o celular
+            </p>
+          </div>
 
-        <!-- Cuadro de síntomas de alarma detectados -->
-        <div class="p-4 mb-6" style="background-color: rgba(255, 255, 255, 0.7); border-radius: var(--radius-md); border-left: 4px solid var(--danger);">
-          <span class="text-xs font-bold uppercase tracking-wider block mb-1 text-danger">Motivo de alerta:</span>
-          <p class="text-sm font-semibold m-0" style="color: var(--slate-900);">
-            ${alarmSymptomsText}
-          </p>
+          <!-- Signos de alarma clínica detectados -->
+          <div class="p-4 mb-6" style="background-color: var(--triage-1-bg); border-left: 4px solid var(--danger); border-radius: var(--radius-md);">
+            <div class="flex items-center gap-2 mb-2 text-danger font-bold text-xs uppercase tracking-wider">
+              ${ui.icon('alert-circle', 'icon icon--sm')}
+              <span>Signos de alarma clínica detectados:</span>
+            </div>
+            <div class="flex flex-wrap gap-2 mt-1">
+              ${alarmSymptomItems.map(item => `
+                <span class="badge" style="background-color: #FFFFFF; color: var(--danger); border: 1px solid var(--danger); font-weight: var(--weight-semibold); font-size: var(--text-sm); padding: var(--space-1) var(--space-3);">
+                  ${item}
+                </span>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Recomendaciones críticas de seguridad y primeros auxilios -->
+          <div class="p-5 mb-6" style="background-color: var(--surface); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-muted mb-4 flex items-center gap-2">
+              ${ui.icon('shield', 'icon icon--sm text-danger')}
+              <span>Recomendaciones inmediatas de seguridad</span>
+            </h3>
+            <div class="flex flex-col gap-3">
+              <div class="flex items-start gap-3">
+                <span style="background-color: rgba(239, 68, 68, 0.12); color: var(--danger); border-radius: var(--radius-sm); width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; flex-shrink: 0;">1</span>
+                <div>
+                  <strong class="text-sm font-semibold block text-text">No conduzcas:</strong>
+                  <span class="text-sm text-muted">No manejes ningún vehículo. Pide auxilio inmediato a un familiar, vecino o solicita una ambulancia al 123.</span>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <span style="background-color: rgba(239, 68, 68, 0.12); color: var(--danger); border-radius: var(--radius-sm); width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; flex-shrink: 0;">2</span>
+                <div>
+                  <strong class="text-sm font-semibold block text-text">Reposo absoluto:</strong>
+                  <span class="text-sm text-muted">Suspende cualquier esfuerzo físico. Mantén la calma y permanece sentado en posición erguida si sientes dolor torácico o falta de aire.</span>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <span style="background-color: rgba(239, 68, 68, 0.12); color: var(--danger); border-radius: var(--radius-sm); width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; flex-shrink: 0;">3</span>
+                <div>
+                  <strong class="text-sm font-semibold block text-text">Acude a Urgencias:</strong>
+                  <span class="text-sm text-muted">Si estás cerca de una institución hospitalaria con servicio de urgencias 24h, trasládate de inmediato acompañado.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Aviso legal obligatorio inmutable -->
+          <div class="p-4" style="background-color: var(--surface-2); border-radius: var(--radius-md); font-size: var(--text-xs); color: var(--text-muted); line-height: var(--leading-normal);">
+            <strong class="text-text block mb-1">Aviso de Orientación Asistencial:</strong>
+            <p class="m-0 mb-1">${resultado.aviso || 'Esta orientación es un prototipo, no sustituye la valoración de un profesional de la salud.'}</p>
+            <span class="font-mono text-muted" style="font-size: 11px;">Versión de reglas clínicas: ${resultado.versionReglas || 'v1-prototipo'}</span>
+          </div>
         </div>
 
-        <!-- Botón Gigante de Llamada al 123 (Sin distracciones ni agendamientos) -->
-        <div class="text-center my-6">
-          <a 
-            href="tel:123" 
-            class="btn btn-danger btn--lg" 
-            style="font-size: var(--text-2xl); font-weight: var(--weight-bold); padding: var(--space-5) var(--space-8); min-height: 4rem; width: 100%; max-width: 380px; margin: 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-3); box-shadow: var(--shadow-md); text-decoration: none;"
-            id="btnEmergencyCall"
-          >
-            ${ui.icon('phone', 'icon icon--lg')}
-            <span>Llamar al 123</span>
+        <!-- Acciones secundarias seguras -->
+        <div class="card-footer flex flex-wrap items-center justify-between gap-3 p-4" style="background-color: var(--surface-2); border-top: 1px solid var(--border-color);">
+          <a href="#/patient/dashboard" class="btn btn-secondary">
+            ${ui.icon('arrow-left')}
+            <span>Volver a mi panel</span>
           </a>
-          <span class="block text-xs mt-2 text-muted">Línea Única de Emergencias Nacional (Colombia)</span>
+
+          <a href="#/patient/triage" class="btn btn-ghost text-sm">
+            <span>Iniciar nueva consulta</span>
+          </a>
         </div>
-
-        <!-- Recomendaciones críticas de primeros auxilios -->
-        <div class="card p-4 mt-6" style="background-color: var(--surface); color: var(--text);">
-          <h3 class="text-sm font-bold uppercase tracking-wider text-danger mb-2 flex items-center gap-2">
-            ${ui.icon('shield', 'icon icon--sm text-danger')}
-            <span>Recomendaciones de seguridad inmediatas</span>
-          </h3>
-          <ul class="text-sm pl-5 mb-0" style="line-height: var(--leading-relaxed);">
-            <li><strong>No conduzcas:</strong> solicita ayuda a un familiar o llama a una ambulancia.</li>
-            <li><strong>Reposo absoluto:</strong> mantén la calma y siéntate en una posición cómoda.</li>
-            <li><strong>Acude de inmediato</strong> al servicio de urgencias hospitalario más cercano.</li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Aviso legal obligatorio inmutable -->
-      <div class="text-center text-xs text-muted mb-8" style="padding: 0 var(--space-4);">
-        <p class="m-0">${resultado.aviso || 'Esta orientación es un prototipo, no sustituye la valoración de un profesional de la salud.'}</p>
-        <span class="font-mono" style="font-size: 11px;">Versión de reglas clínicas: ${resultado.versionReglas || 'v1-prototipo'}</span>
-      </div>
-
-      <!-- Salida secundaria segura -->
-      <div class="flex justify-center">
-        <a href="#/patient/dashboard" class="btn btn-secondary">
-          ${ui.icon('arrow-left')}
-          <span>Volver al panel principal</span>
-        </a>
       </div>
     </div>
   `;
