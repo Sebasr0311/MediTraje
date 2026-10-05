@@ -581,9 +581,9 @@ function initSimulator(container) {
     }
 
     if (ctaBtn && ctaText) {
-      ctaBtn.href = auth.isAuthenticated() ? '#/triage' : '#/register';
+      ctaBtn.href = auth.isAuthenticated ? '#/triage' : '#/register';
       ctaBtn.className = 'btn btn-primary btn--sm';
-      ctaText.textContent = auth.isAuthenticated() ? 'Continuar con mi triaje' : 'Agendar cita con esta prioridad';
+      ctaText.textContent = auth.isAuthenticated ? 'Continuar con mi triaje' : 'Agendar cita con esta prioridad';
       if (ctaIcon) ctaIcon.innerHTML = ui.icon('arrow-right', 'icon icon--xs');
     }
 
