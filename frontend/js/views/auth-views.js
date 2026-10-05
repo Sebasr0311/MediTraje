@@ -377,6 +377,7 @@ export function registerView(container) {
                 <select id="regTipoDoc" class="form-select" required aria-required="true">
                   <option value="CC" selected>Cédula de Ciudadanía (CC)</option>
                   <option value="TI">Tarjeta de Identidad (TI)</option>
+                  <option value="RC">Registro Civil (RC)</option>
                   <option value="CE">Cédula de Extranjería (CE)</option>
                   <option value="PA">Pasaporte (PA)</option>
                 </select>
@@ -394,6 +395,7 @@ export function registerView(container) {
                   required 
                   aria-required="true"
                 >
+                <span class="form-help" id="numDocHelp">6 a 10 dígitos numéricos (mayores de edad ≥18 años).</span>
                 <span class="form-error" id="numDocError" style="display: none;" role="alert"></span>
               </div>
             </div>
@@ -412,6 +414,7 @@ export function registerView(container) {
                   autocomplete="given-name"
                   aria-required="true"
                 >
+                <span class="form-help" id="nombresHelp">Solo letras, tildes y espacios (2 a 60 caracteres).</span>
                 <span class="form-error" id="nombresError" style="display: none;" role="alert"></span>
               </div>
 
@@ -428,6 +431,7 @@ export function registerView(container) {
                   autocomplete="family-name"
                   aria-required="true"
                 >
+                <span class="form-help" id="apellidosHelp">Solo letras, tildes y espacios (2 a 60 caracteres).</span>
                 <span class="form-error" id="apellidosError" style="display: none;" role="alert"></span>
               </div>
             </div>
@@ -445,6 +449,7 @@ export function registerView(container) {
                   autocomplete="bday"
                   aria-required="true"
                 >
+                <span class="form-help" id="fechaNacHelp" style="color: var(--teal-700); font-weight: 500;"></span>
                 <span class="form-error" id="fechaNacError" style="display: none;" role="alert"></span>
               </div>
 
@@ -457,6 +462,7 @@ export function registerView(container) {
                   placeholder="3001234567" 
                   autocomplete="tel"
                 >
+                <span class="form-help" id="telefonoHelp">10 dígitos iniciando por 3 (ej. 3001234567) o +57.</span>
                 <span class="form-error" id="telefonoError" style="display: none;" role="alert"></span>
               </div>
             </div>
@@ -511,7 +517,24 @@ export function registerView(container) {
                   ${ui.icon('search', 'icon icon--sm')}
                 </button>
               </div>
-              <span class="form-help">Debe incluir al menos 10 caracteres.</span>
+              
+              <!-- Indicador interactivo de fortaleza y requisitos en vivo -->
+              <div id="passwordStrengthContainer" class="mt-2 mb-3" style="display: none;">
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="text-muted">Fortaleza:</span>
+                  <span id="passwordStrengthLabel" class="font-bold text-danger">Muy débil</span>
+                </div>
+                <div style="background-color: var(--border); height: 6px; border-radius: 3px; overflow: hidden;">
+                  <div id="passwordStrengthBar" style="height: 100%; width: 20%; transition: width 0.3s ease, background-color 0.3s ease; background-color: var(--danger);"></div>
+                </div>
+                <ul id="passwordRequirementsList" class="text-xs mt-2" style="list-style-type: none; padding-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                  <li id="reqLength" class="text-muted flex items-center gap-1">• Mínimo 10 caracteres</li>
+                  <li id="reqUpper" class="text-muted flex items-center gap-1">• Una letra mayúscula</li>
+                  <li id="reqLower" class="text-muted flex items-center gap-1">• Una letra minúscula</li>
+                  <li id="reqNumber" class="text-muted flex items-center gap-1">• Un número (0-9)</li>
+                  <li id="reqSymbol" class="text-muted flex items-center gap-1">• Un símbolo (!@#$...)</li>
+                </ul>
+              </div>
               <span class="form-error" id="regPasswordError" style="display: none;" role="alert"></span>
             </div>
 
@@ -589,6 +612,12 @@ export function registerView(container) {
   const fechaNac = document.getElementById('regFechaNac');
   const telefono = document.getElementById('regTelefono');
 
+  const numDocHelp = document.getElementById('numDocHelp');
+  const nombresHelp = document.getElementById('nombresHelp');
+  const apellidosHelp = document.getElementById('apellidosHelp');
+  const fechaNacHelp = document.getElementById('fechaNacHelp');
+  const telefonoHelp = document.getElementById('telefonoHelp');
+
   const numDocError = document.getElementById('numDocError');
   const nombresError = document.getElementById('nombresError');
   const apellidosError = document.getElementById('apellidosError');
@@ -600,6 +629,15 @@ export function registerView(container) {
   const password = document.getElementById('regPassword');
   const passwordConfirm = document.getElementById('regPasswordConfirm');
   const consentimiento = document.getElementById('regConsentimiento');
+
+  const strengthContainer = document.getElementById('passwordStrengthContainer');
+  const strengthLabel = document.getElementById('passwordStrengthLabel');
+  const strengthBar = document.getElementById('passwordStrengthBar');
+  const reqLength = document.getElementById('reqLength');
+  const reqUpper = document.getElementById('reqUpper');
+  const reqLower = document.getElementById('reqLower');
+  const reqNumber = document.getElementById('reqNumber');
+  const reqSymbol = document.getElementById('reqSymbol');
 
   const regEmailError = document.getElementById('regEmailError');
   const regPasswordError = document.getElementById('regPasswordError');
@@ -630,81 +668,362 @@ export function registerView(container) {
     toggleRegPass.innerHTML = ui.icon(isRegPassVisible ? 'x' : 'search', 'icon icon--sm');
   });
 
-  // Validaciones del Paso 1
-  function validateStep1() {
-    let isValid = true;
-    alertBox.innerHTML = '';
+  // =========================================================================
+  // LIVE VALIDATION — NORMA COLOMBIANA EN SALUD (MinSalud RIPS / Registraduría)
+  // =========================================================================
 
-    // Número de documento
-    numDoc.classList.remove('has-error');
-    numDoc.removeAttribute('aria-invalid');
-    numDocError.style.display = 'none';
-    if (!numDoc.value.trim()) {
-      numDoc.classList.add('has-error');
-      numDoc.setAttribute('aria-invalid', 'true');
-      numDoc.setAttribute('aria-describedby', 'numDocError');
-      numDocError.textContent = 'El número de documento es obligatorio.';
-      numDocError.style.display = 'block';
-      isValid = false;
-    } else if (numDoc.value.trim().length < 5) {
-      numDoc.classList.add('has-error');
-      numDoc.setAttribute('aria-invalid', 'true');
-      numDoc.setAttribute('aria-describedby', 'numDocError');
-      numDocError.textContent = 'El documento debe tener al menos 5 caracteres.';
-      numDocError.style.display = 'block';
-      isValid = false;
+  const DOC_RULES = {
+    CC: {
+      label: 'Cédula de Ciudadanía',
+      regex: /^\d{6,10}$/,
+      isNumeric: true,
+      minAge: 18,
+      maxAge: 125,
+      placeholder: 'Ej. 1098765432',
+      help: '6 a 10 dígitos numéricos (mayores de edad ≥18 años).',
+      errorFormat: 'La Cédula de Ciudadanía (CC) debe contener entre 6 y 10 dígitos numéricos sin letras.',
+      errorAge: (age) => `La Cédula de Ciudadanía (CC) solo es válida para personas mayores de 18 años. Edad calculada: ${age} años.`
+    },
+    TI: {
+      label: 'Tarjeta de Identidad',
+      regex: /^\d{10,11}$/,
+      isNumeric: true,
+      minAge: 7,
+      maxAge: 17,
+      placeholder: 'Ej. 1098765432',
+      help: '10 u 11 dígitos numéricos (menores entre 7 y 17 años).',
+      errorFormat: 'La Tarjeta de Identidad (TI) debe contener 10 u 11 dígitos numéricos.',
+      errorAge: (age) => `La Tarjeta de Identidad (TI) solo aplica para menores entre 7 y 17 años cumplidos. Edad calculada: ${age} años.`
+    },
+    RC: {
+      label: 'Registro Civil',
+      regex: /^\d{10,11}$/,
+      isNumeric: true,
+      minAge: 0,
+      maxAge: 6,
+      placeholder: 'Ej. 1098765432',
+      help: '10 u 11 dígitos numéricos (infantes menores de 7 años).',
+      errorFormat: 'El Registro Civil (RC) debe contener 10 u 11 dígitos numéricos.',
+      errorAge: (age) => `El Registro Civil (RC) solo aplica para infantes menores de 7 años. Edad calculada: ${age} años.`
+    },
+    CE: {
+      label: 'Cédula de Extranjería',
+      regex: /^[a-zA-Z0-9]{3,10}$/,
+      isNumeric: false,
+      minAge: 0,
+      maxAge: 125,
+      placeholder: 'Ej. E123456',
+      help: 'Alfanumérico de 3 a 10 caracteres.',
+      errorFormat: 'La Cédula de Extranjería (CE) debe contener entre 3 y 10 caracteres alfanuméricos.'
+    },
+    PA: {
+      label: 'Pasaporte',
+      regex: /^[a-zA-Z0-9]{5,20}$/,
+      isNumeric: false,
+      minAge: 0,
+      maxAge: 125,
+      placeholder: 'Ej. PA1234567',
+      help: 'Alfanumérico de 5 a 20 caracteres.',
+      errorFormat: 'El Pasaporte (PA) debe contener entre 5 y 20 caracteres alfanuméricos.'
     }
+  };
 
-    // Nombres
-    nombres.classList.remove('has-error');
-    nombres.removeAttribute('aria-invalid');
-    nombresError.style.display = 'none';
-    if (!nombres.value.trim()) {
-      nombres.classList.add('has-error');
-      nombres.setAttribute('aria-invalid', 'true');
-      nombres.setAttribute('aria-describedby', 'nombresError');
-      nombresError.textContent = 'Los nombres son obligatorios.';
-      nombresError.style.display = 'block';
-      isValid = false;
+  function calcularEdad(fechaStr) {
+    if (!fechaStr) return null;
+    const fecha = new Date(fechaStr + 'T00:00:00');
+    if (isNaN(fecha.getTime())) return null;
+    const hoy = new Date();
+    let edad = hoy.getFullYear() - fecha.getFullYear();
+    const m = hoy.getMonth() - fecha.getMonth();
+    if (m < 0 || (m === 0 && hoy.getDate() < fecha.getDate())) {
+      edad--;
     }
+    return edad;
+  }
 
-    // Apellidos
-    apellidos.classList.remove('has-error');
-    apellidos.removeAttribute('aria-invalid');
-    apellidosError.style.display = 'none';
-    if (!apellidos.value.trim()) {
-      apellidos.classList.add('has-error');
-      apellidos.setAttribute('aria-invalid', 'true');
-      apellidos.setAttribute('aria-describedby', 'apellidosError');
-      apellidosError.textContent = 'Los apellidos son obligatorios.';
-      apellidosError.style.display = 'block';
-      isValid = false;
-    }
-
-    // Fecha de nacimiento
-    fechaNac.classList.remove('has-error');
-    fechaNac.removeAttribute('aria-invalid');
-    fechaNacError.style.display = 'none';
-    if (!fechaNac.value) {
-      fechaNac.classList.add('has-error');
-      fechaNac.setAttribute('aria-invalid', 'true');
-      fechaNac.setAttribute('aria-describedby', 'fechaNacError');
-      fechaNacError.textContent = 'La fecha de nacimiento es obligatoria.';
-      fechaNacError.style.display = 'block';
-      isValid = false;
+  function setValidationStatus(inputEl, errorEl, isValid, errorMsg, helpEl, helpMsg) {
+    if (isValid) {
+      inputEl.classList.remove('has-error', 'form-input--error');
+      inputEl.removeAttribute('aria-invalid');
+      if (inputEl.value && inputEl.value.trim()) {
+        inputEl.classList.add('has-success', 'form-input--success');
+      } else {
+        inputEl.classList.remove('has-success', 'form-input--success');
+      }
+      if (errorEl) {
+        errorEl.style.display = 'none';
+        errorEl.textContent = '';
+      }
+      if (helpEl && helpMsg !== undefined) {
+        helpEl.textContent = helpMsg;
+      }
     } else {
-      const selected = new Date(fechaNac.value);
-      const today = new Date();
-      if (selected >= today) {
-        fechaNac.classList.add('has-error');
-        fechaNac.setAttribute('aria-invalid', 'true');
-        fechaNac.setAttribute('aria-describedby', 'fechaNacError');
-        fechaNacError.textContent = 'La fecha de nacimiento no puede ser futura.';
-        fechaNacError.style.display = 'block';
-        isValid = false;
+      inputEl.classList.remove('has-success', 'form-input--success');
+      inputEl.classList.add('has-error', 'form-input--error');
+      inputEl.setAttribute('aria-invalid', 'true');
+      if (errorEl) {
+        inputEl.setAttribute('aria-describedby', errorEl.id);
+        errorEl.textContent = errorMsg;
+        errorEl.style.display = 'block';
+      }
+      if (helpEl && helpMsg !== undefined) {
+        helpEl.textContent = helpMsg;
+      }
+    }
+    return isValid;
+  }
+
+  function validateNumDoc(isLive = false) {
+    const rule = DOC_RULES[tipoDoc.value] || DOC_RULES.CC;
+    const val = numDoc.value.trim();
+    if (!val) {
+      if (!isLive) {
+        return setValidationStatus(numDoc, numDocError, false, 'El número de documento es obligatorio.', numDocHelp, rule.help);
+      }
+      return setValidationStatus(numDoc, numDocError, true, '', numDocHelp, rule.help);
+    }
+    if (rule.isNumeric && !/^\d+$/.test(val)) {
+      return setValidationStatus(numDoc, numDocError, false, rule.errorFormat, numDocHelp, rule.help);
+    }
+    if (!rule.regex.test(val)) {
+      return setValidationStatus(numDoc, numDocError, false, rule.errorFormat, numDocHelp, rule.help);
+    }
+    return setValidationStatus(numDoc, numDocError, true, '', numDocHelp, rule.help);
+  }
+
+  function validateNombres(isLive = false) {
+    const val = nombres.value.trim();
+    if (!val) {
+      if (!isLive) {
+        return setValidationStatus(nombres, nombresError, false, 'Los nombres son obligatorios.');
+      }
+      return setValidationStatus(nombres, nombresError, true, '');
+    }
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,60}$/.test(val)) {
+      return setValidationStatus(nombres, nombresError, false, 'Los nombres solo pueden contener letras, espacios, guiones y tildes (2 a 60 caracteres).');
+    }
+    return setValidationStatus(nombres, nombresError, true, '');
+  }
+
+  function validateApellidos(isLive = false) {
+    const val = apellidos.value.trim();
+    if (!val) {
+      if (!isLive) {
+        return setValidationStatus(apellidos, apellidosError, false, 'Los apellidos son obligatorios.');
+      }
+      return setValidationStatus(apellidos, apellidosError, true, '');
+    }
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,60}$/.test(val)) {
+      return setValidationStatus(apellidos, apellidosError, false, 'Los apellidos solo pueden contener letras, espacios, guiones y tildes (2 a 60 caracteres).');
+    }
+    return setValidationStatus(apellidos, apellidosError, true, '');
+  }
+
+  function validateFechaNac(isLive = false) {
+    const val = fechaNac.value;
+    const rule = DOC_RULES[tipoDoc.value] || DOC_RULES.CC;
+    if (!val) {
+      if (fechaNacHelp) fechaNacHelp.textContent = '';
+      if (!isLive) {
+        return setValidationStatus(fechaNac, fechaNacError, false, 'La fecha de nacimiento es obligatoria.');
+      }
+      return setValidationStatus(fechaNac, fechaNacError, true, '');
+    }
+    const edad = calcularEdad(val);
+    const selectedDate = new Date(val + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (isNaN(selectedDate.getTime()) || selectedDate >= today || (edad !== null && edad < 0)) {
+      return setValidationStatus(fechaNac, fechaNacError, false, 'La fecha de nacimiento no puede ser futura ni el día de hoy.', fechaNacHelp, '');
+    }
+    if (edad > 125) {
+      return setValidationStatus(fechaNac, fechaNacError, false, 'La fecha de nacimiento no es válida (edad superior a 125 años).', fechaNacHelp, '');
+    }
+    if (edad < rule.minAge || (rule.maxAge && edad > rule.maxAge)) {
+      const msg = (typeof rule.errorAge === 'function') ? rule.errorAge(edad) : `Edad (${edad} años) fuera de rango para ${rule.label}.`;
+      return setValidationStatus(fechaNac, fechaNacError, false, msg, fechaNacHelp, '');
+    }
+    return setValidationStatus(fechaNac, fechaNacError, true, '', fechaNacHelp, `✓ Edad calculada: ${edad} años (${rule.label}).`);
+  }
+
+  function validateTelefono(isLive = false) {
+    const raw = telefono.value.trim();
+    if (!raw) {
+      return setValidationStatus(telefono, telefonoError, true, '', telefonoHelp, '10 dígitos iniciando por 3 (ej. 3001234567) o +57.');
+    }
+    const clean = raw.replace(/\s+/g, '');
+    if (!/^(\+57)?3[0-9]{9}$/.test(clean)) {
+      return setValidationStatus(telefono, telefonoError, false, 'El celular debe tener 10 dígitos e iniciar por 3 (ej. 3001234567) o prefijo +57.', telefonoHelp, '');
+    }
+    return setValidationStatus(telefono, telefonoError, true, '', telefonoHelp, '✓ Celular colombiano válido.');
+  }
+
+  function validateEmail(isLive = false) {
+    const val = email.value.trim();
+    if (!val) {
+      if (!isLive) {
+        return setValidationStatus(email, regEmailError, false, 'El correo electrónico es obligatorio.');
+      }
+      return setValidationStatus(email, regEmailError, true, '');
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      return setValidationStatus(email, regEmailError, false, 'Ingresa un formato de correo electrónico válido (ej. usuario@correo.com).');
+    }
+    return setValidationStatus(email, regEmailError, true, '');
+  }
+
+  function validatePassword(isLive = false) {
+    const val = password.value;
+    if (!val) {
+      if (strengthContainer) strengthContainer.style.display = 'none';
+      if (!isLive) {
+        return setValidationStatus(password, regPasswordError, false, 'La contraseña es obligatoria.');
+      }
+      return setValidationStatus(password, regPasswordError, true, '');
+    }
+
+    if (strengthContainer) strengthContainer.style.display = 'block';
+
+    const reqs = {
+      len: val.length >= 10,
+      upper: /[A-Z]/.test(val),
+      lower: /[a-z]/.test(val),
+      num: /[0-9]/.test(val),
+      sym: /[^a-zA-Z0-9]/.test(val)
+    };
+
+    const updateReqItem = (el, passed, text) => {
+      if (!el) return;
+      if (passed) {
+        el.className = 'text-success font-semibold flex items-center gap-1';
+        el.textContent = '✓ ' + text;
+      } else {
+        el.className = 'text-muted flex items-center gap-1';
+        el.textContent = '• ' + text;
+      }
+    };
+
+    updateReqItem(reqLength, reqs.len, 'Mínimo 10 caracteres');
+    updateReqItem(reqUpper, reqs.upper, 'Una letra mayúscula');
+    updateReqItem(reqLower, reqs.lower, 'Una letra minúscula');
+    updateReqItem(reqNumber, reqs.num, 'Un número (0-9)');
+    updateReqItem(reqSymbol, reqs.sym, 'Un símbolo (!@#$...)');
+
+    const score = Object.values(reqs).filter(Boolean).length;
+    if (strengthBar && strengthLabel) {
+      if (score <= 2) {
+        strengthBar.style.width = '25%';
+        strengthBar.style.backgroundColor = 'var(--danger)';
+        strengthLabel.textContent = 'Débil';
+        strengthLabel.className = 'font-bold text-danger';
+      } else if (score <= 4) {
+        strengthBar.style.width = '65%';
+        strengthBar.style.backgroundColor = 'var(--warning)';
+        strengthLabel.textContent = 'Media';
+        strengthLabel.className = 'font-bold text-warning';
+      } else {
+        strengthBar.style.width = '100%';
+        strengthBar.style.backgroundColor = 'var(--success)';
+        strengthLabel.textContent = 'Fuerte';
+        strengthLabel.className = 'font-bold text-success';
       }
     }
 
+    if (!reqs.len) {
+      return setValidationStatus(password, regPasswordError, false, 'La contraseña debe tener al menos 10 caracteres.');
+    }
+    if (score < 4) {
+      return setValidationStatus(password, regPasswordError, false, 'La contraseña debe combinar mayúsculas, minúsculas, números y símbolos.');
+    }
+    return setValidationStatus(password, regPasswordError, true, '');
+  }
+
+  function validatePasswordConfirm(isLive = false) {
+    const val = passwordConfirm.value;
+    const pwd = password.value;
+    if (!val) {
+      if (!isLive) {
+        return setValidationStatus(passwordConfirm, regPasswordConfirmError, false, 'Debes confirmar tu contraseña.');
+      }
+      return setValidationStatus(passwordConfirm, regPasswordConfirmError, true, '');
+    }
+    if (val !== pwd) {
+      return setValidationStatus(passwordConfirm, regPasswordConfirmError, false, 'Las contraseñas no coinciden.');
+    }
+    return setValidationStatus(passwordConfirm, regPasswordConfirmError, true, '');
+  }
+
+  function validateConsentimiento(isLive = false) {
+    if (!consentimiento.checked) {
+      if (!isLive) {
+        consentimientoError.textContent = 'Debes aceptar los términos y tratamiento de datos para registrarte.';
+        consentimientoError.style.display = 'block';
+      }
+      return false;
+    }
+    consentimientoError.style.display = 'none';
+    consentimientoError.textContent = '';
+    return true;
+  }
+
+  // --- Listeners de Live Validation en Paso 1 ---
+  tipoDoc.addEventListener('change', () => {
+    const rule = DOC_RULES[tipoDoc.value] || DOC_RULES.CC;
+    numDoc.placeholder = rule.placeholder;
+    if (numDocHelp) numDocHelp.textContent = rule.help;
+    validateNumDoc(true);
+    validateFechaNac(true);
+  });
+
+  numDoc.addEventListener('input', () => validateNumDoc(true));
+  numDoc.addEventListener('blur', () => validateNumDoc(false));
+
+  nombres.addEventListener('input', () => validateNombres(true));
+  nombres.addEventListener('blur', () => validateNombres(false));
+
+  apellidos.addEventListener('input', () => validateApellidos(true));
+  apellidos.addEventListener('blur', () => validateApellidos(false));
+
+  fechaNac.addEventListener('input', () => validateFechaNac(true));
+  fechaNac.addEventListener('change', () => validateFechaNac(true));
+  fechaNac.addEventListener('blur', () => validateFechaNac(false));
+
+  telefono.addEventListener('input', () => validateTelefono(true));
+  telefono.addEventListener('blur', () => validateTelefono(false));
+
+  // --- Listeners de Live Validation en Paso 2 ---
+  email.addEventListener('input', () => validateEmail(true));
+  email.addEventListener('blur', () => validateEmail(false));
+
+  password.addEventListener('input', () => {
+    validatePassword(true);
+    if (passwordConfirm.value) validatePasswordConfirm(true);
+  });
+  password.addEventListener('blur', () => validatePassword(false));
+
+  passwordConfirm.addEventListener('input', () => validatePasswordConfirm(true));
+  passwordConfirm.addEventListener('blur', () => validatePasswordConfirm(false));
+
+  consentimiento.addEventListener('change', () => validateConsentimiento(true));
+
+  // Validación completa del Paso 1 para avanzar
+  function validateStep1() {
+    alertBox.innerHTML = '';
+    const v1 = validateNumDoc(false);
+    const v2 = validateNombres(false);
+    const v3 = validateApellidos(false);
+    const v4 = validateFechaNac(false);
+    const v5 = validateTelefono(false);
+
+    const isValid = v1 && v2 && v3 && v4 && v5;
+    if (!isValid) {
+      if (!v1) numDoc.focus();
+      else if (!v2) nombres.focus();
+      else if (!v3) apellidos.focus();
+      else if (!v4) fechaNac.focus();
+      else if (!v5) telefono.focus();
+    }
     return isValid;
   }
 
@@ -745,67 +1064,18 @@ export function registerView(container) {
       return;
     }
 
-    let isValidStep2 = true;
+    const vEmail = validateEmail(false);
+    const vPass = validatePassword(false);
+    const vPassConf = validatePasswordConfirm(false);
+    const vCons = validateConsentimiento(false);
 
-    // Email
-    regEmailError.style.display = 'none';
-    email.classList.remove('has-error');
-    if (!email.value.trim()) {
-      email.classList.add('has-error');
-      email.setAttribute('aria-invalid', 'true');
-      email.setAttribute('aria-describedby', 'regEmailError');
-      regEmailError.textContent = 'El correo electrónico es obligatorio.';
-      regEmailError.style.display = 'block';
-      isValidStep2 = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
-      email.classList.add('has-error');
-      email.setAttribute('aria-invalid', 'true');
-      email.setAttribute('aria-describedby', 'regEmailError');
-      regEmailError.textContent = 'Formato de correo inválido.';
-      regEmailError.style.display = 'block';
-      isValidStep2 = false;
+    if (!vEmail || !vPass || !vPassConf || !vCons) {
+      if (!vEmail) email.focus();
+      else if (!vPass) password.focus();
+      else if (!vPassConf) passwordConfirm.focus();
+      else if (!vCons) consentimiento.focus();
+      return;
     }
-
-    // Contraseña
-    regPasswordError.style.display = 'none';
-    password.classList.remove('has-error');
-    if (!password.value) {
-      password.classList.add('has-error');
-      password.setAttribute('aria-invalid', 'true');
-      password.setAttribute('aria-describedby', 'regPasswordError');
-      regPasswordError.textContent = 'La contraseña es obligatoria.';
-      regPasswordError.style.display = 'block';
-      isValidStep2 = false;
-    } else if (password.value.length < 10) {
-      password.classList.add('has-error');
-      password.setAttribute('aria-invalid', 'true');
-      password.setAttribute('aria-describedby', 'regPasswordError');
-      regPasswordError.textContent = 'La contraseña debe tener al menos 10 caracteres.';
-      regPasswordError.style.display = 'block';
-      isValidStep2 = false;
-    }
-
-    // Confirmación de contraseña
-    regPasswordConfirmError.style.display = 'none';
-    passwordConfirm.classList.remove('has-error');
-    if (password.value && password.value !== passwordConfirm.value) {
-      passwordConfirm.classList.add('has-error');
-      passwordConfirm.setAttribute('aria-invalid', 'true');
-      passwordConfirm.setAttribute('aria-describedby', 'regPasswordConfirmError');
-      regPasswordConfirmError.textContent = 'Las contraseñas no coinciden.';
-      regPasswordConfirmError.style.display = 'block';
-      isValidStep2 = false;
-    }
-
-    // Consentimiento informado no premarcado
-    consentimientoError.style.display = 'none';
-    if (!consentimiento.checked) {
-      consentimientoError.textContent = 'Debes aceptar los términos y tratamiento de datos para registrarte.';
-      consentimientoError.style.display = 'block';
-      isValidStep2 = false;
-    }
-
-    if (!isValidStep2) return;
 
     ui.setButtonLoading(btnSubmit, true);
 
@@ -904,22 +1174,44 @@ export function forgotPasswordView(container) {
 
     setTimeout(() => emailInput?.focus(), 150);
 
-    form?.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    const validateEmail = (isLive = false) => {
+      const email = emailInput.value.trim();
       emailError.style.display = 'none';
       emailError.textContent = '';
-      alertBox.innerHTML = '';
-      emailInput.classList.remove('has-error');
+      emailInput.classList.remove('has-error', 'has-success', 'form-input--success');
 
-      const email = emailInput.value.trim();
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (!email) {
+        if (!isLive) {
+          emailInput.classList.add('has-error');
+          emailError.textContent = 'El correo electrónico es obligatorio.';
+          emailError.style.display = 'block';
+          return false;
+        }
+        return true;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         emailInput.classList.add('has-error');
         emailError.textContent = 'Ingresa un correo electrónico válido.';
         emailError.style.display = 'block';
+        return false;
+      }
+      emailInput.classList.add('has-success', 'form-input--success');
+      return true;
+    };
+
+    emailInput?.addEventListener('input', () => validateEmail(true));
+    emailInput?.addEventListener('blur', () => validateEmail(false));
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      alertBox.innerHTML = '';
+
+      if (!validateEmail(false)) {
         emailInput.focus();
         return;
       }
 
+      const email = emailInput.value.trim();
       userEmail = email;
       ui.setButtonLoading(btnSubmit, true);
 
@@ -982,6 +1274,7 @@ export function forgotPasswordView(container) {
                 autocomplete="one-time-code"
                 style="font-size: 1.5rem; letter-spacing: 0.25em; max-width: 200px; margin: 0 auto; display: block;"
               >
+              <span class="form-help text-xs" id="otpHelp">Ingresa los 6 números del correo</span>
               <span class="form-error text-center mt-1" id="otpError" style="display: none;" role="alert"></span>
             </div>
 
@@ -1010,8 +1303,25 @@ export function forgotPasswordView(container) {
                   ${ui.icon('search', 'icon icon--sm')}
                 </button>
               </div>
+
+              <!-- Medidor de fortaleza interactivo -->
+              <div id="resetStrengthContainer" class="mt-2 mb-3" style="display: none;">
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="text-muted">Fortaleza:</span>
+                  <span id="resetStrengthLabel" class="font-bold text-danger">Débil</span>
+                </div>
+                <div style="background-color: var(--border); height: 6px; border-radius: 3px; overflow: hidden;">
+                  <div id="resetStrengthBar" style="height: 100%; width: 20%; transition: width 0.3s ease, background-color 0.3s ease; background-color: var(--danger);"></div>
+                </div>
+                <ul id="resetReqList" class="text-xs mt-2" style="list-style-type: none; padding-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                  <li id="resetReqLength" class="text-muted flex items-center gap-1">• Mínimo 10 caracteres</li>
+                  <li id="resetReqUpper" class="text-muted flex items-center gap-1">• Una letra mayúscula</li>
+                  <li id="resetReqLower" class="text-muted flex items-center gap-1">• Una letra minúscula</li>
+                  <li id="resetReqNumber" class="text-muted flex items-center gap-1">• Un número (0-9)</li>
+                  <li id="resetReqSymbol" class="text-muted flex items-center gap-1">• Un símbolo (!@#$...)</li>
+                </ul>
+              </div>
               <span class="form-error" id="resetPasswordError" style="display: none;" role="alert"></span>
-              <p class="text-xs text-muted mt-1">Mínimo 10 caracteres, combinando mayúsculas, minúsculas, números y símbolos.</p>
             </div>
 
             <div class="form-group mb-4">
@@ -1055,6 +1365,7 @@ export function forgotPasswordView(container) {
 
     const form = container.querySelector('#formResetPassword');
     const otpInput = container.querySelector('#resetOtpCode');
+    const otpHelp = container.querySelector('#otpHelp');
     const confirmInput = container.querySelector('#resetPasswordConfirm');
     const otpError = container.querySelector('#otpError');
     const passError = container.querySelector('#resetPasswordError');
@@ -1062,50 +1373,193 @@ export function forgotPasswordView(container) {
     const alertBox = container.querySelector('#resetAlertContainer');
     const btnSubmit = container.querySelector('#btnResetSubmit');
 
+    // Elementos del medidor
+    const strengthContainer = container.querySelector('#resetStrengthContainer');
+    const strengthBar = container.querySelector('#resetStrengthBar');
+    const strengthLabel = container.querySelector('#resetStrengthLabel');
+    const reqLength = container.querySelector('#resetReqLength');
+    const reqUpper = container.querySelector('#resetReqUpper');
+    const reqLower = container.querySelector('#resetReqLower');
+    const reqNumber = container.querySelector('#resetReqNumber');
+    const reqSymbol = container.querySelector('#resetReqSymbol');
+
     setTimeout(() => otpInput?.focus(), 150);
 
-    form?.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    const validateOtp = (isLive = false) => {
+      // Filtrar no numéricos y limitar a 6 dígitos en tiempo real
+      otpInput.value = otpInput.value.replace(/\D/g, '').slice(0, 6);
+      const val = otpInput.value;
       otpError.style.display = 'none';
-      passError.style.display = 'none';
-      confirmError.style.display = 'none';
-      alertBox.innerHTML = '';
-      otpInput.classList.remove('has-error');
-      passInput.classList.remove('has-error');
-      confirmInput.classList.remove('has-error');
+      otpError.textContent = '';
+      otpInput.classList.remove('has-error', 'has-success', 'form-input--success');
 
-      const otp = otpInput.value.trim();
-      const pass = passInput.value;
-      const confirm = confirmInput.value;
-      let hasError = false;
-
-      if (!otp || !/^[0-9]{6}$/.test(otp)) {
-        otpInput.classList.add('has-error');
-        otpError.textContent = 'El código debe tener 6 dígitos numéricos.';
-        otpError.style.display = 'block';
-        hasError = true;
+      if (!val) {
+        if (otpHelp) otpHelp.textContent = 'Ingresa los 6 números del correo';
+        if (!isLive) {
+          otpInput.classList.add('has-error');
+          otpError.textContent = 'El código OTP es obligatorio.';
+          otpError.style.display = 'block';
+          return false;
+        }
+        return true;
       }
 
-      if (!pass || pass.length < 10) {
+      if (val.length < 6) {
+        if (otpHelp) otpHelp.textContent = `${val.length}/6 dígitos ingresados`;
+        if (!isLive) {
+          otpInput.classList.add('has-error');
+          otpError.textContent = 'El código debe tener exactamente 6 dígitos numéricos.';
+          otpError.style.display = 'block';
+          return false;
+        }
+        return true;
+      }
+
+      otpInput.classList.add('has-success', 'form-input--success');
+      if (otpHelp) otpHelp.textContent = '✓ Código de 6 dígitos completado.';
+      return true;
+    };
+
+    const validatePassword = (isLive = false) => {
+      const val = passInput.value;
+      passError.style.display = 'none';
+      passError.textContent = '';
+      passInput.classList.remove('has-error', 'has-success', 'form-input--success');
+
+      if (!val) {
+        if (strengthContainer) strengthContainer.style.display = 'none';
+        if (!isLive) {
+          passInput.classList.add('has-error');
+          passError.textContent = 'La nueva contraseña es obligatoria.';
+          passError.style.display = 'block';
+          return false;
+        }
+        return true;
+      }
+
+      if (strengthContainer) strengthContainer.style.display = 'block';
+
+      const reqs = {
+        len: val.length >= 10,
+        upper: /[A-Z]/.test(val),
+        lower: /[a-z]/.test(val),
+        num: /[0-9]/.test(val),
+        sym: /[^a-zA-Z0-9]/.test(val)
+      };
+
+      const updateReqItem = (el, passed, text) => {
+        if (!el) return;
+        if (passed) {
+          el.className = 'text-success font-semibold flex items-center gap-1';
+          el.textContent = '✓ ' + text;
+        } else {
+          el.className = 'text-muted flex items-center gap-1';
+          el.textContent = '• ' + text;
+        }
+      };
+
+      updateReqItem(reqLength, reqs.len, 'Mínimo 10 caracteres');
+      updateReqItem(reqUpper, reqs.upper, 'Una letra mayúscula');
+      updateReqItem(reqLower, reqs.lower, 'Una letra minúscula');
+      updateReqItem(reqNumber, reqs.num, 'Un número (0-9)');
+      updateReqItem(reqSymbol, reqs.sym, 'Un símbolo (!@#$...)');
+
+      const score = Object.values(reqs).filter(Boolean).length;
+      if (strengthBar && strengthLabel) {
+        if (score <= 2) {
+          strengthBar.style.width = '25%';
+          strengthBar.style.backgroundColor = 'var(--danger)';
+          strengthLabel.textContent = 'Débil';
+          strengthLabel.className = 'font-bold text-danger';
+        } else if (score <= 4) {
+          strengthBar.style.width = '65%';
+          strengthBar.style.backgroundColor = 'var(--warning)';
+          strengthLabel.textContent = 'Media';
+          strengthLabel.className = 'font-bold text-warning';
+        } else {
+          strengthBar.style.width = '100%';
+          strengthBar.style.backgroundColor = 'var(--success)';
+          strengthLabel.textContent = 'Fuerte';
+          strengthLabel.className = 'font-bold text-success';
+        }
+      }
+
+      if (!reqs.len) {
         passInput.classList.add('has-error');
         passError.textContent = 'La contraseña debe tener al menos 10 caracteres.';
         passError.style.display = 'block';
-        hasError = true;
+        return false;
+      }
+      if (score < 4) {
+        passInput.classList.add('has-error');
+        passError.textContent = 'La contraseña debe combinar mayúsculas, minúsculas, números y símbolos.';
+        passError.style.display = 'block';
+        return false;
       }
 
-      if (pass !== confirm) {
+      passInput.classList.add('has-success', 'form-input--success');
+      return true;
+    };
+
+    const validateConfirm = (isLive = false) => {
+      const pass = passInput.value;
+      const conf = confirmInput.value;
+      confirmError.style.display = 'none';
+      confirmError.textContent = '';
+      confirmInput.classList.remove('has-error', 'has-success', 'form-input--success');
+
+      if (!conf) {
+        if (!isLive) {
+          confirmInput.classList.add('has-error');
+          confirmError.textContent = 'Debes confirmar la nueva contraseña.';
+          confirmError.style.display = 'block';
+          return false;
+        }
+        return true;
+      }
+
+      if (conf !== pass) {
         confirmInput.classList.add('has-error');
         confirmError.textContent = 'Las contraseñas no coinciden.';
         confirmError.style.display = 'block';
-        hasError = true;
+        return false;
       }
 
-      if (hasError) return;
+      confirmInput.classList.add('has-success', 'form-input--success');
+      return true;
+    };
+
+    otpInput.addEventListener('input', () => validateOtp(true));
+    otpInput.addEventListener('blur', () => validateOtp(false));
+
+    passInput.addEventListener('input', () => {
+      validatePassword(true);
+      if (confirmInput.value) validateConfirm(true);
+    });
+    passInput.addEventListener('blur', () => validatePassword(false));
+
+    confirmInput.addEventListener('input', () => validateConfirm(true));
+    confirmInput.addEventListener('blur', () => validateConfirm(false));
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      alertBox.innerHTML = '';
+
+      const vOtp = validateOtp(false);
+      const vPass = validatePassword(false);
+      const vConf = validateConfirm(false);
+
+      if (!vOtp || !vPass || !vConf) {
+        if (!vOtp) otpInput.focus();
+        else if (!vPass) passInput.focus();
+        else confirmInput.focus();
+        return;
+      }
 
       ui.setButtonLoading(btnSubmit, true);
 
       try {
-        await auth.resetPassword(userEmail, otp, pass);
+        await auth.resetPassword(userEmail, otpInput.value.trim(), passInput.value);
         renderSuccess();
       } catch (err) {
         ui.setButtonLoading(btnSubmit, false);

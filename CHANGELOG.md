@@ -8,6 +8,33 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Validación según Norma Colombiana de Salud, Live Validation y Brevo SMTP Relay (F2.8, HU-01, ADR-014)**:
+  - Backend — Validación estricta según normativa colombiana de salud (MinSalud RIPS / Registraduría / Ley 1581 de 2012 / Resoluciones 3374 y 2275 de 2023):
+    - Utilidad pura `NormaColombianaValidator` con cálculo cronológico de edad exacta en `America/Bogota` y coherencia estricta con tipo de documento:
+      - `CC` (Cédula de Ciudadanía): obligatorio mayor de edad ($\ge 18$ años), 6 a 10 dígitos numéricos.
+      - `TI` (Tarjeta de Identidad): obligatorio menor entre 7 y 17 años inclusive, 10 u 11 dígitos numéricos.
+      - `RC` (Registro Civil): obligatorio primera infancia (0 a 6 años inclusive), 10 u 11 dígitos numéricos.
+      - `CE` (Cédula de Extranjería): 3 a 10 caracteres alfanuméricos.
+      - `PA` (Pasaporte): 5 a 20 caracteres alfanuméricos.
+      - Celular colombiano: exactamente 10 dígitos iniciando en 3 (`^(\+57)?3[0-9]{9}$`).
+      - Nombres y apellidos: alfabéticos en español con soporte de tildes, diéresis, ñ y apóstrofes (`^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,60}$`), rechazando números o símbolos especiales.
+    - Integración en `AuthService` para registro de pacientes y en `AdminProfessionalService` para alta de profesionales asistenciales.
+    - 54 pruebas unitarias exhaustivas con `@ParameterizedTest` en `NormaColombianaValidatorTest`.
+  - Backend — Integración Brevo SMTP Relay (`spring-boot-starter-mail`):
+    - Configuración en `application.yml` para `smtp-relay.brevo.com:587` con STARTTLS y soporte de variables de entorno (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_FROM_NAME`, `app.frontend-url`).
+    - Plantilla HTML responsiva `templates/email/bienvenida-credenciales.html` con branding institucional, credenciales temporales generadas con Argon2id y advertencia de cambio obligatorio en el primer inicio de sesión.
+    - Despacho automático de credenciales en `DefaultEmailService` con manejo resiliente y no bloqueante de excepciones SMTP.
+  - Frontend — Live Validation interactiva en tiempo real y Sanitización:
+    - En `frontend/js/views/auth-views.js`:
+      - Matriz de reglas `DOC_RULES` por documento con actualización reactiva de placeholders, textos de ayuda y límites de edad.
+      - Validación reactiva cruzada entre documento y fecha de nacimiento en eventos `input`, `change` y `blur`, con cálculo automático de edad en años.
+      - Medidor visual interactivo de fortaleza de contraseña con barra de progreso y checklist dinámico de 5 requisitos (longitud $\ge 10$, mayúscula, minúscula, número, símbolo).
+      - En recuperación de contraseña (`forgotPasswordView`): sanitizador numérico automático de OTP en evento `input` (`\D` $\rightarrow$ vacío, máximo 6 dígitos), medidor de fortaleza en la nueva contraseña y validación en vivo de confirmación.
+    - En `frontend/js/views/admin-views.js`:
+      - Live validation de nombres y apellidos bajo norma colombiana y formato de correo electrónico institucional en el formulario de alta de profesional.
+      - Notificación en modal informando el despacho automático de credenciales a la cuenta de correo registrada mediante Brevo SMTP.
+    - En `frontend/css/components.css`: clases de estado accesibles `.has-error`, `.has-success` y `.form-input--success`.
+  - Suite de pruebas de regresión e integración: 801 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores).
 - **Visor de Auditoría de Seguridad y Exportación de Reportes (F2.7, RF-26, RF-30, RNF-11, ADR-019)**:
   - Formalización y aprobación de **ADR-019** en `docs/DECISIONES.md`: consulta administrativa supervisada de la bitácora inmutable `AUDITORIA` con cero exposición de datos clínicos confidenciales (ADR-007) y exportación client-side de métricas operativas en CSV estructurado con BOM UTF-8.
   - Repositorio y Servicio de Auditoría (`AuditoriaRepository`, `AuditoriaService`):

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Credenciales de Acceso — MediTriaje 2.0</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #f8fafc;
+      padding: 40px 16px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 580px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+    .header {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      padding: 32px 24px;
+      text-align: center;
+      color: #ffffff;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      margin: 6px 0 0 0;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .content {
+      padding: 36px 32px;
+    }
+    .greeting {
+      font-size: 18px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    .message {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #475569;
+      margin-bottom: 24px;
+    }
+    .credentials-card {
+      background-color: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .credential-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .credential-row:last-child {
+      margin-bottom: 0;
+    }
+    .credential-label {
+      color: #64748b;
+      font-weight: 500;
+    }
+    .credential-value {
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .password-badge {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: #0369a1;
+      background-color: #e0f2fe;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #bae6fd;
+      letter-spacing: 0.5px;
+      display: inline-block;
+    }
+    .security-notice {
+      background-color: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 14px 16px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 28px;
+      font-size: 13px;
+      color: #92400e;
+      line-height: 1.5;
+    }
+    .btn-container {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #0284c7;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      padding: 14px 28px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);
+    }
+    .footer {
+      background-color: #f8fafc;
+      padding: 24px;
+      text-align: center;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <h1>MediTriaje 2.0</h1>
+        <p>Plataforma de Orientación Clínica y Gestión Asistencial</p>
+      </div>
+      <div class="content">
+        <h2 class="greeting">¡Hola, {{nombre}}!</h2>
+        <p class="message">
+          Te damos la bienvenida a la plataforma institucional de <strong>MediTriaje 2.0</strong>. Tu cuenta ha sido habilitada exitosamente con el perfil <strong>{{rol}}</strong>.
+        </p>
+
+        <div class="credentials-card">
+          <div class="credential-row">
+            <span class="credential-label">Correo institucional:</span>
+            <span class="credential-value">{{email}}</span>
+          </div>
+          <div class="credential-row" style="margin-top: 14px; align-items: center;">
+            <span class="credential-label">Contraseña temporal:</span>
+            <span class="password-badge">{{passwordTemporal}}</span>
+          </div>
+        </div>
+
+        <div class="security-notice">
+          <strong>Aviso obligatorio de seguridad:</strong><br>
+          Esta contraseña es provisoria y de un único uso. Al iniciar sesión por primera vez, el sistema te solicitará obligatoriamente definir una nueva contraseña personalizada de alta seguridad (mínimo 10 caracteres).
+        </div>
+
+        <div class="btn-container">
+          <a href="{{enlaceLogin}}" class="btn" target="_blank" rel="noopener noreferrer">Iniciar Sesión</a>
+        </div>
+
+        <p class="message" style="font-size: 13px; color: #64748b; margin-bottom: 0;">
+          Si no reconoces esta solicitud o experimentas problemas de acceso, por favor comunícate de inmediato con la administración del centro asistencial.
+        </p>
+      </div>
+      <div class="footer">
+        <p style="margin: 0 0 6px 0;">MediTriaje 2.0 — Sistema de Triaje y Gestión Clínica conforme a la norma colombiana de salud (Ley 1581 de 2012).</p>
+        <p style="margin: 0;">Este mensaje se generó automáticamente a través de la pasarela segura Brevo SMTP. Por favor no respondas a este correo.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -15,6 +15,7 @@ import com.meditriaje.model.Usuario;
 import com.meditriaje.repository.EspecialidadRepository;
 import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.UsuarioRepository;
+import com.meditriaje.service.email.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,6 +58,9 @@ class AdminProfessionalServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private EmailService emailService;
+
     private AdminProfessionalService service;
 
     private static final String ADMIN_PUBLIC_ID = "admin-uuid-1";
@@ -70,7 +74,8 @@ class AdminProfessionalServiceTest {
                 usuarioRepository,
                 especialidadRepository,
                 auditoriaService,
-                passwordEncoder
+                passwordEncoder,
+                emailService
         );
     }
 
@@ -133,6 +138,27 @@ class AdminProfessionalServiceTest {
                 eq(ResultadoAuditoria.EXITO),
                 eq(IP_ORIGEN)
         );
+        verify(emailService).enviarCredencialesIniciales(
+                eq("carlos.perez@hospital.com"),
+                eq("Carlos Perez"),
+                eq("Profesional Asistencial (Medicina Interna)"),
+                eq(resp.passwordTemporal())
+        );
+    }
+
+    @Test
+    void altaProfesional_conNombresInvalidos_lanzaDatosInvalidosException() {
+        CrearProfesionalRequest req = new CrearProfesionalRequest(
+                "RM-12345",
+                "Carlos123",
+                "Perez",
+                "carlos.perez@hospital.com",
+                "esp-med-int"
+        );
+
+        assertThatThrownBy(() -> service.altaProfesional(req, ADMIN_PUBLIC_ID, IP_ORIGEN))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("solo puede contener letras, espacios, tildes y guiones");
     }
 
     @Test

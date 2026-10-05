@@ -227,14 +227,28 @@
 
 .form-input--error,
 .form-select--error,
-.form-textarea--error {
+.form-textarea--error,
+.has-error {
   border-color: var(--danger) !important;
 }
 
 .form-input--error:focus,
 .form-select--error:focus,
-.form-textarea--error:focus {
+.form-textarea--error:focus,
+.has-error:focus {
   box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.2) !important;
+}
+
+.form-input--success,
+.form-select--success,
+.has-success {
+  border-color: var(--success) !important;
+}
+
+.form-input--success:focus,
+.form-select--success:focus,
+.has-success:focus {
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.2) !important;
 }
 
 .form-help {
