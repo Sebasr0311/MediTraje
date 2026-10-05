@@ -37,4 +37,17 @@ class DatabaseUrlSanitizerEnvironmentPostProcessorTest {
 
         assertThat(environment.getProperty("DB_URL")).isEqualTo(cleanUrl);
     }
+
+    @Test
+    @DisplayName("Debe sanitizar URL con comillas envolventes y saltos de linea")
+    void debeSanitizarUrlConComillasYSaltos() {
+        MockEnvironment environment = new MockEnvironment();
+        String dirtyUrl = "\"jdbc:oracle:thin:@(description=(host=adb\n.sa-bogota-1.oraclecloud.com))\"";
+        environment.setProperty("DB_URL", dirtyUrl);
+
+        processor.postProcessEnvironment(environment, null);
+
+        String cleanUrl = "jdbc:oracle:thin:@(description=(host=adb.sa-bogota-1.oraclecloud.com))";
+        assertThat(environment.getProperty("DB_URL")).isEqualTo(cleanUrl);
+    }
 }

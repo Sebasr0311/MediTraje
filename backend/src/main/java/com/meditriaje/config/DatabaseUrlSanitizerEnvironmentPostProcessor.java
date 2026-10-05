@@ -37,7 +37,7 @@ public class DatabaseUrlSanitizerEnvironmentPostProcessor implements Environment
         for (String key : URL_KEYS) {
             String value = environment.getProperty(key);
             if (value != null && !value.isBlank()) {
-                String sanitized = value.replaceAll("\\s+", "");
+                String sanitized = value.replaceAll("\\s+", "").replaceAll("^[\"']+|[\"']+$", "");
                 if (!sanitized.equals(value)) {
                     log.info("Sanitizando propiedad '{}': removidos saltos de línea o espacios accidentales.", key);
                     sanitizedProps.put(key, sanitized);
@@ -50,7 +50,7 @@ public class DatabaseUrlSanitizerEnvironmentPostProcessor implements Environment
         if (activeDbUrl == null) {
             String rawDbUrl = environment.getProperty("DB_URL");
             if (rawDbUrl != null && !rawDbUrl.isBlank()) {
-                activeDbUrl = rawDbUrl.replaceAll("\\s+", "");
+                activeDbUrl = rawDbUrl.replaceAll("\\s+", "").replaceAll("^[\"']+|[\"']+$", "");
             }
         }
         if (activeDbUrl != null && !activeDbUrl.isBlank()) {
