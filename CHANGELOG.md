@@ -17,6 +17,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
     - **Administrador (`ROLE_ADMINISTRADOR`)**: asistencia operativa para reportes (`#/admin/reports`), talento humano ReTHUS (`#/admin/professionals`), turnos (`#/admin/slots`) y pistas de auditoría (`#/admin/audit`), eliminando enlaces a flujos exclusivos de pacientes.
     - **Profesional (`ROLE_PROFESIONAL`)**: guía para agenda médica (`#/professional/agenda`), atención clínica CIE-10 y protocolo Break-Glass.
     - **Detección de emergencia 123**: activa y prioritaria de forma infalible en todos los roles y modos.
+- **Keep-Alive y Endpoints de Salud Pública (Integración UptimeRobot & Render)**:
+  - Expansión de `PingController` para atender peticiones `GET` y `HEAD` en `/api/v1/ping`, `/ping`, `/health` y `/` con respuesta inmediata `200 OK` (`status: UP`).
+  - Configuración en `SecurityConfig` de `/`, `/ping`, `/health` como rutas públicas (`permitAll()`), permitiendo a monitores como UptimeRobot mantener activo el servicio gratuito de Render 24/7 sin autenticación ni cold starts.
 - **Rutas de Reportes, Auditoría y Asistente en Admin (Error 404 por duplicación `/api/v1`)**:
   - Implementación defensiva en `frontend/js/api.js` con método `buildUrl(endpoint)` que deduplica cualquier prefijo redundante `/api/v1` entre la URL base y las rutas de vista.
   - Normalización de rutas en `admin-reports.js` (`/admin/reports/operational`), `admin-audit.js` (`/admin/audit`) y `system-assistant-widget.js` (`/assistant/chat`).
