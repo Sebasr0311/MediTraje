@@ -8,6 +8,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Rediseño Profesional del Landing Page (Estándar Radix UI / shadcn/ui & WCAG 2.1 AA)**:
+  - Hero interactivo de alto impacto visual con pill badge animado, tipografía escalonada con `gradient-text`, micro-trust bar asistencial y mockup flotante con simulación en tiempo real (triaje de paciente, pulso de vida activo en agendamiento y receta electrónica inmutable sellada).
+  - Bento Grid responsivo (1 columna en móvil, 2 en tablet, 3 en desktop) destacando los 6 pilares del sistema (corte 123, citas en tiempo real, historia clínica inmutable ADR-007, receta electrónica, ficha de emergencia QR y protocolo Break-Glass).
+  - Tarjetas Bento de métricas cuantitativas clave (42 reglas asistenciales, 5 niveles de triaje, 100% registros inmutables, 0 colisiones en agendamiento).
+  - Demostrador interactivo client-side del motor de triaje con activación instantánea del corte de emergencia (Nivel I rojo) ante banderas rojas de riesgo vital y cálculo reactivo de niveles II al V según intensidad y duración.
+  - Acordeón de Preguntas Frecuentes (FAQ) accesible basado en `<details>` y `<summary>` semánticos con microinteracciones y rotación de chevron sin dependencias JS externas.
+  - Footer profesional de 4 columnas (Plataforma, Normativa & Salud, Proyecto Académico, Legal & Privacidad).
+  - Corrección en `frontend/js/router.js` para soporte de anclajes internos `#id` con scroll suave nativo sin colisión con las rutas del hash router.
 - **Validación según Norma Colombiana de Salud, Live Validation y Brevo SMTP Relay (F2.8, HU-01, ADR-014)**:
   - Backend — Validación estricta según normativa colombiana de salud (MinSalud RIPS / Registraduría / Ley 1581 de 2012 / Resoluciones 3374 y 2275 de 2023):
     - Utilidad pura `NormaColombianaValidator` con cálculo cronológico de edad exacta en `America/Bogota` y coherencia estricta con tipo de documento:

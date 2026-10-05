@@ -96,6 +96,12 @@ class Router {
     }
 
     if (!matchedRoute) {
+      const anchorId = rawHash.replace(/^\//, '');
+      const targetEl = document.getElementById(anchorId);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
       if (this.notFoundHandler) {
         await this.notFoundHandler(this.appContainer, { path });
       }
