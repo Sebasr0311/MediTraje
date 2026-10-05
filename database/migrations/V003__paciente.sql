@@ -25,8 +25,7 @@ CREATE TABLE PACIENTE (
     CONSTRAINT FK_PACIENTE_USUARIO FOREIGN KEY (USUARIO_ID) REFERENCES USUARIO(ID),
     CONSTRAINT CK_PACIENTE_TIPO_DOC CHECK (TIPO_DOCUMENTO IN ('CC', 'TI', 'RC', 'CE', 'PA'))
 );
-
-CREATE INDEX IX_PACIENTE_USUARIO ON PACIENTE (USUARIO_ID);
+-- Nota: USUARIO_ID ya está indexado automáticamente por UQ_PACIENTE_USUARIO.
 
 -- -----------------------------------------------------------------------------
 -- Concesión de privilegios mínimos a MEDITRIAJE_APP (ADR-012)
