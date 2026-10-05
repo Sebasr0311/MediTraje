@@ -49,4 +49,25 @@ class PingControllerTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Content-Security-Policy",
                         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none';"));
     }
+
+    @Test
+    @DisplayName("GET /ping y GET /health deben retornar status UP sin autenticación")
+    void shouldReturnUpOnShortHealthRoutes() throws Exception {
+        mockMvc.perform(get("/ping"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+
+        mockMvc.perform(get("/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
+    }
+
+    @Test
+    @DisplayName("GET / debe retornar status UP e información de servicio")
+    void shouldReturnUpOnRootRoute() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.service").value("MediTriaje 2.0 API"));
+    }
 }
