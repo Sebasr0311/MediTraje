@@ -1,5 +1,6 @@
 package com.meditriaje.service.email;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,17 +10,22 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
- * Implementación principal de EmailService con soporte para Brevo SMTP y almacenamiento en buffer de auditoría.
- * Si JavaMailSender está configurado, despacha los mensajes por SMTP (STARTTLS 587); en caso de indisponibilidad
- * de red o falta de credenciales, registra el correo en buffer sin abortar las transacciones de negocio.
+ * Implementación principal de EmailService con soporte dual para Brevo HTTP API (vía BREVO_API_KEY),
+ * Brevo SMTP (vía JavaMailSender) y almacenamiento en buffer de auditoría para resiliencia.
  */
 @Service
 public class DefaultEmailService implements EmailService {
@@ -33,6 +39,8 @@ public class DefaultEmailService implements EmailService {
     private final String mailFrom;
     private final String mailFromName;
     private final String frontendUrl;
+    private final String brevoApiKey;
+    private final ObjectMapper objectMapper;
 
     private final ConcurrentLinkedDeque<CorreoEnviado> bufferCorreos = new ConcurrentLinkedDeque<>();
 
@@ -40,19 +48,27 @@ public class DefaultEmailService implements EmailService {
     public DefaultEmailService(
             EmailTemplateService templateService,
             @Autowired(required = false) JavaMailSender javaMailSender,
-            @Value("${mail.from:no-reply@meditriaje.com}") String mailFrom,
-            @Value("${mail.from-name:MediTriaje 2.0}") String mailFromName,
-            @Value("${app.frontend-url:http://localhost:5500}") String frontendUrl
+            @Value("${mail.from:${SMTP_FROM:${BREVO_SENDER_EMAIL:no-reply@meditriaje.com}}}") String mailFrom,
+            @Value("${mail.from-name:${SMTP_FROM_NAME:MediTriaje 2.0}}") String mailFromName,
+            @Value("${app.frontend-url:http://localhost:5500}") String frontendUrl,
+            @Value("${mail.brevo-api-key:${BREVO_API_KEY:}}") String brevoApiKey,
+            @Autowired(required = false) ObjectMapper objectMapper
     ) {
         this.templateService = Objects.requireNonNull(templateService, "templateService no puede ser nulo");
         this.javaMailSender = javaMailSender;
         this.mailFrom = (mailFrom != null && !mailFrom.isBlank()) ? mailFrom : "no-reply@meditriaje.com";
         this.mailFromName = (mailFromName != null && !mailFromName.isBlank()) ? mailFromName : "MediTriaje 2.0";
         this.frontendUrl = (frontendUrl != null && !frontendUrl.isBlank()) ? frontendUrl : "http://localhost:5500";
+        this.brevoApiKey = (brevoApiKey != null && !brevoApiKey.isBlank()) ? brevoApiKey.trim() : null;
+        this.objectMapper = (objectMapper != null) ? objectMapper : new ObjectMapper();
+    }
+
+    public DefaultEmailService(EmailTemplateService templateService, JavaMailSender javaMailSender, String mailFrom, String mailFromName, String frontendUrl) {
+        this(templateService, javaMailSender, mailFrom, mailFromName, frontendUrl, null, null);
     }
 
     public DefaultEmailService(EmailTemplateService templateService) {
-        this(templateService, null, "no-reply@meditriaje.com", "MediTriaje 2.0", "http://localhost:5500");
+        this(templateService, null, "no-reply@meditriaje.com", "MediTriaje 2.0", "http://localhost:5500", null, null);
     }
 
     @Override
@@ -69,7 +85,12 @@ public class DefaultEmailService implements EmailService {
             bufferCorreos.removeLast();
         }
 
-        // Si JavaMailSender está disponible, despachar vía Brevo SMTP
+        // 1. Intentar primero vía Brevo HTTP API si BREVO_API_KEY está provista
+        if (despacharViaBrevoHttp(destinatarioEmail, asunto, cuerpoHtml)) {
+            return;
+        }
+
+        // 2. Si no o si falla, despachar vía Brevo SMTP si JavaMailSender está configurado
         if (javaMailSender != null) {
             try {
                 MimeMessage mimeMessage = javaMailSender.createMimeMessage();
@@ -87,8 +108,54 @@ public class DefaultEmailService implements EmailService {
                         destinatarioEmail, asunto, e.getMessage());
             }
         } else {
-            log.info("JavaMailSender no activo. Correo simulado almacenado en buffer para destinatario [{}], asunto: [{}]",
+            log.info("JavaMailSender y Brevo API Key inactivos. Correo simulado almacenado en buffer para destinatario [{}], asunto: [{}]",
                     destinatarioEmail, asunto);
+        }
+    }
+
+    private boolean despacharViaBrevoHttp(String destinatarioEmail, String asunto, String cuerpoHtml) {
+        if (brevoApiKey == null || brevoApiKey.isBlank()) {
+            return false;
+        }
+
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+            Map<String, Object> payloadMap = Map.of(
+                    "sender", Map.of("name", mailFromName, "email", mailFrom),
+                    "to", List.of(Map.of("email", destinatarioEmail)),
+                    "subject", asunto,
+                    "htmlContent", cuerpoHtml
+            );
+
+            String payloadJson = (objectMapper != null)
+                    ? objectMapper.writeValueAsString(payloadMap)
+                    : new ObjectMapper().writeValueAsString(payloadMap);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
+                    .header("api-key", brevoApiKey)
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(payloadJson, StandardCharsets.UTF_8))
+                    .timeout(Duration.ofSeconds(10))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                log.info("Correo despachado exitosamente vía Brevo HTTP API hacia [{}] con asunto [{}]", destinatarioEmail, asunto);
+                return true;
+            } else {
+                log.warn("Brevo HTTP API devolvió código [{}] al enviar correo hacia [{}]: {}. Nota: Verifique que el remitente [{}] esté validado en su cuenta de Brevo.",
+                        response.statusCode(), destinatarioEmail, response.body(), mailFrom);
+                return false;
+            }
+        } catch (Exception e) {
+            log.warn("Falla de conexión al despachar vía Brevo HTTP API hacia [{}]: {}", destinatarioEmail, e.getMessage());
+            return false;
         }
     }
 
