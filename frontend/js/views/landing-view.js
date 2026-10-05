@@ -24,7 +24,12 @@ export async function landingView(container) {
   }
 
   container.innerHTML = `
-    <div class="landing-hero">
+    <div class="landing-ambient-wrapper">
+      <div class="ambient-glow ambient-glow--teal"></div>
+      <div class="ambient-glow ambient-glow--cyan"></div>
+      <div class="ambient-glow ambient-glow--emerald"></div>
+
+      <div class="landing-hero">
       <!-- 1. Hero Badge Pill (shadcn style) -->
       <button type="button" id="btnScrollSim1" class="hero-badge" aria-label="Ir al simulador de triaje en vivo">
         <span style="color: var(--primary); display: inline-flex;">${ui.icon('sparkles', 'icon icon--xs')}</span>
@@ -85,7 +90,7 @@ export async function landingView(container) {
         </span>
       </div>
 
-      <!-- 5. Mockup Dashboard Preview Card (shadcn visual style) -->
+      <!-- 5. Mockup Dashboard Preview Card (Glassmorphism & 3D Visual Showcase) -->
       <div class="hero-preview-window">
         <div class="window-header">
           <div class="window-dots">
@@ -103,51 +108,66 @@ export async function landingView(container) {
         </div>
 
         <div style="padding: var(--space-6);">
-          <div class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4" style="border-bottom: 1px solid var(--border);">
+          <div class="grid grid-cols-1 grid-cols-2-lg gap-6 items-center">
+            <!-- Left: 3D Hero Triage Visual with Frosted Badges -->
+            <div class="hero-showcase-visual">
+              <div class="hero-visual-badge hero-visual-badge--top">
+                <span style="color: var(--teal-600); display: inline-flex;">${ui.icon('activity', 'icon icon--xs')}</span>
+                <span>Motor Puro Determinista</span>
+              </div>
+              <img src="assets/images/hero-triage-3d.jpg" alt="Demostración 3D del motor de triaje clínico inteligente de MediTriaje" loading="eager" width="600" height="380">
+              <div class="hero-visual-badge hero-visual-badge--bottom">
+                <span style="color: var(--danger); display: inline-flex;">${ui.icon('alert-triangle', 'icon icon--xs')}</span>
+                <span>Corte 123 Activo</span>
+              </div>
+            </div>
+
+            <!-- Right: Live Interactive Patient Flow -->
             <div>
-              <div class="text-xs text-muted uppercase font-bold tracking-wider mb-1">Paciente Asistencial</div>
-              <div class="text-lg font-bold">Ana Sofía Morales Gómez</div>
-              <div class="text-xs text-muted">CC 1.065.432.890 · IPS MediSalud Valledupar</div>
-            </div>
-            <div class="flex gap-2">
-              <span class="badge" style="background: var(--triage-2-bg); color: var(--triage-2-fg); border: 1px solid var(--triage-2-bd);">
-                Nivel II · Muy urgente (Naranja)
-              </span>
-              <span class="badge badge--confirmed">
-                ${ui.icon('check', 'icon icon--xs')} Cita Confirmada
-              </span>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 grid-cols-3-md gap-4">
-            <div class="card" style="padding: var(--space-4); background-color: var(--surface-2);">
-              <div class="text-xs text-muted font-bold uppercase mb-2 flex items-center gap-2">
-                ${ui.icon('activity', 'icon icon--sm text-primary')}
-                <span>1. Orientación de Triaje</span>
+              <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3" style="border-bottom: 1px solid var(--border);">
+                <div>
+                  <div class="text-xs text-muted uppercase font-bold tracking-wider mb-1">Paciente Asistencial</div>
+                  <div class="text-lg font-bold">Ana Sofía Morales Gómez</div>
+                  <div class="text-xs text-muted">CC 1.065.432.890 · IPS MediSalud Valledupar</div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <span class="badge" style="background: var(--triage-2-bg); color: var(--triage-2-fg); border: 1px solid var(--triage-2-bd);">
+                    Nivel II · Muy urgente
+                  </span>
+                  <span class="badge badge--confirmed">
+                    ${ui.icon('check', 'icon icon--xs')} Cita Confirmada
+                  </span>
+                </div>
               </div>
-              <div class="font-semibold text-sm mb-1">Fiebre persistente e insuficiencia leve</div>
-              <div class="text-xs text-muted mb-2">Duración: 24 horas · Intensidad: 7/10</div>
-              <div class="text-xs font-medium text-warning">Ruta: Atención Prioritaria Inmediata</div>
-            </div>
 
-            <div class="card" style="padding: var(--space-4); background-color: var(--surface-2);">
-              <div class="text-xs text-muted font-bold uppercase mb-2 flex items-center gap-2">
-                ${ui.icon('calendar', 'icon icon--sm text-primary')}
-                <span>2. Asignación de Turno</span>
-              </div>
-              <div class="font-semibold text-sm mb-1">Dr. Carlos Alberto Mendoza</div>
-              <div class="text-xs text-muted mb-2">Medicina General · Sede Centro</div>
-              <div class="text-xs font-semibold text-success">Mañana a las 08:30 AM (Presencial)</div>
-            </div>
+              <div class="flex flex-col gap-3">
+                <div class="card" style="padding: var(--space-3) var(--space-4); background-color: var(--glass-bg-subtle); border: 1px solid var(--glass-border-subtle);">
+                  <div class="text-xs text-muted font-bold uppercase mb-1 flex items-center gap-2">
+                    ${ui.icon('activity', 'icon icon--xs text-primary')}
+                    <span>1. Orientación de Triaje</span>
+                  </div>
+                  <div class="font-semibold text-xs mb-1">Fiebre persistente e insuficiencia leve (7/10)</div>
+                  <div class="text-xs font-medium text-warning">Ruta: Atención Prioritaria Inmediata</div>
+                </div>
 
-            <div class="card" style="padding: var(--space-4); background-color: var(--surface-2);">
-              <div class="text-xs text-muted font-bold uppercase mb-2 flex items-center gap-2">
-                ${ui.icon('pill', 'icon icon--sm text-primary')}
-                <span>3. Receta Digital Sellada</span>
+                <div class="card" style="padding: var(--space-3) var(--space-4); background-color: var(--glass-bg-subtle); border: 1px solid var(--glass-border-subtle);">
+                  <div class="text-xs text-muted font-bold uppercase mb-1 flex items-center gap-2">
+                    ${ui.icon('calendar', 'icon icon--xs text-primary')}
+                    <span>2. Asignación de Turno</span>
+                  </div>
+                  <div class="font-semibold text-xs mb-1">Dr. Carlos Alberto Mendoza · Med. General</div>
+                  <div class="text-xs font-semibold text-success">Mañana a las 08:30 AM (Presencial)</div>
+                </div>
+
+                <div class="card" style="padding: var(--space-3) var(--space-4); background-color: var(--glass-bg-subtle); border: 1px solid var(--glass-border-subtle);">
+                  <div class="text-xs text-muted font-bold uppercase mb-1 flex items-center gap-2">
+                    ${ui.icon('pill', 'icon icon--xs text-primary')}
+                    <span>3. Receta Digital Sellada</span>
+                  </div>
+                  <div class="font-semibold text-xs mb-1">Amoxicilina 500mg cápsulas (#21)</div>
+                  <div class="text-xs font-medium text-primary">Snapshot farmacológico inmutable</div>
+                </div>
               </div>
-              <div class="font-semibold text-sm mb-1">Amoxicilina 500mg cápsulas</div>
-              <div class="text-xs text-muted mb-2">1 cápsula cada 8h por 7 días (#21)</div>
-              <div class="text-xs font-medium text-primary">Snapshot farmacológico inmutable</div>
             </div>
           </div>
         </div>
@@ -301,6 +321,46 @@ export async function landingView(container) {
         </div>
       </div>
     </section>
+
+    <!-- 7.5. Spotlight Banner: Prescripción Digital Sellada & Ficha QR (3D Glassmorphism) -->
+    <div class="card bento-card--spotlight mb-16" style="padding: var(--space-8); border-radius: var(--radius-xl);">
+      <div class="grid grid-cols-1 grid-cols-2-lg gap-8 items-center">
+        <div>
+          <span class="badge badge--confirmed mb-3">Farmacia &amp; Trazabilidad Criptográfica</span>
+          <h3 class="text-2xl font-bold mb-3">Recetas Digitales con Snapshot Farmacológico</h3>
+          <p class="text-muted text-sm mb-4" style="line-height: 1.6;">
+            En MediTriaje 2.0, una receta médica emitida congela de manera inmutable el principio activo, concentración y posología del medicamento (ADR-007 / ADR-008). Además, cada paciente cuenta con su <strong>Ficha de Emergencia con Código QR</strong> accesible en situaciones críticas para socorristas y paramédicos.
+          </p>
+          <div class="flex flex-col gap-2 text-xs">
+            <div class="flex items-center gap-2 font-medium">
+              ${ui.icon('check', 'icon icon--xs text-success')}
+              <span>Sello digital inmutable y firma del profesional tratante</span>
+            </div>
+            <div class="flex items-center gap-2 font-medium">
+              ${ui.icon('check', 'icon icon--xs text-success')}
+              <span>Dispensación segura en farmacia sin discrepancias históricas</span>
+            </div>
+            <div class="flex items-center gap-2 font-medium">
+              ${ui.icon('check', 'icon icon--xs text-success')}
+              <span>Ficha médica de emergencia con token temporal y grupo sanguíneo</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="hero-showcase-visual">
+            <div class="hero-visual-badge hero-visual-badge--top">
+              <span style="color: var(--success); display: inline-flex;">${ui.icon('shield', 'icon icon--xs')}</span>
+              <span>Prescripción Criptográfica</span>
+            </div>
+            <img src="assets/images/prescription-record-3d.jpg" alt="Prescripción médica digital y carné de emergencia QR 3D" loading="lazy" width="600" height="380">
+            <div class="hero-visual-badge hero-visual-badge--bottom">
+              <span style="color: var(--primary); display: inline-flex;">${ui.icon('lock', 'icon icon--xs')}</span>
+              <span>ADR-007 Inmutable</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 8. Simulador Interactivo de Triaje en Vivo -->
     <section id="demo-simulador" class="mb-16 scroll-mt-8">
@@ -528,6 +588,7 @@ export async function landingView(container) {
         </div>
       </div>
     </footer>
+    </div>
   `;
 
   // 12. Lógica Interactiva del Simulador de Triaje
