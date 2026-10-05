@@ -5,9 +5,12 @@
  */
 
 import { api } from '../api.js';
+import { auth } from '../auth.js';
 import { router } from '../router.js';
+import { ui, esc } from '../ui.js';
 import { showMfaModal } from './mfa-setup-modal.js';
 import { showBreakGlassModal } from './break-glass-modal.js';
+import { showChangePasswordModal } from './change-password-modal.js';
 
 const ESTADOS = [
   { value: '', label: 'Todos los estados' },
@@ -51,15 +54,36 @@ function statusBadge(estado) {
 
 export async function professionalAgendaView(container) {
   const state = { fecha: todayBogota(), estado: '' };
+  const debeCambiarPass = Boolean(auth.user?.debeCambiarPassword);
 
   container.innerHTML = `
     <div style="max-width: var(--container); margin: 0 auto; padding-bottom: var(--space-12);">
+      ${debeCambiarPass ? `
+        <div class="alert alert--warning mb-6 flex flex-wrap items-center justify-between gap-3" role="alert">
+          <div class="flex items-center gap-3">
+            ${ui.icon('alert-triangle', 'icon alert-icon text-warning')}
+            <div>
+              <strong class="block">Contraseña temporal activa</strong>
+              <span class="text-sm">Por tu seguridad institucional, debes actualizar la contraseña temporal entregada por el administrador.</span>
+            </div>
+          </div>
+          <button type="button" id="btnBannerCambiarPass" class="btn btn-warning btn--sm">
+            ${ui.icon('lock')}
+            <span>Actualizar contraseña ahora</span>
+          </button>
+        </div>
+      ` : ''}
+
       <div class="mb-6 flex justify-between items-center flex-wrap gap-4">
         <div>
           <h1 class="text-2xl font-bold mb-1">Agenda del día</h1>
           <p class="text-sm text-muted m-0">Tus citas asignadas en orden cronológico</p>
         </div>
         <div class="flex items-center gap-2">
+          <button type="button" id="btnCambiarPassword" class="btn btn-secondary btn--sm" title="Actualizar contraseña de acceso">
+            ${ui.icon('lock', 'icon icon--sm')}
+            <span>Contraseña</span>
+          </button>
           <button type="button" id="btnBreakGlass" class="btn btn-secondary btn--sm" title="Activar acceso clínico de emergencia ante urgencias vitales (ADR-017)">
             ${ui.icon('alert-triangle', 'icon icon--sm text-danger')}
             <span>Acceso Emergencia</span>
@@ -196,6 +220,12 @@ export async function professionalAgendaView(container) {
   });
   container.querySelector('#btnConfigurarMfa')?.addEventListener('click', () => {
     showMfaModal();
+  });
+  container.querySelector('#btnCambiarPassword')?.addEventListener('click', () => {
+    showChangePasswordModal({ isMandatory: false });
+  });
+  container.querySelector('#btnBannerCambiarPass')?.addEventListener('click', () => {
+    showChangePasswordModal({ isMandatory: true });
   });
 
   await load();
