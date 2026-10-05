@@ -27,6 +27,30 @@ spring:
       connection-timeout: 30000
       initialization-fail-timeout: -1
 
+  mail:
+    host: ${SMTP_HOST:smtp-relay.brevo.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+mail:
+  from: ${SMTP_FROM:no-reply@meditriaje.com}
+  from-name: ${SMTP_FROM_NAME:MediTriaje 2.0}
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:5500}
+
 server:
   port: ${PORT:${SERVER_PORT:8080}}
   servlet:

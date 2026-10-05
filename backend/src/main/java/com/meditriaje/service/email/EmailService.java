@@ -23,4 +23,14 @@ public interface EmailService {
      * @param minutosExpiracion  Tiempo de validez en minutos
      */
     void enviarCodigoRecuperacion(String destinatarioEmail, String destinatarioNombre, String codigo, int minutosExpiracion);
+
+    /**
+     * Envía las credenciales iniciales de acceso para un usuario o profesional recién creado.
+     *
+     * @param destinatarioEmail  Correo del destinatario
+     * @param destinatarioNombre Nombre del destinatario
+     * @param rol                Rol asignado
+     * @param passwordTemporal   Contraseña temporal generada
+     */
+    void enviarCredencialesIniciales(String destinatarioEmail, String destinatarioNombre, String rol, String passwordTemporal);
 }

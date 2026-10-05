@@ -4,10 +4,10 @@
 > **Al empezar una sesión:** léelo. **Al terminar cada tarea:** actualízalo (marca la tarea, anota decisiones y pendientes, agrega una línea a la bitácora).
 
 ## Estado actual
-- **Fase actual:** Fase 2 — Extensiones y Robustecimiento (Módulo F2.7 completado)
-- **Tarea actual:** F2.7.5 — Pruebas, Colección HTTP y Cierre F2.7
-- **Última etiqueta:** v1.7-auditoria-reportes
-- **Rama de trabajo:** feature/f2.7-auditoria-reportes (lista para merge a develop)
+- **Fase actual:** Fase 2 — Extensiones y Robustecimiento (Módulo F2.8 completado)
+- **Tarea actual:** F2.8 — Validación Norma Colombiana, Live Validation y Brevo SMTP
+- **Última etiqueta:** v1.8-norma-colombiana-brevo
+- **Rama de trabajo:** feature/f2.8-norma-colombiana-brevo (lista para merge a develop)
 
 ## Tareas
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
@@ -133,6 +133,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] F2.7.4 Frontend: Exportación a CSV y Pantalla del Visor de Auditoría
 - [x] F2.7.5 Pruebas, Colección HTTP y Cierre F2.7
 
+### F2.8 — Validación según Norma Colombiana de Salud, Live Validation y Brevo SMTP
+- [x] F2.8.1 Validación estricta según norma colombiana (MinSalud / Registraduría / Ley 1581 de 2012 / Res. 3374 y 2275 de 2023)
+- [x] F2.8.2 Live Validation reactiva en frontend por campo e interacción cruzada (documento vs edad, celular, medidor interactivo de contraseña)
+- [x] F2.8.3 Conexión SMTP Relay con Brevo (spring-boot-starter-mail, envío de credenciales iniciales, recuperación por código OTP de 6 dígitos)
+- [x] F2.8.4 Verificación exhaustiva con 801 pruebas unitarias y de integración pasando al 100%
+
 
 ## Decisiones tomadas durante el desarrollo
 (Fecha · decisión · motivo · ADR afectado)
@@ -248,7 +254,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · F2.6.2-F2.6.4 · Modelos, repositorio, servicios y controladores REST de reportes y asistente (ADR-018, RF-27, RF-30): DTOs inmutables para reportes (citas, triaje, farmacia, break-glass) y asistente (pregunta, respuesta, sugerencias); Repositorio ReporteRepository con JdbcTemplate y SQL parametrizado para agregaciones matemáticas anónimas (COUNT, SUM, GROUP BY); Servicio ReporteService con validación de rangos temporales en America/Bogota y auditoría inmutable CONSULTA_REPORTE_ADMINISTRATIVO; Servicio AssistantService con normalización de texto, detección infalible de emergencias médicas vitales (123 / urgencias), motor temático y disclaimer legal; controladores AdminReportController (/api/v1/admin/reports/** con ROLE_ADMINISTRADOR) y AssistantController (/api/v1/assistant/chat con acceso universal en SecurityConfig); 36 pruebas automatizadas nuevas elevando la suite completa a 729 pruebas pasando al 100%. · feat(reports): repositorio de metricas servicio analitico y asistente virtual (F2.6.2-F2.6.4)
 - 2026-10-04 · F2.6.5 · Frontend: Dashboard analítico de reportes y widget flotante del asistente virtual (ADR-018, RF-27, RF-30): vista analítica frontend/js/views/admin-reports.js integrada en panel administrativo (#/admin/reports) con filtros temporales, atajos rápidos, tarjetas KPI de citas, triajes, farmacia y break-glass, barras de progreso y listas de distribución por especialidad y sede; widget interactivo flotante frontend/js/views/system-assistant-widget.js con botón flotante (#assistant-fab), panel desplegable (#assistant-panel), chips de sugerencia rápida, renderizado reactivo con indicador de tipeo, botones de acción SPA y destacado de emergencia al 123; integrado globalmente en app.js; sintaxis limpia con node --check. · feat(frontend): dashboard analitico de reportes y widget de asistente virtual (F2.6.5)
 - 2026-10-04 · F2.6.6 · Colección HTTP y Cierre F2.6 (ADR-018, RF-27, RF-30): creación de docs/api/F2.6.http con 5 secciones y 14 escenarios de prueba cubriendo healthcheck, login multirol, consultas de reportes operativos globales y con filtros temporales, aislamiento 403 para pacientes y médicos, validación de fechas invertidas (400), consultas temáticas al asistente virtual (citas, triaje, farmacia, QR), corte infalible de emergencia médica vital con llamado prioritario al 123, validación de mensaje vacío (400) y acceso sin autenticación previa; verificación completa de la suite Maven con 729 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.6. · test(api): coleccion f2.6.http y verificacion integral de asistente y reportes (F2.6.6)
-- 2026-10-04 · F2.7.2-F2.7.5 · Visor de Auditoría de Seguridad y Exportación de Reportes (RF-26, RF-30, RNF-11, ADR-019): DTO inmutable RegistroAuditoriaResponse con cero datos clínicos (ADR-007); AuditoriaRepository con métodos listarEventos y contarEventos con SQL parametrizado y paginación OFFSET ? ROWS FETCH NEXT ? ROWS ONLY manteniendo inmutabilidad estricta (insert-only); AuditoriaService con consultarBitacora y validación de rango de fechas en America/Bogota; AdminAuditController en /api/v1/admin/audit con @PreAuthorize("hasAuthority('ROLE_ADMINISTRADOR')"), 403 Forbidden para pacientes y médicos, 401 Unauthorized sin sesión y 400 Bad Request ante fechas invertidas; Frontend con botón de exportación CSV con BOM UTF-8 en admin-reports.js, nueva vista reactiva admin-audit.js (#/admin/audit) con filtros combinados, tabla con badges y paginador accesible, e integración en admin-views.js y app.js; colección docs/api/F2.7.http con 5 secciones y 9 escenarios; verificación de la suite Maven con 740 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.7. · test(api): coleccion f2.7.http y verificacion integral de auditoria y exportacion (F2.7.5)
+- 2026-10-04 · F2.8 · Validación según Norma Colombiana de Salud, Live Validation y Brevo SMTP Relay (HU-01, ADR-014): clase pura de utilidad NormaColombianaValidator (CC >= 18 años, TI 7-17 años, RC 0-6 años, CE 3-10 alfanuméricos, PA 5-20 alfanuméricos, celular colombiano ^(\+57)?3[0-9]{9}$, nombres/apellidos alfabéticos en español); integración en AuthService y AdminProfessionalService; inclusión de spring-boot-starter-mail y configuración application.yml para smtp-relay.brevo.com:587 con STARTTLS; plantilla HTML institucional bienvenida-credenciales.html para entrega automática de credenciales iniciales con aviso de cambio obligatorio; DefaultEmailService con despacho resiliente no bloqueante ante caídas de SMTP; Frontend con live validation interactiva en tiempo real en auth-views.js (DOC_RULES, cálculo reactivo de edad, medidor de fortaleza con checklist de 5 requisitos, sanitización numérica de OTP de 6 dígitos en forgotPasswordView) y admin-views.js (validación de nombres y aviso Brevo); 61 pruebas unitarias nuevas elevando la suite completa a 801 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.8. · feat(auth): validaciones norma colombiana, live validation y brevo smtp (HU-01, ADR-014)
+
 
 
 

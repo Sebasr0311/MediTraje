@@ -254,6 +254,94 @@ class AuthServiceTest {
         );
     }
 
+    @Test
+    void registrarPaciente_cedulaConMenorDeEdad_lanzaExcepcionYAuditaFallo() {
+        // Paciente con 16 años intentando registrarse con Cédula de Ciudadanía
+        RegistroPacienteRequest req = new RegistroPacienteRequest(
+                "CC", "1020304050", "Carlos", "Perez",
+                LocalDate.now().minusYears(16), "3001234567", "carlos.perez@example.com",
+                "Segura12345*", "v1.0", true
+        );
+
+        assertThatThrownBy(() -> authService.registrarPaciente(req, "192.168.1.5"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("Cedula de Ciudadania (CC) solo es valida para personas mayores de 18 anos");
+
+        verify(auditoriaService).registrarEvento(
+                eq(AccionAuditable.REGISTRO_PACIENTE),
+                eq("USUARIO"),
+                isNull(),
+                eq(ResultadoAuditoria.FALLO),
+                eq("192.168.1.5")
+        );
+        verify(usuarioRepository, never()).crear(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void registrarPaciente_numeroDocumentoInvalido_lanzaExcepcionYAuditaFallo() {
+        // Cédula con letras
+        RegistroPacienteRequest req = new RegistroPacienteRequest(
+                "CC", "10203A4050", "Carlos", "Perez",
+                LocalDate.of(1995, 5, 20), "3001234567", "carlos.perez@example.com",
+                "Segura12345*", "v1.0", true
+        );
+
+        assertThatThrownBy(() -> authService.registrarPaciente(req, "192.168.1.5"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("Cedula de Ciudadania (CC) debe contener entre 6 y 10 digitos");
+
+        verify(auditoriaService).registrarEvento(
+                eq(AccionAuditable.REGISTRO_PACIENTE),
+                eq("USUARIO"),
+                isNull(),
+                eq(ResultadoAuditoria.FALLO),
+                eq("192.168.1.5")
+        );
+    }
+
+    @Test
+    void registrarPaciente_celularInvalido_lanzaExcepcionYAuditaFallo() {
+        // Teléfono que no es celular colombiano (fijo o formato inválido)
+        RegistroPacienteRequest req = new RegistroPacienteRequest(
+                "CC", "1020304050", "Carlos", "Perez",
+                LocalDate.of(1995, 5, 20), "6011234567", "carlos.perez@example.com",
+                "Segura12345*", "v1.0", true
+        );
+
+        assertThatThrownBy(() -> authService.registrarPaciente(req, "192.168.1.5"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("celular colombiano valido de 10 digitos (iniciando por 3)");
+
+        verify(auditoriaService).registrarEvento(
+                eq(AccionAuditable.REGISTRO_PACIENTE),
+                eq("USUARIO"),
+                isNull(),
+                eq(ResultadoAuditoria.FALLO),
+                eq("192.168.1.5")
+        );
+    }
+
+    @Test
+    void registrarPaciente_nombresConCaracteresEspeciales_lanzaExcepcionYAuditaFallo() {
+        RegistroPacienteRequest req = new RegistroPacienteRequest(
+                "CC", "1020304050", "Carlos123", "Perez",
+                LocalDate.of(1995, 5, 20), "3001234567", "carlos.perez@example.com",
+                "Segura12345*", "v1.0", true
+        );
+
+        assertThatThrownBy(() -> authService.registrarPaciente(req, "192.168.1.5"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("solo puede contener letras, espacios, tildes y guiones");
+
+        verify(auditoriaService).registrarEvento(
+                eq(AccionAuditable.REGISTRO_PACIENTE),
+                eq("USUARIO"),
+                isNull(),
+                eq(ResultadoAuditoria.FALLO),
+                eq("192.168.1.5")
+        );
+    }
+
     // -------------------------------------------------------------------------
     // LOGIN
     // -------------------------------------------------------------------------

@@ -15,6 +15,11 @@ import com.meditriaje.model.Usuario;
 import com.meditriaje.repository.EspecialidadRepository;
 import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.UsuarioRepository;
+import com.meditriaje.service.email.EmailService;
+import com.meditriaje.util.NormaColombianaValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +39,7 @@ import java.util.UUID;
 @Service
 public class AdminProfessionalService {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminProfessionalService.class);
     private static final String ESTADO_ACTIVO = "ACTIVO";
     private static final String ESTADO_INACTIVO = "INACTIVO";
     private static final String RECURSO_PROFESIONAL = "PROFESIONAL";
@@ -43,6 +49,24 @@ public class AdminProfessionalService {
     private final EspecialidadRepository especialidadRepository;
     private final AuditoriaService auditoriaService;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+
+    @Autowired
+    public AdminProfessionalService(
+            ProfesionalRepository profesionalRepository,
+            UsuarioRepository usuarioRepository,
+            EspecialidadRepository especialidadRepository,
+            AuditoriaService auditoriaService,
+            PasswordEncoder passwordEncoder,
+            @Autowired(required = false) EmailService emailService
+    ) {
+        this.profesionalRepository = Objects.requireNonNull(profesionalRepository, "ProfesionalRepository no puede ser nulo");
+        this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "UsuarioRepository no puede ser nulo");
+        this.especialidadRepository = Objects.requireNonNull(especialidadRepository, "EspecialidadRepository no puede ser nulo");
+        this.auditoriaService = Objects.requireNonNull(auditoriaService, "AuditoriaService no puede ser nulo");
+        this.passwordEncoder = Objects.requireNonNull(passwordEncoder, "PasswordEncoder no puede ser nulo");
+        this.emailService = emailService;
+    }
 
     public AdminProfessionalService(
             ProfesionalRepository profesionalRepository,
@@ -51,11 +75,7 @@ public class AdminProfessionalService {
             AuditoriaService auditoriaService,
             PasswordEncoder passwordEncoder
     ) {
-        this.profesionalRepository = Objects.requireNonNull(profesionalRepository, "ProfesionalRepository no puede ser nulo");
-        this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "UsuarioRepository no puede ser nulo");
-        this.especialidadRepository = Objects.requireNonNull(especialidadRepository, "EspecialidadRepository no puede ser nulo");
-        this.auditoriaService = Objects.requireNonNull(auditoriaService, "AuditoriaService no puede ser nulo");
-        this.passwordEncoder = Objects.requireNonNull(passwordEncoder, "PasswordEncoder no puede ser nulo");
+        this(profesionalRepository, usuarioRepository, especialidadRepository, auditoriaService, passwordEncoder, null);
     }
 
     /**
@@ -65,6 +85,10 @@ public class AdminProfessionalService {
     @Transactional
     public CrearProfesionalResponse altaProfesional(CrearProfesionalRequest request, String adminPublicId, String ipOrigen) {
         Objects.requireNonNull(request, "La solicitud de creacion no puede ser nula");
+
+        // 0. Validar nombres y apellidos según norma colombiana
+        NormaColombianaValidator.validarNombresOApellidos("nombres", request.nombres());
+        NormaColombianaValidator.validarNombresOApellidos("apellidos", request.apellidos());
 
         // 1. Validar especialidad existente y activa
         Especialidad esp = especialidadRepository.buscarPorPublicId(request.especialidadPublicId().trim())
@@ -122,6 +146,17 @@ public class AdminProfessionalService {
                 ipOrigen
         );
 
+        // 9. Despachar credenciales de acceso inicial por correo electrónico (Brevo SMTP)
+        if (emailService != null) {
+            try {
+                String nombreCompleto = request.nombres().trim() + " " + request.apellidos().trim();
+                String rolDescripcion = "Profesional Asistencial (" + esp.nombre() + ")";
+                emailService.enviarCredencialesIniciales(emailNormalizado, nombreCompleto, rolDescripcion, passwordTemporal);
+            } catch (Exception e) {
+                log.warn("No fue posible despachar correo con credenciales iniciales a [{}]: {}", emailNormalizado, e.getMessage());
+            }
+        }
+
         return new CrearProfesionalResponse(
                 profesionalPublicId,
                 usuarioPublicId,
@@ -148,6 +183,9 @@ public class AdminProfessionalService {
             String ipOrigen
     ) {
         Objects.requireNonNull(request, "La solicitud no puede ser nula");
+
+        NormaColombianaValidator.validarNombresOApellidos("nombres", request.nombres());
+        NormaColombianaValidator.validarNombresOApellidos("apellidos", request.apellidos());
 
         Profesional actual = profesionalRepository.buscarPorPublicId(publicId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Profesional no encontrado: " + publicId));
