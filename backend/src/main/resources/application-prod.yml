@@ -32,3 +32,7 @@ security:
     expiration-minutes: 15
     refresh-expiration-days: 7
 
+app:
+  frontend-url: ${FRONTEND_URL}
+
+

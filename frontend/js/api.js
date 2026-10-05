@@ -17,7 +17,7 @@ export class ApiError extends Error {
 
 class ApiClient {
   constructor() {
-    this.baseUrl = '/api/v1';
+    this.baseUrl = (typeof window !== 'undefined' && (window.__MEDITRIAJE_API_URL__ || localStorage.getItem('MEDITRIAJE_API_URL'))) || '/api/v1';
     this.isRefreshing = false;
     this.refreshSubscribers = [];
   }
