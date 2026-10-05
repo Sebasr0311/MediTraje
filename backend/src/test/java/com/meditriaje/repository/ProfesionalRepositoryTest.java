@@ -47,8 +47,19 @@ class ProfesionalRepositoryTest {
                 eq(5L),
                 eq("Carlos"),
                 eq("Perez"),
+                eq((String) null),
                 eq("prof-uuid")
         );
+    }
+
+    @Test
+    void existePorDocumento_retornaTrueCuandoExiste() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("CC"), eq("1020304050")))
+                .thenReturn(1);
+
+        boolean existe = repository.existePorDocumento("CC", "1020304050");
+
+        assertThat(existe).isTrue();
     }
 
     @Test

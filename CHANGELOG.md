@@ -7,7 +7,24 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Fixed
+- **Rutas de Reportes, Auditoría y Asistente en Admin (Error 404 por duplicación `/api/v1`)**:
+  - Implementación defensiva en `frontend/js/api.js` con método `buildUrl(endpoint)` que deduplica cualquier prefijo redundante `/api/v1` entre la URL base y las rutas de vista.
+  - Normalización de rutas en `admin-reports.js` (`/admin/reports/operational`), `admin-audit.js` (`/admin/audit`) y `system-assistant-widget.js` (`/assistant/chat`).
+
 ### Added
+- **Validación de Talento Humano en Salud y ReTHUS según Normativa Colombiana (Ley 1164/2007, Dec. 780/2016)**:
+  - Migración Flyway `V015__profesional_colombia_y_especialidades.sql`: adición de columnas `TIPO_DOCUMENTO` (`CHECK (TIPO_DOCUMENTO IN ('CC', 'CE'))`), `NUMERO_DOCUMENTO` (`UQ_PROFESIONAL_DOC`) y `TELEFONO` a la tabla `PROFESIONAL`.
+  - Backend — `AdminProfessionalService`, `ProfesionalRepository` y DTOs (`CrearProfesionalRequest`, `ActualizarProfesionalRequest`, `ProfesionalResponse`, `CrearProfesionalResponse`):
+    - Restricción estricta de documentos civiles a Cédula de Ciudadanía (`CC`) y Cédula de Extranjería (`CE`) según la Ley 1164 de 2007 para profesionales habilitados en Colombia (no se permite `TI` ni `RC`).
+    - Verificación de unicidad de documento civil y número de registro médico/ReTHUS.
+    - Validación de celular colombiano de 10 dígitos y nombres alfabéticos con soporte de tildes y diéresis.
+  - Frontend — `admin-views.js`:
+    - Formulario de alta de profesional con campos normativos colombianos, validación en vivo de cédula y celular institucional.
+    - Tabla administrativa enriquecida con badges de documento, registro ReTHUS, contacto directo y especialidad asignada.
+- **Catálogo Oficial de Especialidades Médicas MinSalud (Resolución 3100 de 2019)**:
+  - Expansión del catálogo de especialidades médicas de 4 a 20 especialidades estándar para consulta externa con duraciones de consulta reguladas (20 min para medicina general y especialidades quirúrgicas, 30 min para medicina interna, pediatría y ginecología, 45 min para psiquiatría y psicología clínica) sembradas mediante `MERGE INTO ESPECIALIDAD` en `V015`.
+
 - **Ilustraciones 3D Médicas y Suite Integral de Glassmorphism (Landing Page)**:
   - Generación e integración de ilustraciones 3D personalizadas adaptadas a la misión asistencial de MediTriaje 2.0:
     - `hero-triage-3d.jpg`: Tablet médica en perspectiva isométrica con onda ECG viva en cian/teal, tarjetas acrílicas translúcidas con los 5 niveles de triaje (I al V), estetoscopio clínico y escudo de protección con cruz médica.

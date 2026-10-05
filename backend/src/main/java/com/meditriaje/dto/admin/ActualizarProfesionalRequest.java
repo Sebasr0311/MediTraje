@@ -16,5 +16,15 @@ public record ActualizarProfesionalRequest(
         String apellidos,
 
         @NotBlank(message = "La especialidad es obligatoria.")
-        String especialidadPublicId
-) {}
+        String especialidadPublicId,
+
+        String telefono
+) {
+    public ActualizarProfesionalRequest(
+            String nombres,
+            String apellidos,
+            String especialidadPublicId
+    ) {
+        this(nombres, apellidos, especialidadPublicId, null);
+    }
+}

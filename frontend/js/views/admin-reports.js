@@ -115,7 +115,7 @@ export async function renderReports(container) {
       if (fechaDesde) params.desde = fechaDesde;
       if (fechaHasta) params.hasta = fechaHasta;
 
-      const data = await api.get('/api/v1/admin/reports/operational', params);
+      const data = await api.get('/admin/reports/operational', params);
       datosReporteActual = data;
       renderMetricas(dataContainer, data);
     } catch (err) {

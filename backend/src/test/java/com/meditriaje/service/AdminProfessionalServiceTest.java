@@ -101,6 +101,7 @@ class AdminProfessionalServiceTest {
 
         Especialidad esp = new Especialidad(10L, "esp-med-int", "Medicina Interna", 20, "ACTIVO");
         when(especialidadRepository.buscarPorPublicId("esp-med-int")).thenReturn(Optional.of(esp));
+        when(profesionalRepository.existePorDocumento(anyString(), anyString())).thenReturn(false);
         when(usuarioRepository.existePorEmail("carlos.perez@hospital.com")).thenReturn(false);
         when(profesionalRepository.existePorRegistroMedico("RM-12345")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("argon2id_mock_hash");
@@ -219,6 +220,102 @@ class AdminProfessionalServiceTest {
     }
 
     @Test
+    void altaProfesional_tipoDocumentoInvalido_lanzaDatosInvalidosException() {
+        CrearProfesionalRequest req = new CrearProfesionalRequest(
+                "TI",
+                "1020304050",
+                "RM-12345",
+                "Carlos",
+                "Perez",
+                "carlos.perez@hospital.com",
+                "3001234567",
+                "esp-activa"
+        );
+
+        assertThatThrownBy(() -> service.altaProfesional(req, ADMIN_PUBLIC_ID, IP_ORIGEN))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("Tipo de documento no valido para profesionales en Colombia. Permitidos: CC, CE.");
+    }
+
+    @Test
+    void altaProfesional_numeroDocumentoInvalido_lanzaDatosInvalidosException() {
+        CrearProfesionalRequest req = new CrearProfesionalRequest(
+                "CC",
+                "123", // Menos de 6 dígitos
+                "RM-12345",
+                "Carlos",
+                "Perez",
+                "carlos.perez@hospital.com",
+                "3001234567",
+                "esp-activa"
+        );
+
+        assertThatThrownBy(() -> service.altaProfesional(req, ADMIN_PUBLIC_ID, IP_ORIGEN))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("La Cedula de Ciudadania (CC) debe contener entre 6 y 10 digitos numericos.");
+    }
+
+    @Test
+    void altaProfesional_documentoDuplicado_lanzaDatosInvalidosException() {
+        CrearProfesionalRequest req = new CrearProfesionalRequest(
+                "CC",
+                "1020304050",
+                "RM-12345",
+                "Carlos",
+                "Perez",
+                "carlos.perez@hospital.com",
+                "3001234567",
+                "esp-activa"
+        );
+        when(profesionalRepository.existePorDocumento("CC", "1020304050")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.altaProfesional(req, ADMIN_PUBLIC_ID, IP_ORIGEN))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("Ya existe un profesional registrado con el documento ingresado.");
+    }
+
+    @Test
+    void altaProfesional_telefonoInvalido_lanzaDatosInvalidosException() {
+        CrearProfesionalRequest req = new CrearProfesionalRequest(
+                "CC",
+                "1020304050",
+                "RM-12345",
+                "Carlos",
+                "Perez",
+                "carlos.perez@hospital.com",
+                "1234567", // No es celular de 10 dígitos iniciando en 3
+                "esp-activa"
+        );
+        when(profesionalRepository.existePorDocumento("CC", "1020304050")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.altaProfesional(req, ADMIN_PUBLIC_ID, IP_ORIGEN))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("El telefono debe ser un celular colombiano valido de 10 digitos");
+    }
+
+    @Test
+    void altaProfesional_registroMedicoCorto_lanzaDatosInvalidosException() {
+        CrearProfesionalRequest req = new CrearProfesionalRequest(
+                "CC",
+                "1020304050",
+                "RM", // < 4 caracteres
+                "Carlos",
+                "Perez",
+                "carlos.perez@hospital.com",
+                "3001234567",
+                "esp-activa"
+        );
+        Especialidad esp = new Especialidad(10L, "esp-activa", "Medicina", 20, "ACTIVO");
+        when(profesionalRepository.existePorDocumento("CC", "1020304050")).thenReturn(false);
+        when(especialidadRepository.buscarPorPublicId("esp-activa")).thenReturn(Optional.of(esp));
+        when(usuarioRepository.existePorEmail("carlos.perez@hospital.com")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.altaProfesional(req, ADMIN_PUBLIC_ID, IP_ORIGEN))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("El registro medico / ReTHUS debe tener al menos 4 caracteres.");
+    }
+
+    @Test
     void altaProfesional_registroMedicoDuplicado_lanzaDatosInvalidosException() {
         CrearProfesionalRequest req = new CrearProfesionalRequest(
                 "RM-12345",
@@ -228,6 +325,7 @@ class AdminProfessionalServiceTest {
                 "esp-activa"
         );
         Especialidad esp = new Especialidad(10L, "esp-activa", "Medicina", 20, "ACTIVO");
+        when(profesionalRepository.existePorDocumento(anyString(), anyString())).thenReturn(false);
         when(especialidadRepository.buscarPorPublicId("esp-activa")).thenReturn(Optional.of(esp));
         when(usuarioRepository.existePorEmail("carlos.perez@hospital.com")).thenReturn(false);
         when(profesionalRepository.existePorRegistroMedico("RM-12345")).thenReturn(true);
