@@ -1040,14 +1040,17 @@ async function renderProfessionals(container) {
             <div class="form-group m-0">
               <label for="profNombres" class="form-label text-xs">Nombres <span class="required">*</span></label>
               <input type="text" id="profNombres" class="form-input" maxlength="60" placeholder="Ej. Camila" required>
+              <span class="form-error text-xs" id="profNombresError" style="display: none;" role="alert"></span>
             </div>
             <div class="form-group m-0">
               <label for="profApellidos" class="form-label text-xs">Apellidos <span class="required">*</span></label>
               <input type="text" id="profApellidos" class="form-input" maxlength="60" placeholder="Ej. Gómez Silva" required>
+              <span class="form-error text-xs" id="profApellidosError" style="display: none;" role="alert"></span>
             </div>
             <div class="form-group m-0 grid-cols-2-span">
               <label for="profEmail" class="form-label text-xs">Correo electrónico institucional <span class="required">*</span></label>
               <input type="email" id="profEmail" class="form-input" maxlength="100" placeholder="Ej. dra.gomez@meditriaje.com" required>
+              <span class="form-error text-xs" id="profEmailError" style="display: none;" role="alert"></span>
             </div>
           </div>
           <p id="newProfError" class="text-xs text-danger mb-3" role="alert"></p>
@@ -1101,20 +1104,125 @@ async function renderProfessionals(container) {
     newCard.style.display = 'none';
   });
 
+  const regInput = container.querySelector('#profRegistro');
+  const specSelect = container.querySelector('#profEspecialidad');
+  const nombresInput = container.querySelector('#profNombres');
+  const apellidosInput = container.querySelector('#profApellidos');
+  const emailInput = container.querySelector('#profEmail');
+  const nombresError = container.querySelector('#profNombresError');
+  const apellidosError = container.querySelector('#profApellidosError');
+  const emailError = container.querySelector('#profEmailError');
+  const errEl = container.querySelector('#newProfError');
+
+  const validateNombres = (isLive = false) => {
+    const val = nombresInput.value.trim();
+    nombresError.style.display = 'none';
+    nombresError.textContent = '';
+    nombresInput.classList.remove('has-error', 'has-success', 'form-input--success');
+    if (!val) {
+      if (!isLive) {
+        nombresInput.classList.add('has-error');
+        nombresError.textContent = 'Los nombres son obligatorios.';
+        nombresError.style.display = 'block';
+        return false;
+      }
+      return true;
+    }
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,60}$/.test(val)) {
+      nombresInput.classList.add('has-error');
+      nombresError.textContent = 'Solo letras y espacios (2 a 60 caracteres).';
+      nombresError.style.display = 'block';
+      return false;
+    }
+    nombresInput.classList.add('has-success', 'form-input--success');
+    return true;
+  };
+
+  const validateApellidos = (isLive = false) => {
+    const val = apellidosInput.value.trim();
+    apellidosError.style.display = 'none';
+    apellidosError.textContent = '';
+    apellidosInput.classList.remove('has-error', 'has-success', 'form-input--success');
+    if (!val) {
+      if (!isLive) {
+        apellidosInput.classList.add('has-error');
+        apellidosError.textContent = 'Los apellidos son obligatorios.';
+        apellidosError.style.display = 'block';
+        return false;
+      }
+      return true;
+    }
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,60}$/.test(val)) {
+      apellidosInput.classList.add('has-error');
+      apellidosError.textContent = 'Solo letras y espacios (2 a 60 caracteres).';
+      apellidosError.style.display = 'block';
+      return false;
+    }
+    apellidosInput.classList.add('has-success', 'form-input--success');
+    return true;
+  };
+
+  const validateEmail = (isLive = false) => {
+    const val = emailInput.value.trim();
+    emailError.style.display = 'none';
+    emailError.textContent = '';
+    emailInput.classList.remove('has-error', 'has-success', 'form-input--success');
+    if (!val) {
+      if (!isLive) {
+        emailInput.classList.add('has-error');
+        emailError.textContent = 'El correo institucional es obligatorio.';
+        emailError.style.display = 'block';
+        return false;
+      }
+      return true;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      emailInput.classList.add('has-error');
+      emailError.textContent = 'Formato de correo inválido.';
+      emailError.style.display = 'block';
+      return false;
+    }
+    emailInput.classList.add('has-success', 'form-input--success');
+    return true;
+  };
+
+  nombresInput.addEventListener('input', () => validateNombres(true));
+  nombresInput.addEventListener('blur', () => validateNombres(false));
+  apellidosInput.addEventListener('input', () => validateApellidos(true));
+  apellidosInput.addEventListener('blur', () => validateApellidos(false));
+  emailInput.addEventListener('input', () => validateEmail(true));
+  emailInput.addEventListener('blur', () => validateEmail(false));
+
   container.querySelector('#newProfForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const registroMedico = container.querySelector('#profRegistro').value.trim();
-    const especialidadPublicId = container.querySelector('#profEspecialidad').value;
-    const nombres = container.querySelector('#profNombres').value.trim();
-    const apellidos = container.querySelector('#profApellidos').value.trim();
-    const email = container.querySelector('#profEmail').value.trim().toLowerCase();
-    const errEl = container.querySelector('#newProfError');
     errEl.textContent = '';
 
-    if (!registroMedico || !especialidadPublicId || !nombres || !apellidos || !email) {
-      errEl.textContent = 'Todos los campos son obligatorios.';
+    const registroMedico = regInput.value.trim();
+    const especialidadPublicId = specSelect.value;
+    const vNombres = validateNombres(false);
+    const vApellidos = validateApellidos(false);
+    const vEmail = validateEmail(false);
+
+    if (!registroMedico || !especialidadPublicId || !vNombres || !vApellidos || !vEmail) {
+      if (!registroMedico) {
+        errEl.textContent = 'El registro médico es obligatorio.';
+        regInput.focus();
+      } else if (!especialidadPublicId) {
+        errEl.textContent = 'Debes seleccionar una especialidad médica.';
+        specSelect.focus();
+      } else if (!vNombres) {
+        nombresInput.focus();
+      } else if (!vApellidos) {
+        apellidosInput.focus();
+      } else if (!vEmail) {
+        emailInput.focus();
+      }
       return;
     }
+
+    const nombres = nombresInput.value.trim();
+    const apellidos = apellidosInput.value.trim();
+    const email = emailInput.value.trim().toLowerCase();
 
     const saveBtn = container.querySelector('#btnSaveNewProf');
     ui.setButtonLoading(saveBtn, true);
@@ -1129,24 +1237,31 @@ async function renderProfessionals(container) {
 
       newCard.style.display = 'none';
       container.querySelector('#newProfForm').reset();
+      nombresInput.classList.remove('has-success', 'form-input--success');
+      apellidosInput.classList.remove('has-success', 'form-input--success');
+      emailInput.classList.remove('has-success', 'form-input--success');
       load();
 
-      // Modal destacado con la contraseña temporal generada
+      // Modal destacado con la contraseña temporal generada y aviso de envío Brevo
       ui.showModal({
         title: '¡Profesional dado de alta!',
         message: `
-          <p class="mb-3 text-sm">
+          <p class="mb-2 text-sm">
             Se ha creado la cuenta asistencial para <strong>${esc(res.nombres)} ${esc(res.apellidos)}</strong> (${esc(res.especialidadNombre)}).
           </p>
+          <div class="alert alert--info mb-3 text-xs" style="padding: var(--space-2) var(--space-3);">
+            ${ui.icon('mail', 'icon icon--sm mr-1')}
+            <span>Las credenciales iniciales fueron despachadas automáticamente al correo institucional <strong>${esc(res.email)}</strong> vía Brevo SMTP.</span>
+          </div>
           <div class="card p-3 mb-3" style="background: var(--surface-2); border-left: 4px solid var(--warning);">
-            <span class="text-xs text-muted block mb-1 font-bold">CONTRASEÑA TEMPORAL GENERADA:</span>
+            <span class="text-xs text-muted block mb-1 font-bold">CONTRASEÑA TEMPORAL GENERADA (RESPALDO):</span>
             <div class="flex items-center justify-between gap-2">
               <span id="tempPassCode" class="font-mono text-lg font-bold" style="letter-spacing: 1px;">${esc(res.passwordTemporal)}</span>
               <button type="button" id="btnCopyPass" class="btn btn-secondary btn--sm">Copiar</button>
             </div>
           </div>
           <p class="text-xs text-muted m-0">
-            ⚠️ <em>Entrega esta contraseña al profesional. Por motivos de seguridad, no volverá a mostrarse. En su primer inicio de sesión se le exigirá cambiarla de inmediato.</em>
+            ⚠️ <em>En su primer inicio de sesión se le exigirá cambiar la contraseña de inmediato por una de su exclusiva custodia.</em>
           </p>
         `,
         confirmText: 'Entendido y guardada',

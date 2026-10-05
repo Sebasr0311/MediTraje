@@ -36,6 +36,7 @@ import com.meditriaje.security.JwtService;
 import com.meditriaje.security.TokenHashUtil;
 import com.meditriaje.security.TotpService;
 import com.meditriaje.service.email.EmailService;
+import com.meditriaje.util.NormaColombianaValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -182,7 +183,25 @@ public class AuthService {
             throw new DatosInvalidosException("Debe aceptar el consentimiento informado para registrarse.");
         }
 
-        // 2. Normalizar correo y verificar duplicados
+        // 2. Validar reglas de identificación y datos según norma colombiana
+        try {
+            NormaColombianaValidator.validarDocumento(request.tipoDocumento(), request.numeroDocumento());
+            NormaColombianaValidator.validarCoherenciaDocumentoEdad(request.tipoDocumento(), request.fechaNacimiento(), null);
+            NormaColombianaValidator.validarNombresOApellidos("nombres", request.nombres());
+            NormaColombianaValidator.validarNombresOApellidos("apellidos", request.apellidos());
+            NormaColombianaValidator.validarCelularColombia(request.telefono());
+        } catch (DatosInvalidosException e) {
+            auditoriaService.registrarEvento(
+                    AccionAuditable.REGISTRO_PACIENTE,
+                    "USUARIO",
+                    null,
+                    ResultadoAuditoria.FALLO,
+                    ipOrigen
+            );
+            throw e;
+        }
+
+        // 3. Normalizar correo y verificar duplicados
         String emailNormalizado = request.email().trim().toLowerCase(Locale.ROOT);
         if (usuarioRepository.existePorEmail(emailNormalizado)) {
             auditoriaService.registrarEvento(

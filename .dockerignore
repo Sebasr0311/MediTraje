@@ -1,0 +1,11 @@
+.git
+.github
+.codegraph
+.playwright-mcp
+.env
+*.log
+backend/target
+frontend
+tests
+docs
+scratch
