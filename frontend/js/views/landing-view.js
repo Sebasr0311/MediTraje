@@ -26,11 +26,11 @@ export async function landingView(container) {
   container.innerHTML = `
     <div class="landing-hero">
       <!-- 1. Hero Badge Pill (shadcn style) -->
-      <a href="#demo-simulador" class="hero-badge" aria-label="Ir al simulador de triaje en vivo">
+      <button type="button" id="btnScrollSim1" class="hero-badge" aria-label="Ir al simulador de triaje en vivo">
         <span style="color: var(--primary); display: inline-flex;">${ui.icon('sparkles', 'icon icon--xs')}</span>
         <span>MediTriaje 2.0 · Plataforma Cloud Asistencial en Vivo</span>
         <span style="color: var(--text-muted); display: inline-flex;">${ui.icon('arrow-right', 'icon icon--xs')}</span>
-      </a>
+      </button>
 
       <!-- 2. Hero Headline & Description -->
       <h1 class="text-4xl font-bold mb-4" style="max-width: 26ch; margin-left: auto; margin-right: auto; line-height: 1.15; letter-spacing: -0.02em;">
@@ -59,10 +59,10 @@ export async function landingView(container) {
             <span>Ingresar a mi cuenta</span>
           </a>
         `}
-        <a href="#demo-simulador" class="btn btn-ghost btn--lg">
+        <button type="button" id="btnScrollSim2" class="btn btn-ghost btn--lg">
           ${ui.icon('search', 'icon icon--sm')}
           <span>Probar simulador en vivo</span>
-        </a>
+        </button>
       </div>
 
       <!-- 4. Micro-Trust Bar -->
@@ -489,7 +489,7 @@ export async function landingView(container) {
         <div class="footer-col">
           <h4>Plataforma</h4>
           <ul>
-            <li><a href="#demo-simulador">Simulador de Triaje</a></li>
+            <li><button type="button" id="btnScrollSim3" style="background: none; border: none; padding: 0; color: var(--text-muted); cursor: pointer; font: inherit;">Simulador de Triaje</button></li>
             <li><a href="#/availability">Consulta de Disponibilidad</a></li>
             <li><a href="#/register">Registro de Pacientes</a></li>
             <li><a href="#/login">Ingreso a la Plataforma</a></li>
@@ -625,6 +625,13 @@ function initSimulator(container) {
       resultadoBox.style.backgroundColor = 'var(--info-bg)';
     }
   };
+
+  const scrollSim = () => {
+    container.querySelector('#demo-simulador')?.scrollIntoView({ behavior: 'smooth' });
+  };
+  container.querySelector('#btnScrollSim1')?.addEventListener('click', scrollSim);
+  container.querySelector('#btnScrollSim2')?.addEventListener('click', scrollSim);
+  container.querySelector('#btnScrollSim3')?.addEventListener('click', scrollSim);
 
   selectSintoma.addEventListener('change', updateSimulation);
   selectDuracion.addEventListener('change', updateSimulation);
