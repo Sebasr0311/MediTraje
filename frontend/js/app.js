@@ -22,6 +22,7 @@ import { professionalPrescriptionView } from './views/professional-prescription.
 import { professionalPatientHistoryView } from './views/professional-patient-history.js';
 import { adminDashboardView } from './views/admin-views.js';
 import { pharmacyDispensationView } from './views/pharmacy-dispensation.js';
+import { landingView } from './views/landing-view.js';
 import { initSystemAssistantWidget } from './views/system-assistant-widget.js';
 
 // Inicialización de Tema Claro / Oscuro
@@ -125,55 +126,7 @@ function setupRoutes() {
   router.setContainer(app);
 
   // Ruta 1: Inicio / Landing
-  router.addRoute('/', async (container) => {
-    container.innerHTML = `
-      <div class="sg-section text-center" style="padding-top: var(--space-8); padding-bottom: var(--space-8);">
-        <span class="badge badge--scheduled mb-3">Plataforma Asistencial Integral</span>
-        <h1 class="text-4xl font-bold mb-3" style="max-width: 24ch; margin-left: auto; margin-right: auto;">
-          Atención médica oportuna, triaje clínico y recetas digitales
-        </h1>
-        <p class="text-muted mb-6" style="margin-left: auto; margin-right: auto; max-width: 58ch;">
-          Orienta tus síntomas mediante nuestro sistema de triaje automatizado, agenda consultas con especialistas y accede a tu historial clínico inmutable.
-        </p>
-
-        <div class="flex flex-wrap gap-4 justify-center items-center">
-          <a href="#/register" class="btn btn-primary btn--lg">
-            ${ui.icon('activity')}
-            <span>Comenzar ahora</span>
-          </a>
-          <a href="#/login" class="btn btn-secondary btn--lg">
-            <span>Ingresar a mi cuenta</span>
-          </a>
-        </div>
-
-        <div class="grid grid-cols-1 grid-cols-3-md gap-6 mt-12 text-left">
-          <div class="card">
-            <div class="empty-state-icon" style="margin-left: 0; background-color: var(--teal-50); color: var(--primary);">
-              ${ui.icon('activity', 'icon icon--lg')}
-            </div>
-            <h3 class="text-lg font-semibold mb-2">Triaje Clínico</h3>
-            <p class="text-sm text-muted">Evaluación de síntomas con corte de emergencia para orientar el nivel de prioridad asistencial.</p>
-          </div>
-
-          <div class="card">
-            <div class="empty-state-icon" style="margin-left: 0; background-color: var(--info-bg); color: var(--info);">
-              ${ui.icon('calendar', 'icon icon--lg')}
-            </div>
-            <h3 class="text-lg font-semibold mb-2">Citas y Disponibilidad</h3>
-            <p class="text-sm text-muted">Búsqueda en tiempo real por especialidad y sede, sin colisiones ni doble agendamiento.</p>
-          </div>
-
-          <div class="card">
-            <div class="empty-state-icon" style="margin-left: 0; background-color: var(--success-bg); color: var(--success);">
-              ${ui.icon('file-text', 'icon icon--lg')}
-            </div>
-            <h3 class="text-lg font-semibold mb-2">Historia y Recetas</h3>
-            <p class="text-sm text-muted">Consultas inmutables, enmiendas cronológicas y recetas con snapshots farmacológicos estables.</p>
-          </div>
-        </div>
-      </div>
-    `;
-  });
+  router.addRoute('/', landingView);
 
   // Ruta 2: Login (M8.2a)
   router.addRoute('/login', loginView, { guestOnly: true });
