@@ -129,4 +129,79 @@ class AssistantServiceTest {
                 .isInstanceOf(DatosInvalidosException.class)
                 .hasMessageContaining("El mensaje de consulta no puede estar vacío.");
     }
+
+    @Test
+    @DisplayName("Modo Invitado (GUEST): consulta sobre citas indica iniciar sesión y ofrece login/registro")
+    void procesarConsulta_guest_citasRequiereSesion() {
+        PreguntaAsistenteRequest req = new PreguntaAsistenteRequest("¿Cómo agendar una cita?", "GUEST");
+
+        RespuestaAsistenteResponse res = assistantService.procesarConsulta(req);
+
+        assertThat(res.categoria()).isEqualTo("CITAS_GUEST");
+        assertThat(res.respuesta()).contains("iniciar sesión");
+        assertThat(res.sugerencias()).anyMatch(s -> s.rutaSpa().equals("#/login"));
+        assertThat(res.sugerencias()).anyMatch(s -> s.rutaSpa().equals("#/register"));
+    }
+
+    @Test
+    @DisplayName("Modo Invitado (GUEST): consulta general explica plataforma y ofrece login/registro")
+    void procesarConsulta_guest_general() {
+        PreguntaAsistenteRequest req = new PreguntaAsistenteRequest("¿Qué es MediTriaje?", "GUEST");
+
+        RespuestaAsistenteResponse res = assistantService.procesarConsulta(req);
+
+        assertThat(res.categoria()).isEqualTo("GENERAL_GUEST");
+        assertThat(res.respuesta()).contains("MediTriaje 2.0");
+        assertThat(res.sugerencias()).anyMatch(s -> s.rutaSpa().equals("#/login"));
+        assertThat(res.sugerencias()).anyMatch(s -> s.rutaSpa().equals("#/register"));
+    }
+
+    @Test
+    @DisplayName("Modo Administrador: consulta sobre reportes ofrece enlace a reportes operativos")
+    void procesarConsulta_admin_reportes() {
+        PreguntaAsistenteRequest req = new PreguntaAsistenteRequest("¿Cómo consultar los reportes operativos?", "ROLE_ADMINISTRADOR");
+
+        RespuestaAsistenteResponse res = assistantService.procesarConsulta(req);
+
+        assertThat(res.categoria()).isEqualTo("REPORTES_ADMIN");
+        assertThat(res.respuesta()).contains("Reportes Operativos");
+        assertThat(res.sugerencias()).anyMatch(s -> s.rutaSpa().equals("#/admin/reports"));
+    }
+
+    @Test
+    @DisplayName("Modo Administrador: consulta sobre profesionales explica ReTHUS y ofrece gestión de profesionales")
+    void procesarConsulta_admin_profesionales() {
+        PreguntaAsistenteRequest req = new PreguntaAsistenteRequest("¿Cómo dar de alta a un médico?", "ROLE_ADMINISTRADOR");
+
+        RespuestaAsistenteResponse res = assistantService.procesarConsulta(req);
+
+        assertThat(res.categoria()).isEqualTo("PROFESIONALES_ADMIN");
+        assertThat(res.respuesta()).contains("ReTHUS");
+        assertThat(res.sugerencias()).anyMatch(s -> s.rutaSpa().equals("#/admin/professionals"));
+    }
+
+    @Test
+    @DisplayName("Modo Administrador: consulta sobre citas orienta al rol de gestión de slots sin enlaces de paciente")
+    void procesarConsulta_admin_citas() {
+        PreguntaAsistenteRequest req = new PreguntaAsistenteRequest("Quiero ver las citas", "ROLE_ADMINISTRADOR");
+
+        RespuestaAsistenteResponse res = assistantService.procesarConsulta(req);
+
+        assertThat(res.categoria()).isEqualTo("ADMIN_ORIENTACION");
+        assertThat(res.respuesta()).contains("Como Administrador");
+        assertThat(res.sugerencias()).anyMatch(s -> s.rutaSpa().equals("#/admin/slots"));
+        assertThat(res.sugerencias()).noneMatch(s -> s.rutaSpa().startsWith("#/patient/"));
+    }
+
+    @Test
+    @DisplayName("Modo Profesional: consulta sobre agenda ofrece enlace a agenda médica")
+    void procesarConsulta_profesional_agenda() {
+        PreguntaAsistenteRequest req = new PreguntaAsistenteRequest("¿Cómo ver mi agenda de citas?", "ROLE_PROFESIONAL");
+
+        RespuestaAsistenteResponse res = assistantService.procesarConsulta(req);
+
+        assertThat(res.categoria()).isEqualTo("AGENDA_PROFESIONAL");
+        assertThat(res.respuesta()).contains("Agenda Médica");
+        assertThat(res.sugerencias()).anyMatch(s -> s.rutaSpa().equals("#/professional/agenda"));
+    }
 }

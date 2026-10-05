@@ -57,7 +57,7 @@ function initTheme() {
 function updateNavbar() {
   const navContainer = document.getElementById('nav-auth-links');
   const bottomNav = document.getElementById('bottom-nav');
-  if (!navContainer) return;
+  const brandLink = document.querySelector('.navbar-brand');
 
   if (auth.isAuthenticated) {
     const user = auth.user;
@@ -79,40 +79,54 @@ function updateNavbar() {
       dashboardLink = '#/pharmacy/dispensation';
     }
 
-    navContainer.innerHTML = `
-      <a href="${dashboardLink}" class="nav-link">
-        ${ui.icon('user', 'icon icon--sm')}
-        <span class="font-medium nav-user-email">${user.email}</span>
-        <span class="badge ${roleBadgeClass}" style="margin-left: 4px;">${roleName}</span>
-      </a>
-      <button type="button" id="btnLogout" class="btn btn-ghost btn--sm" title="Cerrar sesion activa" aria-label="Cerrar sesión">
-        ${ui.icon('log-out', 'icon icon--sm')}
-        <span class="nav-logout-text">Salir</span>
-      </button>
-    `;
+    if (brandLink) {
+      brandLink.href = dashboardLink;
+      brandLink.setAttribute('aria-label', `Ir a mi panel de MediTriaje 2.0 (${roleName})`);
+    }
 
-    document.getElementById('btnLogout')?.addEventListener('click', async () => {
-      ui.showModal({
-        title: 'Cerrar sesión',
-        message: '¿Deseas cerrar tu sesión actual en MediTriaje?',
-        confirmText: 'Sí, salir',
-        cancelText: 'Permanecer',
-        onConfirm: async () => {
-          await auth.logout();
-          ui.showToast('Sesión cerrada correctamente.', 'info');
-        }
+    if (navContainer) {
+      navContainer.innerHTML = `
+        <a href="${dashboardLink}" class="nav-link">
+          ${ui.icon('user', 'icon icon--sm')}
+          <span class="font-medium nav-user-email">${user.email}</span>
+          <span class="badge ${roleBadgeClass}" style="margin-left: 4px;">${roleName}</span>
+        </a>
+        <button type="button" id="btnLogout" class="btn btn-ghost btn--sm" title="Cerrar sesion activa" aria-label="Cerrar sesión">
+          ${ui.icon('log-out', 'icon icon--sm')}
+          <span class="nav-logout-text">Salir</span>
+        </button>
+      `;
+
+      document.getElementById('btnLogout')?.addEventListener('click', async () => {
+        ui.showModal({
+          title: 'Cerrar sesión',
+          message: '¿Deseas cerrar tu sesión actual en MediTriaje?',
+          confirmText: 'Sí, salir',
+          cancelText: 'Permanecer',
+          onConfirm: async () => {
+            await auth.logout();
+            ui.showToast('Sesión cerrada correctamente.', 'info');
+          }
+        });
       });
-    });
+    }
 
     // Mostrar barra inferior en móviles solo para pacientes
     if (bottomNav) {
       bottomNav.style.display = auth.isPaciente ? 'flex' : 'none';
     }
   } else {
-    navContainer.innerHTML = `
-      <a href="#/login" class="nav-link font-medium">Iniciar sesión</a>
-      <a href="#/register" class="btn btn-primary btn--sm">Registrarme</a>
-    `;
+    if (brandLink) {
+      brandLink.href = '#/';
+      brandLink.setAttribute('aria-label', 'Ir al inicio de MediTriaje 2.0');
+    }
+
+    if (navContainer) {
+      navContainer.innerHTML = `
+        <a href="#/login" class="nav-link font-medium">Iniciar sesión</a>
+        <a href="#/register" class="btn btn-primary btn--sm">Registrarme</a>
+      `;
+    }
 
     if (bottomNav) {
       bottomNav.style.display = 'none';
@@ -214,6 +228,14 @@ async function bootstrap() {
   // Restaurar sesión activa de forma transparente
   await auth.init();
   updateNavbar();
+
+  // Interceptar clic en el logo de MediTriaje para usuarios autenticados
+  document.querySelector('.navbar-brand')?.addEventListener('click', (e) => {
+    if (auth.isAuthenticated) {
+      e.preventDefault();
+      router.redirectToHome();
+    }
+  });
 
   // Inicializar widget interactivo del asistente de orientación
   initSystemAssistantWidget();

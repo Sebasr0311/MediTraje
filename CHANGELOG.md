@@ -8,6 +8,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Fixed
+- **Navegación del Logo MediTriaje y Guardia de Inicio para Usuarios Autenticados**:
+  - Enlace de marca `.navbar-brand` configurado de forma reactiva para redirigir al panel del rol activo (`#/admin/dashboard`, `#/professional/agenda`, `#/patient/dashboard`, `#/pharmacy/dispensation`) evitando desviar a usuarios autenticados al landing page.
+  - Guardia en `router.js` que redirige automáticamente a usuarios con sesión activa que accedan a la raíz `/` hacia su panel principal.
+- **Asistente Virtual Contextual con Conciencia de Rol (Chatbot Multi-Rol & Modo Invitado)**:
+  - Rediseño de `system-assistant-widget.js` y `AssistantService` para adaptar bienvenida, atajos sugeridos y respuestas según el perfil:
+    - **Visitante / Landing (`GUEST`)**: orientación sobre la plataforma y niveles de triaje; solicitudes de citas o triaje oficial indican la necesidad de autenticación con botones directos hacia `#/login` y `#/register`.
+    - **Administrador (`ROLE_ADMINISTRADOR`)**: asistencia operativa para reportes (`#/admin/reports`), talento humano ReTHUS (`#/admin/professionals`), turnos (`#/admin/slots`) y pistas de auditoría (`#/admin/audit`), eliminando enlaces a flujos exclusivos de pacientes.
+    - **Profesional (`ROLE_PROFESIONAL`)**: guía para agenda médica (`#/professional/agenda`), atención clínica CIE-10 y protocolo Break-Glass.
+    - **Detección de emergencia 123**: activa y prioritaria de forma infalible en todos los roles y modos.
 - **Rutas de Reportes, Auditoría y Asistente en Admin (Error 404 por duplicación `/api/v1`)**:
   - Implementación defensiva en `frontend/js/api.js` con método `buildUrl(endpoint)` que deduplica cualquier prefijo redundante `/api/v1` entre la URL base y las rutas de vista.
   - Normalización de rutas en `admin-reports.js` (`/admin/reports/operational`), `admin-audit.js` (`/admin/audit`) y `system-assistant-widget.js` (`/assistant/chat`).

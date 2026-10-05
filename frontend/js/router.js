@@ -110,6 +110,12 @@ class Router {
 
     const { meta, handler } = matchedRoute;
 
+    // Guardia 0: Usuarios autenticados que visitan la raíz pública son redirigidos a su respectivo panel
+    if (path === '/' && auth.isAuthenticated) {
+      this.redirectToHome();
+      return;
+    }
+
     // Guardia 1: Rutas exclusivas para invitados (login, registro)
     if (meta.guestOnly && auth.isAuthenticated) {
       this.redirectToHome();
