@@ -8,8 +8,126 @@
 import { api } from '../api.js';
 import { router } from '../router.js';
 import { ui, esc } from '../ui.js';
+import { auth } from '../auth.js';
 
 let widgetInitialized = false;
+
+/**
+ * Obtiene la configuración de bienvenida, chips sugeridos y contexto según el rol activo.
+ */
+function getAssistantRoleConfig() {
+  if (!auth.isAuthenticated) {
+    return {
+      rol: 'GUEST',
+      subtitulo: 'Información y Registro',
+      bienvenidaHtml: `
+        <p class="m-0 mb-2">
+          👋 <strong>¡Hola!</strong> Te damos la bienvenida a <strong>MediTriaje 2.0</strong>.
+        </p>
+        <p class="m-0 text-xs text-muted">
+          Soy tu asistente informativo. Puedo contarte cómo funciona nuestra plataforma de <strong>triaje clínico</strong>,
+          los <strong>5 niveles de prioridad</strong> o cómo <strong>crear tu cuenta</strong>. Si deseas agendar una cita o realizar tu triaje oficial, deberás iniciar sesión o registrarte.
+        </p>
+      `,
+      chips: [
+        { label: '🩺 ¿Qué es MediTriaje?', query: '¿Qué es MediTriaje y cómo funciona?' },
+        { label: '🏷️ 5 niveles de triaje', query: '¿Cuáles son los 5 niveles de prioridad del triaje?' },
+        { label: '📅 ¿Cómo agendar cita?', query: '¿Cómo agendar una cita médica?' },
+        { label: '📝 ¿Cómo me registro?', query: '¿Cómo me registro como paciente?' },
+        { label: '⚠️ Emergencia médica', query: 'Tengo un dolor muy fuerte en el pecho', danger: true }
+      ]
+    };
+  }
+
+  if (auth.isAdmin) {
+    return {
+      rol: 'ROLE_ADMINISTRADOR',
+      subtitulo: 'Consola de Administración',
+      bienvenidaHtml: `
+        <p class="m-0 mb-2">
+          👋 <strong>¡Hola, Administrador!</strong>
+        </p>
+        <p class="m-0 text-xs text-muted">
+          Soy tu asistente de gestión operativa. Puedo ayudarte a consultar <strong>reportes y métricas</strong>,
+          gestionar <strong>profesionales de la salud</strong> bajo la Ley 1164, habilitar <strong>sedes e instituciones</strong>,
+          generar <strong>slots de disponibilidad</strong> o revisar la <strong>auditoría</strong> del sistema.
+        </p>
+      `,
+      chips: [
+        { label: '📊 Reportes operativos', query: '¿Cómo consultar los reportes operativos y métricas?' },
+        { label: '👨‍⚕️ Alta de profesionales', query: '¿Cómo registrar un profesional de la salud según la ley?' },
+        { label: '⏰ Generar turnos de citas', query: '¿Cómo generar slots de disponibilidad para citas?' },
+        { label: '🏥 Sedes e IPS', query: '¿Cómo gestionar sedes e instituciones hospitalarias?' },
+        { label: '🔒 Registro de auditoría', query: '¿Cómo revisar el registro de auditoría del sistema?' }
+      ]
+    };
+  }
+
+  if (auth.isProfesional) {
+    return {
+      rol: 'ROLE_PROFESIONAL',
+      subtitulo: 'Asistencia Asistencial',
+      bienvenidaHtml: `
+        <p class="m-0 mb-2">
+          👋 <strong>¡Hola, Doctor(a)!</strong>
+        </p>
+        <p class="m-0 text-xs text-muted">
+          Soy tu asistente clínico. Puedo orientarte en la consulta de tu <strong>agenda médica diaria</strong>,
+          registro de <strong>atenciones con diagnóstico CIE-10</strong>, emisión de <strong>recetas electrónicas</strong> y
+          el protocolo de emergencia asistencial <strong>Break-Glass</strong>.
+        </p>
+      `,
+      chips: [
+        { label: '📅 Mi agenda de citas', query: '¿Cómo consultar mi agenda de citas de hoy?' },
+        { label: '📋 Registro de atención', query: '¿Cómo registrar una atención médica y diagnósticos CIE-10?' },
+        { label: '💊 Prescribir receta', query: '¿Cómo prescribir medicamentos y emitir una receta médica?' },
+        { label: '🚨 Acceso Break-Glass', query: '¿Cómo funciona el protocolo de acceso de emergencia Break-Glass?' },
+        { label: '📜 Historia inmutable', query: '¿Cuáles son las reglas de inmutabilidad de la historia clínica?' }
+      ]
+    };
+  }
+
+  if (auth.isFarmaceutico) {
+    return {
+      rol: 'ROLE_FARMACEUTICO',
+      subtitulo: 'Ventanilla de Farmacia',
+      bienvenidaHtml: `
+        <p class="m-0 mb-2">
+          👋 <strong>¡Hola!</strong> Asistente de farmacia.
+        </p>
+        <p class="m-0 text-xs text-muted">
+          Puedo guiarte en la <strong>búsqueda de recetas</strong> mediante código alfanumérico, verificación de vigencia y registro de <strong>dispensaciones de medicamentos</strong>.
+        </p>
+      `,
+      chips: [
+        { label: '💊 Dispensar receta', query: '¿Cómo buscar y dispensar una receta médica?' },
+        { label: '🔍 Saldos pendientes', query: '¿Cómo consultar el saldo de medicamentos pendientes?' }
+      ]
+    };
+  }
+
+  // Rol por defecto: PACIENTE
+  return {
+    rol: 'ROLE_PACIENTE',
+    subtitulo: 'Orientación al Paciente 24/7',
+    bienvenidaHtml: `
+      <p class="m-0 mb-2">
+        👋 <strong>¡Hola!</strong> Soy tu asistente de orientación en <strong>MediTriaje 2.0</strong>.
+      </p>
+      <p class="m-0 text-xs text-muted">
+        Puedo guiarte en cómo realizar tu <strong>triaje de síntomas</strong>, agendar o cancelar <strong>citas médicas</strong>,
+        reclamar tus <strong>medicamentos en farmacia</strong> o generar tu <strong>código QR de emergencia</strong>.
+      </p>
+    `,
+    chips: [
+      { label: '🩺 ¿Cómo hacer mi triaje?', query: '¿Qué es el triaje y cómo funciona?' },
+      { label: '📅 ¿Cómo agendar mi cita?', query: '¿Cómo agendar una cita médica?' },
+      { label: '💊 ¿Cómo reclamo mis recetas?', query: '¿Cómo reclamo mis medicamentos en farmacia?' },
+      { label: '📲 QR de emergencia', query: '¿Cómo funciona el código QR de emergencia?' },
+      { label: '⚠️ Emergencia médica', query: 'Tengo un dolor muy fuerte en el pecho', danger: true }
+    ]
+  };
+}
 
 /**
  * Inicializa el widget flotante del asistente global en el DOM si aún no existe.
@@ -43,7 +161,7 @@ export function initSystemAssistantWidget() {
           </div>
           <div>
             <h2 id="assistant-panel-title" class="text-sm font-bold m-0 text-white">Asistente MediTriaje</h2>
-            <span class="text-xs text-teal-100 flex items-center gap-1">
+            <span id="assistant-panel-subtitle" class="text-xs text-teal-100 flex items-center gap-1">
               <span class="status-dot"></span> Orientación 24/7
             </span>
           </div>
@@ -55,31 +173,7 @@ export function initSystemAssistantWidget() {
 
       <!-- Mensajes del Chat -->
       <div id="assistant-messages" class="assistant-messages" role="log" aria-live="polite">
-        <!-- Mensaje de bienvenida inicial -->
-        <div class="assistant-msg assistant-msg--bot">
-          <div class="assistant-msg-bubble">
-            <p class="m-0 mb-2">
-              👋 <strong>¡Hola!</strong> Soy el asistente de orientación de <strong>MediTriaje 2.0</strong>.
-            </p>
-            <p class="m-0 text-xs text-muted">
-              Puedo guiarte en cómo realizar tu <strong>triaje clínico</strong>, agendar o cancelar <strong>citas</strong>,
-              reclamar tus <strong>medicamentos</strong> o consultar tus derechos.
-            </p>
-          </div>
-          <span class="assistant-msg-time">Ahora</span>
-        </div>
-
-        <!-- Atajos rápidos iniciales -->
-        <div class="assistant-shortcuts-box mb-3">
-          <span class="text-xs font-semibold text-muted mb-2 block">Consultas sugeridas:</span>
-          <div class="assistant-chips">
-            <button type="button" class="assistant-chip" data-query="¿Cómo agendar una cita médica?">📅 ¿Cómo agendar cita?</button>
-            <button type="button" class="assistant-chip" data-query="¿Qué es el triaje y cómo funciona?">🩺 ¿Qué es el triaje?</button>
-            <button type="button" class="assistant-chip" data-query="¿Cómo reclamo mis medicamentos en farmacia?">💊 Reclamar medicamentos</button>
-            <button type="button" class="assistant-chip" data-query="¿Cómo funciona el código QR de emergencia?">📲 QR de emergencia</button>
-            <button type="button" class="assistant-chip assistant-chip--danger" data-query="Tengo un dolor muy fuerte en el pecho">⚠️ Emergencia médica</button>
-          </div>
-        </div>
+        <!-- Renderizado dinámico según el rol -->
       </div>
 
       <!-- Pie y Formulario de Entrada -->
@@ -110,6 +204,53 @@ export function initSystemAssistantWidget() {
   const input = host.querySelector('#assistant-input');
   const messagesBox = host.querySelector('#assistant-messages');
 
+  function renderizarPantallaInicial() {
+    const config = getAssistantRoleConfig();
+    const subEl = host.querySelector('#assistant-panel-subtitle');
+    if (subEl) {
+      subEl.innerHTML = `<span class="status-dot"></span> ${esc(config.subtitulo)}`;
+    }
+
+    messagesBox.innerHTML = `
+      <!-- Mensaje de bienvenida inicial -->
+      <div class="assistant-msg assistant-msg--bot">
+        <div class="assistant-msg-bubble">
+          ${config.bienvenidaHtml}
+        </div>
+        <span class="assistant-msg-time">Ahora</span>
+      </div>
+
+      <!-- Atajos rápidos iniciales -->
+      <div class="assistant-shortcuts-box mb-3">
+        <span class="text-xs font-semibold text-muted mb-2 block">Consultas sugeridas:</span>
+        <div class="assistant-chips">
+          ${config.chips.map(chip => `
+            <button type="button" class="assistant-chip ${chip.danger ? 'assistant-chip--danger' : ''}" data-query="${esc(chip.query)}">${esc(chip.label)}</button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    // Conectar listeners de chips
+    messagesBox.querySelectorAll('.assistant-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const q = chip.dataset.query;
+        if (q) {
+          input.value = q;
+          enviarConsulta(q);
+        }
+      });
+    });
+  }
+
+  // Renderizar la pantalla inicial con el rol actual
+  renderizarPantallaInicial();
+
+  // Escuchar cambios de autenticación para regenerar el asistente según el nuevo rol
+  auth.addEventListener('auth:change', () => {
+    renderizarPantallaInicial();
+  });
+
   function abrirPanel() {
     panel.classList.add('is-open');
     panel.setAttribute('aria-hidden', 'false');
@@ -134,17 +275,6 @@ export function initSystemAssistantWidget() {
 
   closeBtn.addEventListener('click', cerrarPanel);
 
-  // Atajos rápidos de chips
-  host.querySelectorAll('.assistant-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const q = chip.dataset.query;
-      if (q) {
-        input.value = q;
-        enviarConsulta(q);
-      }
-    });
-  });
-
   // Envío del formulario
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -162,8 +292,13 @@ export function initSystemAssistantWidget() {
     const loaderId = agregarIndicadorTipeo();
     scrollAlFinal();
 
+    const config = getAssistantRoleConfig();
+
     try {
-      const resp = await api.post('/assistant/chat', { mensaje: consultaTexto });
+      const resp = await api.post('/assistant/chat', {
+        mensaje: consultaTexto,
+        contexto: config.rol
+      });
       removerIndicadorTipeo(loaderId);
       agregarMensajeBot(resp);
     } catch (err) {
