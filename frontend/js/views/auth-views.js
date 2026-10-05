@@ -1093,8 +1093,13 @@ export function registerView(container) {
         aceptaConsentimiento: true
       });
 
-      ui.showToast('Cuenta creada con éxito. ¡Bienvenido a MediTriaje!', 'success');
-      router.navigate('/patient/dashboard');
+      if (auth.isAuthenticated && auth.hasRole('ROLE_PACIENTE')) {
+        ui.showToast('¡Cuenta creada con éxito! Bienvenido a MediTriaje.', 'success');
+        router.navigate('/patient/dashboard');
+      } else {
+        ui.showToast('Cuenta creada con éxito. Por favor inicia sesión con tus credenciales.', 'info');
+        router.navigate('/login');
+      }
     } catch (err) {
       alertBox.innerHTML = `
         <div class="alert alert--danger mb-4" role="alert">
