@@ -125,13 +125,17 @@ class AuthService extends EventTarget {
   }
 
   /**
-   * Registra un nuevo paciente en una transacción atómica.
+   * Registra un nuevo paciente en una transacción atómica y autentica la sesión.
    */
   async register(patientData) {
-    const session = await api.post('/auth/register', patientData);
-    this.setUserFromSession(session);
-    this.emitChange();
-    return session;
+    const regResponse = await api.post('/auth/register', patientData);
+    try {
+      // Iniciar sesión con las credenciales registradas para fijar cookies HttpOnly y roles
+      await this.login(patientData.email, patientData.password);
+    } catch (loginErr) {
+      console.warn('Auto-login post-registro no pudo completarse:', loginErr);
+    }
+    return regResponse;
   }
 
   /**
