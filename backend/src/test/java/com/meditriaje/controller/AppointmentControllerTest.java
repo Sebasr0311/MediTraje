@@ -8,6 +8,7 @@ import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.dto.appointment.ReservarCitaRequest;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
 import com.meditriaje.exception.CitaNoDisponibleException;
+import com.meditriaje.exception.ConflictoOperacionException;
 import com.meditriaje.exception.DatosInvalidosException;
 import com.meditriaje.exception.GlobalExceptionHandler;
 import com.meditriaje.security.JwtService;
@@ -312,6 +313,19 @@ class AppointmentControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("DATOS_INVALIDOS"))
                 .andExpect(jsonPath("$.mensaje").value("Transicion de estado no permitida de ATENDIDA a CANCELADA."));
+    }
+
+    @Test
+    void cancelAppointment_conAtencionVinculada_retorna409Conflict() throws Exception {
+        when(appointmentService.cancelarCita(eq("cita-uuid-1"), any(), eq(PACIENTE_UUID), any(), anyString()))
+                .thenThrow(new ConflictoOperacionException("No es posible cancelar una cita que ya cuenta con una atencion clinica vinculada."));
+
+        mockMvc.perform(patch("/api/v1/appointments/cita-uuid-1/cancel")
+                        .cookie(new Cookie("access_token", TOKEN_PACIENTE))
+                        .header("X-Requested-With", "XMLHttpRequest"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.codigo").value("CONFLICTO_OPERACION"))
+                .andExpect(jsonPath("$.mensaje").value("No es posible cancelar una cita que ya cuenta con una atencion clinica vinculada."));
     }
 
     @Test

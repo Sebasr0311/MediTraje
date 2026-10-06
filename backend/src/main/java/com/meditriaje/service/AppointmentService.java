@@ -5,6 +5,7 @@ import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.dto.appointment.ReservarCitaRequest;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
 import com.meditriaje.exception.CitaNoDisponibleException;
+import com.meditriaje.exception.ConflictoOperacionException;
 import com.meditriaje.exception.DatosInvalidosException;
 import com.meditriaje.exception.RecursoNoEncontradoException;
 import com.meditriaje.model.AccionAuditable;
@@ -18,6 +19,7 @@ import com.meditriaje.model.Profesional;
 import com.meditriaje.model.ResultadoAuditoria;
 import com.meditriaje.model.Triaje;
 import com.meditriaje.model.Usuario;
+import com.meditriaje.repository.AtencionRepository;
 import com.meditriaje.repository.CitaRepository;
 import com.meditriaje.repository.DisponibilidadSlotRepository;
 import com.meditriaje.repository.PacienteRepository;
@@ -61,6 +63,7 @@ public class AppointmentService {
     private final TriajeRepository triajeRepository;
     private final AuditoriaService auditoriaService;
     private final AppointmentNotificationService appointmentNotificationService;
+    private final AtencionRepository atencionRepository;
     private final Clock clock;
 
     public AppointmentService(
@@ -81,6 +84,7 @@ public class AppointmentService {
                 triajeRepository,
                 auditoriaService,
                 null,
+                null,
                 Clock.systemUTC()
         );
     }
@@ -104,11 +108,11 @@ public class AppointmentService {
                 triajeRepository,
                 auditoriaService,
                 null,
+                null,
                 clock
         );
     }
 
-    @Autowired
     public AppointmentService(
             UsuarioRepository usuarioRepository,
             PacienteRepository pacienteRepository,
@@ -128,6 +132,7 @@ public class AppointmentService {
                 triajeRepository,
                 auditoriaService,
                 appointmentNotificationService,
+                null,
                 Clock.systemUTC()
         );
     }
@@ -143,6 +148,33 @@ public class AppointmentService {
             AppointmentNotificationService appointmentNotificationService,
             Clock clock
     ) {
+        this(
+                usuarioRepository,
+                pacienteRepository,
+                disponibilidadSlotRepository,
+                profesionalRepository,
+                citaRepository,
+                triajeRepository,
+                auditoriaService,
+                appointmentNotificationService,
+                null,
+                clock
+        );
+    }
+
+    @Autowired
+    public AppointmentService(
+            UsuarioRepository usuarioRepository,
+            PacienteRepository pacienteRepository,
+            DisponibilidadSlotRepository disponibilidadSlotRepository,
+            ProfesionalRepository profesionalRepository,
+            CitaRepository citaRepository,
+            TriajeRepository triajeRepository,
+            AuditoriaService auditoriaService,
+            AppointmentNotificationService appointmentNotificationService,
+            AtencionRepository atencionRepository,
+            Clock clock
+    ) {
         this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "UsuarioRepository no puede ser nulo");
         this.pacienteRepository = Objects.requireNonNull(pacienteRepository, "PacienteRepository no puede ser nulo");
         this.disponibilidadSlotRepository = Objects.requireNonNull(disponibilidadSlotRepository, "DisponibilidadSlotRepository no puede ser nulo");
@@ -151,6 +183,7 @@ public class AppointmentService {
         this.triajeRepository = Objects.requireNonNull(triajeRepository, "TriajeRepository no puede ser nulo");
         this.auditoriaService = Objects.requireNonNull(auditoriaService, "AuditoriaService no puede ser nulo");
         this.appointmentNotificationService = appointmentNotificationService;
+        this.atencionRepository = atencionRepository;
         this.clock = Objects.requireNonNull(clock, "Clock no puede ser nulo");
     }
 
@@ -288,6 +321,11 @@ public class AppointmentService {
         // 2. Obtener cita por citaPublicId
         Cita cita = citaRepository.buscarEntidadPorPublicId(citaPublicId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada."));
+
+        // 2.1 Si existe una atención ligada a la cita (abierta o cerrada), no se puede cancelar (Decisión D2)
+        if (atencionRepository != null && atencionRepository.existePorCitaId(cita.id())) {
+            throw new ConflictoOperacionException("No es posible cancelar una cita que ya cuenta con una atencion clinica vinculada.");
+        }
 
         // 3. Validar transición de estado según CitaStateMachine
         EstadoCita estadoActual;

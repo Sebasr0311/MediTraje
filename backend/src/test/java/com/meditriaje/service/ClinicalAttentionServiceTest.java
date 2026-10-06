@@ -48,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -117,7 +118,7 @@ class ClinicalAttentionServiceTest {
     }
 
     @Test
-    @DisplayName("iniciarAtencion - éxito: crea atención en estado ABIERTA, pasa cita a CONFIRMADA y audita")
+    @DisplayName("iniciarAtencion - éxito: crea atención en estado ABIERTA, mantiene cita en PROGRAMADA y audita (D2)")
     void iniciarAtencion_exito() {
         IniciarAtencionRequest request = new IniciarAtencionRequest("cita-uuid-1");
 
@@ -140,8 +141,8 @@ class ClinicalAttentionServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.estado()).isEqualTo("ABIERTA");
 
-        // Verifica que la cita pasó a CONFIRMADA
-        verify(citaRepository).actualizarEstado(100L, "CONFIRMADA", null);
+        // Verifica que la cita NO cambia de estado al iniciar atención (Decisión D2)
+        verify(citaRepository, never()).actualizarEstado(anyLong(), anyString(), any());
 
         // Verifica guardado de atención
         ArgumentCaptor<Atencion> atencionCaptor = ArgumentCaptor.forClass(Atencion.class);
@@ -228,13 +229,13 @@ class ClinicalAttentionServiceTest {
 
         Atencion atencionAbierta = new Atencion(1L, atencionPublicId, 100L, 300L, 50L, "ABIERTA");
         DiagnosticoCie10 cie10 = new DiagnosticoCie10(15L, "J00", "Rinofaringitis aguda (resfriado comun)", "ACTIVO");
-        Cita citaConfirmada = new Cita(100L, "cita-uuid-1", 200L, 300L, null, null, "CONFIRMADA", null, AHORA, null);
+        Cita citaProgramada = new Cita(100L, "cita-uuid-1", 200L, 300L, null, null, "PROGRAMADA", null, AHORA, null);
 
         when(usuarioRepository.buscarPorPublicId("usr-med-1")).thenReturn(Optional.of(usuarioMedico));
         when(profesionalRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.of(profesionalMedico));
         when(atencionRepository.buscarEntidadPorPublicId(atencionPublicId)).thenReturn(Optional.of(atencionAbierta));
         when(diagnosticoCie10Repository.buscarPorCodigo("J00")).thenReturn(Optional.of(cie10));
-        when(citaRepository.buscarEntidadPorId(100L)).thenReturn(Optional.of(citaConfirmada));
+        when(citaRepository.buscarEntidadPorId(100L)).thenReturn(Optional.of(citaProgramada));
 
         AtencionResponse mockResponse = new AtencionResponse(
                 atencionPublicId, "cita-uuid-1", "pac-uuid-1", "Juan Perez",
@@ -260,7 +261,7 @@ class ClinicalAttentionServiceTest {
         // Verifica cierre de atención en BD
         verify(atencionRepository).cerrarAtencion(1L, 15L, "Cefalea y congestion nasal", "Cuadro viral agudo", "Reposo e hidratacion oral", AHORA);
 
-        // Verifica transición de cita a ATENDIDA
+        // Verifica transición de cita a ATENDIDA desde PROGRAMADA
         verify(citaRepository).actualizarEstado(100L, "ATENDIDA", null);
 
         // Verifica auditoría sin datos clínicos
@@ -269,6 +270,35 @@ class ClinicalAttentionServiceTest {
         assertThat(eventoCaptor.getValue().accion()).isEqualTo(AccionAuditable.CIERRE_ATENCION);
         assertThat(eventoCaptor.getValue().tipoRecurso()).isEqualTo("ATENCION");
         assertThat(eventoCaptor.getValue().recursoPublicId()).isEqualTo(atencionPublicId);
+    }
+
+    @Test
+    @DisplayName("cerrarAtencion - éxito con cita legacy en CONFIRMADA: transiciona válidamente a ATENDIDA (D2)")
+    void cerrarAtencion_exito_citaLegacyConfirmada() {
+        String atencionPublicId = "atencion-uuid-legacy";
+        CerrarAtencionRequest request = new CerrarAtencionRequest("J00", "Motivo", "Evolucion", "Indicaciones", null);
+        Atencion atencionAbierta = new Atencion(2L, atencionPublicId, 101L, 300L, 50L, "ABIERTA");
+        DiagnosticoCie10 cie10 = new DiagnosticoCie10(15L, "J00", "Rinofaringitis aguda", "ACTIVO");
+        Cita citaConfirmadaLegacy = new Cita(101L, "cita-uuid-legacy", 201L, 300L, null, null, "CONFIRMADA", null, AHORA, null);
+
+        when(usuarioRepository.buscarPorPublicId("usr-med-1")).thenReturn(Optional.of(usuarioMedico));
+        when(profesionalRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.of(profesionalMedico));
+        when(atencionRepository.buscarEntidadPorPublicId(atencionPublicId)).thenReturn(Optional.of(atencionAbierta));
+        when(diagnosticoCie10Repository.buscarPorCodigo("J00")).thenReturn(Optional.of(cie10));
+        when(citaRepository.buscarEntidadPorId(101L)).thenReturn(Optional.of(citaConfirmadaLegacy));
+
+        AtencionResponse mockResponse = new AtencionResponse(
+                atencionPublicId, "cita-uuid-legacy", "pac-uuid-1", "Juan Perez",
+                "prof-1", "Carlos Gomez", "Medicina General",
+                "CERRADA", AHORA.minusSeconds(600), AHORA, "J00", "Rinofaringitis aguda",
+                "Motivo", "Evolucion", "Indicaciones", null
+        );
+        when(atencionRepository.buscarDetallePorPublicId(atencionPublicId)).thenReturn(Optional.of(mockResponse));
+
+        AtencionResponse response = clinicalAttentionService.cerrarAtencion(atencionPublicId, request, "usr-med-1", "127.0.0.1");
+
+        assertThat(response).isNotNull();
+        verify(citaRepository).actualizarEstado(101L, "ATENDIDA", null);
     }
 
     @Test

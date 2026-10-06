@@ -7,6 +7,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Changed
+- **Máquina de Estados de Citas y Protección Operacional (T2, Decisión D2, Plan Post-Auditoría)**:
+  - Simplificación del flujo activo del ciclo de vida de citas médicas: `PROGRAMADA → ATENDIDA | CANCELADA | NO_ASISTIO`.
+  - Los estados `CONFIRMADA` y `REPROGRAMADA` quedan reservados (sin migraciones destructivas sobre enum, CHECK o índice único funcional `uq_cita_slot_activa`).
+  - `ClinicalAttentionService.iniciarAtencion` ya no altera el estado de la cita a `CONFIRMADA`; la cita permanece en `PROGRAMADA` mientras la atención clínica está en curso.
+  - Al cerrar la atención médica (`cerrarAtencion`), la cita transiciona de forma inmutable a `ATENDIDA`.
+  - Protección de integridad asistencial en `AppointmentService.cancelarCita`: rechazo con `409 ConflictoOperacionException` si la cita ya cuenta con una atención médica vinculada (abierta o cerrada).
+  - Compatibilidad histórica legacy en `CitaStateMachine`: transiciones salientes válidas desde `CONFIRMADA` hacia `ATENDIDA`, `CANCELADA` o `NO_ASISTIO` para registros previos.
+  - Actualización de documentación: ADR-006 en `docs/DECISIONES.md` (marcado como PROPUESTO), `docs/MVP.md` (HU-05 y HU-07) y colecciones `docs/api/API.md` y `docs/api/M6.http`.
+  - Pruebas unitarias y de integración exhaustivas en `CitaStateMachineTest`, `ClinicalAttentionServiceTest`, `AppointmentServiceTest` y `AppointmentControllerTest` (840 pruebas pasando al 100%).
+
 ### Security
 - **Configuración Segura, Eliminación de Defaults en Producción y Fail-Fast (T1, Plan Post-Auditoría)**:
   - Sanitización de contraseñas de ejemplo en documentación (`docs/database/DATABASE.md`) sustituidas por marcadores seguros `<password_owner>` y `<password_app>`.
