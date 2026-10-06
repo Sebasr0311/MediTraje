@@ -8,6 +8,9 @@
 *Wallet*
 *.sso
 *.p12
+*.jks
+*.pem
+*.key
 cwallet.*
 ewallet.*
 tnsnames.ora

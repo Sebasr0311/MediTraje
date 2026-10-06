@@ -12,9 +12,9 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
   flyway:
-    enabled: true
-    user: ${FLYWAY_USER}
-    password: ${FLYWAY_PASSWORD}
+    enabled: ${FLYWAY_ENABLED:false}
+    user: ${FLYWAY_USER:${DB_USER}}
+    password: ${FLYWAY_PASSWORD:${DB_PASSWORD}}
 
 cors:
   origins: ${CORS_ORIGINS}
@@ -36,6 +36,6 @@ security:
     refresh-expiration-days: 7
 
 app:
-  frontend-url: ${FRONTEND_URL}
+  frontend-url: ${FRONTEND_URL:https://meditriaje.com}
 
 

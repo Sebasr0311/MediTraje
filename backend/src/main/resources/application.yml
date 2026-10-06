@@ -2,7 +2,8 @@ spring:
   application:
     name: meditriaje-api
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+    active: ${SPRING_PROFILES_ACTIVE:}
+    default: dev
   flyway:
     enabled: ${FLYWAY_ENABLED:false}
     locations: classpath:database/migrations
@@ -12,9 +13,9 @@ spring:
     validate-on-migrate: true
 
   datasource:
-    url: ${DB_URL:}
-    username: ${DB_USER:MEDITRIAJE_APP}
-    password: ${DB_PASSWORD:}
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
     hikari:
       pool-name: MediTriajeHikariPool
@@ -69,7 +70,13 @@ management:
       enabled: false
 
 cors:
-  origins: ${CORS_ORIGINS:http://localhost:5500,http://127.0.0.1:5500}
+  origins: ${CORS_ORIGINS}
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-minutes: 15
+    refresh-expiration-days: 7
 
 logging:
   level:
