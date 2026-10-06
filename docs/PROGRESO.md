@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** Ejecución Plan Post-Auditoría (`PLAN_POST_AUDITORIA.md`)
-- **Tarea actual:** T0 completada · Iniciando T1 (Secretos y configuración segura)
+- **Tarea actual:** T1 completada · Iniciando T2 (Estados de cita)
 - **Última etiqueta:** v1.8-norma-colombiana-brevo
 - **Rama de integración:** `integration/post-auditoria`
 
@@ -138,6 +138,19 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - [x] F2.8.2 Live Validation reactiva en frontend por campo e interacción cruzada (documento vs edad, celular, medidor interactivo de contraseña)
 - [x] F2.8.3 Conexión SMTP Relay con Brevo (spring-boot-starter-mail, envío de credenciales iniciales, recuperación por código OTP de 6 dígitos)
 - [x] F2.8.4 Verificación exhaustiva con 801 pruebas unitarias y de integración pasando al 100%
+ 
+### Plan Post-Auditoría (`PLAN_POST_AUDITORIA.md`)
+- [x] T0 Línea base
+- [x] T1 Secretos y configuración segura
+- [ ] T2 Estados de cita (decisión D2)
+- [ ] T3 Correo: API HTTP de Brevo y fallos visibles
+- [ ] T4 Alergias clínicas
+- [ ] T5 Inasistencia (no-show)
+- [ ] T6 Cierre de brechas de pruebas y trazabilidad
+- [ ] T7 Reconciliación documental y avisos
+- [ ] T8 Despliegue, demo y backups
+- [ ] T9 CI/CD (build, gitleaks, E2E)
+- [ ] T10 Revisión de seguridad final
 
 
 ## Decisiones tomadas durante el desarrollo
@@ -255,6 +268,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-04 · F2.6.5 · Frontend: Dashboard analítico de reportes y widget flotante del asistente virtual (ADR-018, RF-27, RF-30): vista analítica frontend/js/views/admin-reports.js integrada en panel administrativo (#/admin/reports) con filtros temporales, atajos rápidos, tarjetas KPI de citas, triajes, farmacia y break-glass, barras de progreso y listas de distribución por especialidad y sede; widget interactivo flotante frontend/js/views/system-assistant-widget.js con botón flotante (#assistant-fab), panel desplegable (#assistant-panel), chips de sugerencia rápida, renderizado reactivo con indicador de tipeo, botones de acción SPA y destacado de emergencia al 123; integrado globalmente en app.js; sintaxis limpia con node --check. · feat(frontend): dashboard analitico de reportes y widget de asistente virtual (F2.6.5)
 - 2026-10-04 · F2.6.6 · Colección HTTP y Cierre F2.6 (ADR-018, RF-27, RF-30): creación de docs/api/F2.6.http con 5 secciones y 14 escenarios de prueba cubriendo healthcheck, login multirol, consultas de reportes operativos globales y con filtros temporales, aislamiento 403 para pacientes y médicos, validación de fechas invertidas (400), consultas temáticas al asistente virtual (citas, triaje, farmacia, QR), corte infalible de emergencia médica vital con llamado prioritario al 123, validación de mensaje vacío (400) y acceso sin autenticación previa; verificación completa de la suite Maven con 729 pruebas unitarias y de integración pasando al 100% (0 fallos, 0 errores). Cierre exitoso del módulo F2.6. · test(api): coleccion f2.6.http y verificacion integral de asistente y reportes (F2.6.6)
 - 2026-10-06 · T0 · Línea Base Post-Auditoría: Ejecución limpia de `mvn clean verify` en rama `integration/post-auditoria`. Java 21 (ms-21.0.11), Spring Boot 3.3.4, 15 migraciones Flyway (V001 a V015). Conteo real de pruebas Surefire: 828 ejecutadas, 0 fallos, 0 errores, 0 skipped. Integración Testcontainers (Failsafe): 29 pruebas skipped por ausencia de Docker daemon local (comportamiento esperado). Cero pruebas @Disabled en suite unitaria. Línea base 100% verde establecida para ejecución del PLAN_POST_AUDITORIA.md. · baseline: linea base post-auditoria verificada (T0)
+- 2026-10-06 · T1 · Secretos y Configuración Segura: Escaneo oficial con Gitleaks v8.30.1 sobre todo el historial Git (134 commits, --all, 0 fugas detectadas). Sanitización de contraseñas de ejemplo en docs/database/DATABASE.md (<password_owner>, <password_app>). Aislamiento de valores de conveniencia a application-dev.yml y eliminación de defaults en base/prod. Implementación de ProdEnvironmentValidator y suite ProdSecretsFailFastTest (5 pruebas nuevas parametrizadas verificando fallo inmediato en prod ante ausencia de JWT_SECRET, DB_URL, DB_USER, DB_PASSWORD, CORS_ORIGINS). Refuerzo de .gitignore (*.jks, *.pem, *.key). Total pruebas Surefire: 833 verdes (0 fallos). Informe completo en docs/security/ESCANEO_SECRETOS.md. · fix(security): secretos configuracion segura y fail fast en prod (T1)
 
 
 

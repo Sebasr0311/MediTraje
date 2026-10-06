@@ -7,6 +7,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Security
+- **Configuración Segura, Eliminación de Defaults en Producción y Fail-Fast (T1, Plan Post-Auditoría)**:
+  - Sanitización de contraseñas de ejemplo en documentación (`docs/database/DATABASE.md`) sustituidas por marcadores seguros `<password_owner>` y `<password_app>`.
+  - Escaneo completo de secretos en el árbol y la totalidad del historial Git con Gitleaks v8.30.1 y reglas regex específicas (`xkeysib-`, `xsmtpsib-`, `eyJ...`), documentado en `docs/security/ESCANEO_SECRETOS.md` con 0 hallazgos activos.
+  - Aislamiento de valores de conveniencia y secretos por defecto exclusivamente en `application-dev.yml` y `application-test.yml`.
+  - Eliminación de defaults en perfil base (`application.yml`) y de producción (`application-prod.yml`), configurando `spring.profiles.default: dev` para no contaminar arranques de producción.
+  - Implementación de `ProdEnvironmentValidator` con verificación inmediata `@PostConstruct` que aborta el arranque en producción ante la ausencia de `JWT_SECRET`, `DB_URL`, `DB_USER`, `DB_PASSWORD` o `CORS_ORIGINS`.
+  - Prueba automatizada de fail-fast en producción `ProdSecretsFailFastTest` con 5 casos parametrizados verificando el rechazo temprano ante la ausencia de cada secreto.
+  - Endurecimiento de `.gitignore` para bloquear llaves privadas y certificados (`*.jks`, `*.pem`, `*.key`).
+
 ### Fixed
 - **Refinamiento de UX/UI y Proporción Temporal en Calendario Médico Time-Grid (`admin-appointments.js`, `components.css`)**:
   - Escala temporal balanceada con `PX_PER_HOUR = 96` (1 hora = 96px, 30 min = 48px, 1 min = 1.6px) eliminando vacíos desproporcionados y logrando lectura cómoda.
