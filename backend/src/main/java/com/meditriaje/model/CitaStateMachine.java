@@ -6,8 +6,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Máquina de estados formal para el ciclo de vida de una cita médica (ADR-006, HU-05).
- * Controla rigurosamente las transiciones permitidas y la inmutabilidad de estados finales.
+ * Máquina de estados formal para el ciclo de vida de una cita médica (ADR-006, Decisión D2).
+ * Flujo activo simplificado: PROGRAMADA -> ATENDIDA | CANCELADA | NO_ASISTIO.
+ * Los estados REPROGRAMADA y CONFIRMADA quedan reservados (no se utilizan en el flujo estándar).
+ * Por compatibilidad con registros preexistentes o legacy, CONFIRMADA permite transicionar a:
+ * ATENDIDA, CANCELADA o NO_ASISTIO.
  */
 public final class CitaStateMachine {
 
@@ -20,16 +23,14 @@ public final class CitaStateMachine {
 
     private static final Map<EstadoCita, Set<EstadoCita>> TRANSICIONES_PERMITIDAS = Map.of(
             EstadoCita.PROGRAMADA, Set.of(
-                    EstadoCita.CONFIRMADA,
+                    EstadoCita.ATENDIDA,
                     EstadoCita.CANCELADA,
-                    EstadoCita.NO_ASISTIO,
-                    EstadoCita.REPROGRAMADA
+                    EstadoCita.NO_ASISTIO
             ),
             EstadoCita.CONFIRMADA, Set.of(
                     EstadoCita.ATENDIDA,
                     EstadoCita.CANCELADA,
-                    EstadoCita.NO_ASISTIO,
-                    EstadoCita.REPROGRAMADA
+                    EstadoCita.NO_ASISTIO
             )
     );
 

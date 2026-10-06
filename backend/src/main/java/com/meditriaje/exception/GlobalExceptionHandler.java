@@ -85,9 +85,9 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of("NO_AUTENTICADO", "Debe iniciar sesion para acceder a este recurso.", null));
     }
 
-    @ExceptionHandler(CitaNoDisponibleException.class)
-    public ResponseEntity<ApiError> handleCitaNoDisponible(CitaNoDisponibleException ex) {
-        log.warn("Cita no disponible: codigo={}", ex.getCodigo());
+    @ExceptionHandler({CitaNoDisponibleException.class, ConflictoOperacionException.class})
+    public ResponseEntity<ApiError> handleConflicto(MediTriajeException ex) {
+        log.warn("Conflicto de operacion o estado: codigo={}", ex.getCodigo());
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));

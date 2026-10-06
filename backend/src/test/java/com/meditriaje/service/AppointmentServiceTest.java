@@ -6,6 +6,7 @@ import com.meditriaje.dto.appointment.ReservarCitaRequest;
 import com.meditriaje.dto.common.PaginatedResponse;
 import com.meditriaje.exception.AccesoNoAutorizadoException;
 import com.meditriaje.exception.CitaNoDisponibleException;
+import com.meditriaje.exception.ConflictoOperacionException;
 import com.meditriaje.exception.DatosInvalidosException;
 import com.meditriaje.exception.RecursoNoEncontradoException;
 import com.meditriaje.model.AccionAuditable;
@@ -75,6 +76,9 @@ class AppointmentServiceTest {
     @Mock
     private AuditoriaService auditoriaService;
 
+    @Mock
+    private com.meditriaje.repository.AtencionRepository atencionRepository;
+
     private final Instant NOW = Instant.parse("2026-10-10T10:00:00Z");
     private final Clock fixedClock = Clock.fixed(NOW, ZoneOffset.UTC);
 
@@ -99,6 +103,8 @@ class AppointmentServiceTest {
                 citaRepository,
                 triajeRepository,
                 auditoriaService,
+                null,
+                atencionRepository,
                 fixedClock
         );
 
@@ -409,8 +415,33 @@ class AppointmentServiceTest {
     }
 
     // =========================================================================
-    // CANCELACIÓN DE CITAS Y MÁQUINA DE ESTADOS (ADR-006, HU-05)
+    // CANCELACIÓN DE CITAS Y MÁQUINA DE ESTADOS (ADR-006, HU-05, D2)
     // =========================================================================
+
+    @Test
+    void cancelarCita_conAtencionVinculada_lanzaConflictoOperacionException409() {
+        Cita citaProgramada = new Cita(
+                500L, "cita-uuid-1", 50L, 10L, null, null, "PROGRAMADA", null, NOW, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(citaRepository.buscarEntidadPorPublicId("cita-uuid-1")).thenReturn(Optional.of(citaProgramada));
+        when(atencionRepository.existePorCitaId(500L)).thenReturn(true);
+
+        assertThatThrownBy(() -> appointmentService.cancelarCita(
+                "cita-uuid-1",
+                new CancelarCitaRequest("Motivo"),
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_PACIENTE")),
+                IP_CLIENTE
+        ))
+                .isInstanceOf(ConflictoOperacionException.class)
+                .hasMessage("No es posible cancelar una cita que ya cuenta con una atencion clinica vinculada.");
+
+        verify(disponibilidadSlotRepository, never()).liberarSlot(anyLong());
+        verify(citaRepository, never()).actualizarEstado(anyLong(), anyString(), any());
+        verify(auditoriaService, never()).auditar(any());
+    }
 
     @Test
     void cancelarCita_pacienteConMasDeDosHoras_exitoso_actualizaEstadoLiberaSlotYAudita() {

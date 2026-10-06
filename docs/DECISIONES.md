@@ -63,15 +63,23 @@ END;
 ```
 
 ## ADR-006 Citas, disponibilidad y concurrencia
+**Estado:** PROPUESTO — pendiente de aprobación de Juan (Decisión D2, 2026-10-06).
 **Disponibilidad:** tabla `DISPONIBILIDAD_SLOT` generada por el admin (profesional, sede, especialidad, modalidad, inicio, fin, estado LIBRE/OCUPADO/BLOQUEADO). Duración por defecto 20 min, configurable por especialidad.
 
-**Estados de cita y transiciones permitidas:**
+**Estados de cita y transiciones permitidas (Decisión D2):**
+- Flujo estándar simplificado:
 ```
-PROGRAMADA  → CONFIRMADA | CANCELADA | NO_ASISTIO | REPROGRAMADA
-CONFIRMADA  → ATENDIDA   | CANCELADA | NO_ASISTIO | REPROGRAMADA
-(ATENDIDA, CANCELADA, NO_ASISTIO, REPROGRAMADA son finales)
+PROGRAMADA  → ATENDIDA | CANCELADA | NO_ASISTIO
 ```
-**Cancelación:** el paciente hasta 2 h antes del inicio; después, solo profesional/admin. Reprogramar = cancelar + nueva cita con `cita_origen_id`.
+- Iniciar una atención clínica mantiene la cita en estado `PROGRAMADA`. Al cerrar la atención se pasa a `ATENDIDA`.
+- Si una cita ya cuenta con una atención clínica vinculada (abierta o cerrada), se rechaza cualquier intento de cancelación o inasistencia con `409 ConflictoOperacionException`.
+- Los estados `CONFIRMADA` y `REPROGRAMADA` quedan **reservados** (permanecen en el enum, el `CHECK` y el índice de unicidad para evitar migraciones DDL destructivas).
+- Por compatibilidad histórica con registros legacy, `CONFIRMADA` permite transicionar a:
+```
+CONFIRMADA  → ATENDIDA | CANCELADA | NO_ASISTIO
+```
+- Estados finales inmutables: `ATENDIDA`, `CANCELADA`, `NO_ASISTIO`, `REPROGRAMADA`.
+- **Cancelación:** el paciente hasta 2 h antes del inicio; después, solo profesional/admin (si no existe atención clínica vinculada).
 
 **Doble reserva (en BD, no solo en Java):** `CITA.slot_id` con índice único funcional que solo cuenta citas activas:
 ```sql

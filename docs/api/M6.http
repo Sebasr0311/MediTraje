@@ -158,7 +158,7 @@ Accept: application/json
 ### ----------------------------------------------------------------------------
 
 ### 5.1 Médico 1 inicia la atención médica para la cita agendada
-### -> DEBE RETORNAR 201 CREATED con estado ABIERTA y cita en CONFIRMADA
+### -> DEBE RETORNAR 201 CREATED con estado ABIERTA (la cita permanece PROGRAMADA, Decisión D2)
 # @name iniciarAtencion
 POST {{baseUrl}}/attentions
 Content-Type: application/json

@@ -42,7 +42,8 @@ Demostrar, de forma segura y auditada, el flujo mínimo completo:
 
 **HU-05 Cancelar cita**
 - El paciente cancela hasta 2 horas antes. El slot se libera. Queda auditado.
-- Solo transiciones de estado permitidas (ver DECISIONES, ADR-006).
+- Solo transiciones de estado permitidas (ver DECISIONES, ADR-006: PROGRAMADA → CANCELADA).
+- Si existe una atención clínica vinculada a la cita (abierta o cerrada), no se puede cancelar (409 Conflicto).
 
 **HU-06 Agenda del profesional**
 - El profesional ve únicamente sus citas.
@@ -50,8 +51,9 @@ Demostrar, de forma segura y auditada, el flujo mínimo completo:
 **HU-07 Registrar atención**
 - Solo el profesional con relación asistencial vigente con el paciente (ADR-007).
 - Campos: motivo, evolución, signos vitales, diagnóstico CIE-10, indicaciones.
+- Iniciar la atención mantiene la cita en estado PROGRAMADA.
 - Al cerrar, la atención es inmutable; las correcciones se hacen con enmienda (ADR-008).
-- La cita pasa a ATENDIDA. El acceso queda auditado.
+- La cita pasa a ATENDIDA al cerrar la atención (Decisión D2). El acceso queda auditado.
 
 **HU-08 Crear receta**
 - Solo el profesional responsable de la atención.
