@@ -361,6 +361,23 @@ public class DisponibilidadSlotRepository {
             int page,
             int size
     ) {
+        return consultarDisponibles(especialidadPublicId, null, sedePublicId, modalidad, fechaDesde, fechaHasta, page, size);
+    }
+
+    /**
+     * Consulta slots disponibles (LIBRE) para asignación de citas asistenciales (HU-03).
+     * Aplica filtros estrictos de estado: solo profesionales activos, sedes activas y especialidades activas.
+     */
+    public List<DisponibilidadSlotResponse> consultarDisponibles(
+            String especialidadPublicId,
+            String profesionalPublicId,
+            String sedePublicId,
+            String modalidad,
+            Instant fechaDesde,
+            Instant fechaHasta,
+            int page,
+            int size
+    ) {
         StringBuilder sql = new StringBuilder("""
             SELECT s.PUBLIC_ID AS SLOT_PUBLIC_ID,
                    p.PUBLIC_ID AS PROFESIONAL_PUBLIC_ID,
@@ -392,6 +409,11 @@ public class DisponibilidadSlotRepository {
             params.add(especialidadPublicId.trim());
         }
 
+        if (profesionalPublicId != null && !profesionalPublicId.isBlank()) {
+            sql.append(" AND p.PUBLIC_ID = ?");
+            params.add(profesionalPublicId.trim());
+        }
+
         if (sedePublicId != null && !sedePublicId.isBlank()) {
             sql.append(" AND sd.PUBLIC_ID = ?");
             params.add(sedePublicId.trim());
@@ -421,11 +443,22 @@ public class DisponibilidadSlotRepository {
         return jdbcTemplate.query(sql.toString(), disponibilidadSlotResponseRowMapper, params.toArray());
     }
 
+    public int contarDisponibles(
+            String especialidadPublicId,
+            String sedePublicId,
+            String modalidad,
+            Instant fechaDesde,
+            Instant fechaHasta
+    ) {
+        return contarDisponibles(especialidadPublicId, null, sedePublicId, modalidad, fechaDesde, fechaHasta);
+    }
+
     /**
      * Cuenta el total de slots disponibles (LIBRE) para los filtros asistenciales dados.
      */
     public int contarDisponibles(
             String especialidadPublicId,
+            String profesionalPublicId,
             String sedePublicId,
             String modalidad,
             Instant fechaDesde,
@@ -449,6 +482,11 @@ public class DisponibilidadSlotRepository {
         if (especialidadPublicId != null && !especialidadPublicId.isBlank()) {
             sql.append(" AND e.PUBLIC_ID = ?");
             params.add(especialidadPublicId.trim());
+        }
+
+        if (profesionalPublicId != null && !profesionalPublicId.isBlank()) {
+            sql.append(" AND p.PUBLIC_ID = ?");
+            params.add(profesionalPublicId.trim());
         }
 
         if (sedePublicId != null && !sedePublicId.isBlank()) {

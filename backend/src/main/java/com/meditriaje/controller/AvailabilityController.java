@@ -33,6 +33,8 @@ public class AvailabilityController {
     public ResponseEntity<PaginatedResponse<DisponibilidadSlotResponse>> consultarDisponibilidad(
             @RequestParam(required = false) String especialidad,
             @RequestParam(required = false) String especialidadPublicId,
+            @RequestParam(required = false) String profesional,
+            @RequestParam(required = false) String profesionalPublicId,
             @RequestParam(required = false) String sede,
             @RequestParam(required = false) String sedePublicId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
@@ -44,18 +46,35 @@ public class AvailabilityController {
                 ? especialidadPublicId
                 : especialidad;
 
+        String profFiltro = (profesionalPublicId != null && !profesionalPublicId.isBlank())
+                ? profesionalPublicId
+                : profesional;
+
         String sedeFiltro = (sedePublicId != null && !sedePublicId.isBlank())
                 ? sedePublicId
                 : sede;
 
-        PaginatedResponse<DisponibilidadSlotResponse> response = availabilityService.consultarDisponibilidad(
-                espFiltro,
-                sedeFiltro,
-                modalidad,
-                fecha,
-                page,
-                size
-        );
+        PaginatedResponse<DisponibilidadSlotResponse> response;
+        if (profFiltro != null && !profFiltro.isBlank()) {
+            response = availabilityService.consultarDisponibilidad(
+                    espFiltro,
+                    profFiltro,
+                    sedeFiltro,
+                    modalidad,
+                    fecha,
+                    page,
+                    size
+            );
+        } else {
+            response = availabilityService.consultarDisponibilidad(
+                    espFiltro,
+                    sedeFiltro,
+                    modalidad,
+                    fecha,
+                    page,
+                    size
+            );
+        }
 
         return ResponseEntity.ok(response);
     }

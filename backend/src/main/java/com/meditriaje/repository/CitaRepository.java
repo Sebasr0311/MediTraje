@@ -1,5 +1,6 @@
 package com.meditriaje.repository;
 
+import com.meditriaje.dto.admin.AdminCitaDetalleResponse;
 import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.model.Cita;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -70,6 +71,39 @@ public class CitaRepository {
                 rs.getString("ESTADO"),
                 rs.getString("TRIAJE_PUBLIC_ID"),
                 rs.getString("CITA_ORIGEN_PUBLIC_ID"),
+                tsCreated != null ? tsCreated.toInstant() : null
+        );
+    };
+
+    private final RowMapper<AdminCitaDetalleResponse> adminCitaDetalleRowMapper = (rs, rowNum) -> {
+        Timestamp tsInicio = rs.getTimestamp("FECHA_HORA_INICIO");
+        Timestamp tsFin = rs.getTimestamp("FECHA_HORA_FIN");
+        Timestamp tsCreated = rs.getTimestamp("CREATED_AT");
+
+        return new AdminCitaDetalleResponse(
+                rs.getString("CITA_PUBLIC_ID"),
+                rs.getString("PACIENTE_PUBLIC_ID"),
+                rs.getString("PACIENTE_NOMBRE"),
+                rs.getString("PACIENTE_DOC_TIPO"),
+                rs.getString("PACIENTE_DOC_NUM"),
+                rs.getString("PACIENTE_TELEFONO"),
+                rs.getString("PACIENTE_EMAIL"),
+                rs.getString("PROFESIONAL_PUBLIC_ID"),
+                rs.getString("PROFESIONAL_NOMBRE"),
+                rs.getString("REGISTRO_MEDICO"),
+                rs.getString("ESPECIALIDAD_PUBLIC_ID"),
+                rs.getString("ESPECIALIDAD_NOMBRE"),
+                rs.getString("SEDE_PUBLIC_ID"),
+                rs.getString("SEDE_NOMBRE"),
+                rs.getString("SEDE_CIUDAD"),
+                tsInicio != null ? tsInicio.toInstant() : null,
+                tsFin != null ? tsFin.toInstant() : null,
+                rs.getString("MODALIDAD"),
+                rs.getString("ESTADO"),
+                rs.getString("MOTIVO_CANCELACION"),
+                rs.getString("TRIAJE_PUBLIC_ID"),
+                rs.getString("TRIAJE_NIVEL"),
+                rs.getString("MOTIVO_CONSULTA"),
                 tsCreated != null ? tsCreated.toInstant() : null
         );
     };
@@ -426,6 +460,146 @@ public class CitaRepository {
         String sql = "SELECT COUNT(*) FROM CITA WHERE PACIENTE_ID = ?";
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, pacienteId);
         return count != null ? count : 0;
+    }
+
+    /**
+     * Consulta consolidada de citas médicas para supervisión, calendario semanal y reportes de administrador.
+     */
+    public List<AdminCitaDetalleResponse> listarCitasAdmin(
+            Instant fechaDesde,
+            Instant fechaHasta,
+            String profesionalPublicId,
+            String especialidadPublicId,
+            String estado,
+            int page,
+            int size
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT
+                c.PUBLIC_ID AS CITA_PUBLIC_ID,
+                p.PUBLIC_ID AS PACIENTE_PUBLIC_ID,
+                p.NOMBRES || ' ' || p.APELLIDOS AS PACIENTE_NOMBRE,
+                p.TIPO_DOCUMENTO AS PACIENTE_DOC_TIPO,
+                p.NUMERO_DOCUMENTO AS PACIENTE_DOC_NUM,
+                p.TELEFONO AS PACIENTE_TELEFONO,
+                up.EMAIL AS PACIENTE_EMAIL,
+                pr.PUBLIC_ID AS PROFESIONAL_PUBLIC_ID,
+                pr.NOMBRES || ' ' || pr.APELLIDOS AS PROFESIONAL_NOMBRE,
+                pr.REGISTRO_MEDICO AS REGISTRO_MEDICO,
+                e.PUBLIC_ID AS ESPECIALIDAD_PUBLIC_ID,
+                e.NOMBRE AS ESPECIALIDAD_NOMBRE,
+                sd.PUBLIC_ID AS SEDE_PUBLIC_ID,
+                sd.NOMBRE AS SEDE_NOMBRE,
+                sd.CIUDAD AS SEDE_CIUDAD,
+                s.FECHA_HORA_INICIO,
+                s.FECHA_HORA_FIN,
+                s.MODALIDAD,
+                c.ESTADO,
+                c.MOTIVO_CANCELACION,
+                t.PUBLIC_ID AS TRIAJE_PUBLIC_ID,
+                t.NIVEL_PRIORIDAD AS TRIAJE_NIVEL,
+                COALESCE(t.OBSERVACIONES, 'Consulta médica general') AS MOTIVO_CONSULTA,
+                c.CREATED_AT
+            FROM CITA c
+            JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
+            JOIN PACIENTE p ON c.PACIENTE_ID = p.ID
+            JOIN USUARIO up ON p.USUARIO_ID = up.ID
+            JOIN PROFESIONAL pr ON s.PROFESIONAL_ID = pr.ID
+            JOIN ESPECIALIDAD e ON s.ESPECIALIDAD_ID = e.ID
+            JOIN SEDE sd ON s.SEDE_ID = sd.ID
+            LEFT JOIN TRIAJE t ON c.TRIAJE_ID = t.ID
+            WHERE 1 = 1
+            """);
+
+        List<Object> params = new ArrayList<>();
+
+        if (fechaDesde != null) {
+            sql.append(" AND s.FECHA_HORA_INICIO >= ?");
+            params.add(Timestamp.from(fechaDesde));
+        }
+
+        if (fechaHasta != null) {
+            sql.append(" AND s.FECHA_HORA_INICIO <= ?");
+            params.add(Timestamp.from(fechaHasta));
+        }
+
+        if (profesionalPublicId != null && !profesionalPublicId.isBlank()) {
+            sql.append(" AND pr.PUBLIC_ID = ?");
+            params.add(profesionalPublicId.trim());
+        }
+
+        if (especialidadPublicId != null && !especialidadPublicId.isBlank()) {
+            sql.append(" AND e.PUBLIC_ID = ?");
+            params.add(especialidadPublicId.trim());
+        }
+
+        if (estado != null && !estado.isBlank()) {
+            sql.append(" AND c.ESTADO = ?");
+            params.add(estado.trim().toUpperCase(Locale.ROOT));
+        }
+
+        sql.append(" ORDER BY s.FECHA_HORA_INICIO ASC, c.ID ASC");
+
+        if (size > 0) {
+            sql.append(" OFFSET ? ROWS FETCH NEXT ? ROWS ONLY");
+            int offset = Math.max(0, page) * Math.max(1, size);
+            params.add(offset);
+            params.add(size);
+        }
+
+        return jdbcTemplate.query(sql.toString(), adminCitaDetalleRowMapper, params.toArray());
+    }
+
+    /**
+     * Cuenta el total de citas para los filtros administrativos dados.
+     */
+    public int contarCitasAdmin(
+            Instant fechaDesde,
+            Instant fechaHasta,
+            String profesionalPublicId,
+            String especialidadPublicId,
+            String estado
+    ) {
+        StringBuilder sql = new StringBuilder("""
+            SELECT COUNT(*)
+            FROM CITA c
+            JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
+            JOIN PACIENTE p ON c.PACIENTE_ID = p.ID
+            JOIN PROFESIONAL pr ON s.PROFESIONAL_ID = pr.ID
+            JOIN ESPECIALIDAD e ON s.ESPECIALIDAD_ID = e.ID
+            JOIN SEDE sd ON s.SEDE_ID = sd.ID
+            WHERE 1 = 1
+            """);
+
+        List<Object> params = new ArrayList<>();
+
+        if (fechaDesde != null) {
+            sql.append(" AND s.FECHA_HORA_INICIO >= ?");
+            params.add(Timestamp.from(fechaDesde));
+        }
+
+        if (fechaHasta != null) {
+            sql.append(" AND s.FECHA_HORA_INICIO <= ?");
+            params.add(Timestamp.from(fechaHasta));
+        }
+
+        if (profesionalPublicId != null && !profesionalPublicId.isBlank()) {
+            sql.append(" AND pr.PUBLIC_ID = ?");
+            params.add(profesionalPublicId.trim());
+        }
+
+        if (especialidadPublicId != null && !especialidadPublicId.isBlank()) {
+            sql.append(" AND e.PUBLIC_ID = ?");
+            params.add(especialidadPublicId.trim());
+        }
+
+        if (estado != null && !estado.isBlank()) {
+            sql.append(" AND c.ESTADO = ?");
+            params.add(estado.trim().toUpperCase(Locale.ROOT));
+        }
+
+        Integer total = jdbcTemplate.queryForObject(sql.toString(), Integer.class, params.toArray());
+        return total != null ? total : 0;
     }
 }
 

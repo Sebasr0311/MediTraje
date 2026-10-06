@@ -11,6 +11,7 @@ import { ui, esc } from '../ui.js';
 import { showMfaModal } from './mfa-setup-modal.js';
 import { renderReports } from './admin-reports.js';
 import { renderAudit } from './admin-audit.js';
+import { renderAdminAppointments } from './admin-appointments.js';
 
 /** Fecha de hoy en formato YYYY-MM-DD en zona America/Bogota. */
 function todayBogota() {
@@ -63,6 +64,7 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
   else if (hash.includes('/admin/specialties')) activeTab = 'specialties';
   else if (hash.includes('/admin/professionals')) activeTab = 'professionals';
   else if (hash.includes('/admin/slots')) activeTab = 'slots';
+  else if (hash.includes('/admin/appointments')) activeTab = 'appointments';
   else if (hash.includes('/admin/reports')) activeTab = 'reports';
   else if (hash.includes('/admin/audit')) activeTab = 'audit';
   else if (hash.includes('/admin/institutions')) activeTab = 'institutions';
@@ -105,7 +107,10 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
           ${ui.icon('user', 'icon icon--sm')}<span>Profesionales</span>
         </button>
         <button type="button" class="admin-tab ${activeTab === 'slots' ? 'is-active' : ''}" data-tab="slots">
-          ${ui.icon('calendar', 'icon icon--sm')}<span>Slots de turnos</span>
+          ${ui.icon('clock', 'icon icon--sm')}<span>Slots de turnos</span>
+        </button>
+        <button type="button" class="admin-tab ${activeTab === 'appointments' ? 'is-active' : ''}" data-tab="appointments">
+          ${ui.icon('calendar', 'icon icon--sm')}<span>Calendario de Citas</span>
         </button>
         <button type="button" class="admin-tab ${activeTab === 'reports' ? 'is-active' : ''}" data-tab="reports">
           ${ui.icon('bar-chart', 'icon icon--sm')}<span>Reportes</span>
@@ -141,6 +146,7 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
     else if (activeTab === 'specialties') renderSpecialties(contentEl);
     else if (activeTab === 'professionals') renderProfessionals(contentEl);
     else if (activeTab === 'slots') renderSlots(contentEl);
+    else if (activeTab === 'appointments') renderAdminAppointments(contentEl);
     else if (activeTab === 'reports') renderReports(contentEl);
     else if (activeTab === 'audit') renderAudit(contentEl);
     else renderInstitutions(contentEl);

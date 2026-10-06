@@ -160,22 +160,43 @@ export async function professionalAgendaView(container) {
       <div class="flex flex-col gap-3">
         ${citas.map(c => {
           const canStart = c.estado === 'PROGRAMADA' || c.estado === 'CONFIRMADA';
+          const fechaCita = c.fechaHoraInicio ? formatLongDate(new Date(c.fechaHoraInicio).toISOString().slice(0, 10)) : '';
+          const horaInicio = formatTime(c.fechaHoraInicio);
+          const horaFin = c.fechaHoraFin ? formatTime(c.fechaHoraFin) : '';
+          const isTele = c.modalidad === 'TELEMEDICINA';
+
           return `
             <div class="card p-4" style="border-left: 4px solid ${canStart ? 'var(--primary)' : 'var(--border)'};">
               <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-4">
-                  <div style="min-width: 5.5rem;">
-                    <span class="text-lg font-bold block">${formatTime(c.fechaHoraInicio)}</span>
-                    <span class="text-xs text-muted">${c.modalidad === 'TELEMEDICINA' ? 'Telemedicina' : esc(c.sedeNombre)}</span>
+                <div class="flex items-start gap-4">
+                  <!-- Horario y Día -->
+                  <div style="min-width: 7.5rem;">
+                    <span class="text-lg font-bold block text-primary">${horaInicio} ${horaFin ? `<span class="text-xs text-muted font-normal block">– ${horaFin}</span>` : ''}</span>
+                    <span class="text-xs text-muted font-medium block capitalize mt-0.5">${fechaCita}</span>
+                    <span class="badge ${isTele ? 'badge--rescheduled' : 'badge--neutral'} text-xs mt-1" style="font-size: 11px;">
+                      ${isTele ? 'Telemedicina' : (esc(c.sedeNombre) || 'Presencial')}
+                    </span>
                   </div>
+
+                  <!-- Paciente y Detalles -->
                   <div>
-                    <span class="font-semibold block">${esc(c.pacienteNombre)}</span>
-                    <div class="flex items-center gap-2 mt-1">
+                    <div class="flex items-center gap-2">
+                      ${ui.icon('user', 'icon icon--sm text-primary')}
+                      <span class="font-bold text-base block text-text">${esc(c.pacienteNombre)}</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 mt-1.5">
                       ${statusBadge(c.estado)}
-                      ${c.triajePublicId ? `<span class="badge badge--scheduled text-xs">${ui.icon('activity', 'icon icon--sm')} Con triaje</span>` : ''}
+                      <span class="badge badge--neutral text-xs">${esc(c.especialidadNombre || 'Medicina General')}</span>
+                      ${c.triajePublicId ? `
+                        <span class="badge badge--scheduled text-xs">
+                          ${ui.icon('activity', 'icon icon--sm')} Triaje vinculado
+                        </span>
+                      ` : ''}
                     </div>
                   </div>
                 </div>
+
+                <!-- Acciones -->
                 <div class="flex items-center gap-2">
                   <a href="#/professional/patient-history/${esc(c.pacientePublicId)}" class="btn btn-secondary btn--sm" title="Consultar historia clínica del paciente">
                     ${ui.icon('file-text', 'icon icon--sm')}<span>Historial</span>

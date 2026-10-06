@@ -61,6 +61,21 @@ public class AvailabilityService {
             int page,
             int size
     ) {
+        return consultarDisponibilidad(especialidadPublicId, null, sedePublicId, modalidad, fecha, page, size);
+    }
+
+    /**
+     * Consulta disponibilidad de slots libres futuros con filtros opcionales (incluyendo profesional) y paginación.
+     */
+    public PaginatedResponse<DisponibilidadSlotResponse> consultarDisponibilidad(
+            String especialidadPublicId,
+            String profesionalPublicId,
+            String sedePublicId,
+            String modalidad,
+            LocalDate fecha,
+            int page,
+            int size
+    ) {
         // Validación de paginación
         if (page < 0) {
             throw new DatosInvalidosException("El número de página no puede ser menor a 0.");
@@ -82,6 +97,9 @@ public class AvailabilityService {
 
         String espFiltro = (especialidadPublicId != null && !especialidadPublicId.isBlank())
                 ? especialidadPublicId.trim()
+                : null;
+        String profFiltro = (profesionalPublicId != null && !profesionalPublicId.isBlank())
+                ? profesionalPublicId.trim()
                 : null;
         String sedeFiltro = (sedePublicId != null && !sedePublicId.isBlank())
                 ? sedePublicId.trim()
@@ -111,22 +129,46 @@ public class AvailabilityService {
             fechaHasta = null;
         }
 
-        List<DisponibilidadSlotResponse> items = slotRepository.consultarDisponibles(
-                espFiltro,
-                sedeFiltro,
-                modalidadFiltro,
-                fechaDesde,
-                fechaHasta,
-                page,
-                size
-        );
-        int total = slotRepository.contarDisponibles(
-                espFiltro,
-                sedeFiltro,
-                modalidadFiltro,
-                fechaDesde,
-                fechaHasta
-        );
+        List<DisponibilidadSlotResponse> items;
+        int total;
+
+        if (profFiltro != null) {
+            items = slotRepository.consultarDisponibles(
+                    espFiltro,
+                    profFiltro,
+                    sedeFiltro,
+                    modalidadFiltro,
+                    fechaDesde,
+                    fechaHasta,
+                    page,
+                    size
+            );
+            total = slotRepository.contarDisponibles(
+                    espFiltro,
+                    profFiltro,
+                    sedeFiltro,
+                    modalidadFiltro,
+                    fechaDesde,
+                    fechaHasta
+            );
+        } else {
+            items = slotRepository.consultarDisponibles(
+                    espFiltro,
+                    sedeFiltro,
+                    modalidadFiltro,
+                    fechaDesde,
+                    fechaHasta,
+                    page,
+                    size
+            );
+            total = slotRepository.contarDisponibles(
+                    espFiltro,
+                    sedeFiltro,
+                    modalidadFiltro,
+                    fechaDesde,
+                    fechaHasta
+            );
+        }
 
         return PaginatedResponse.of(items, page, size, (long) total);
     }

@@ -20,6 +20,7 @@ let bookingState = {
     modalidad: '',
     fecha: ''
   },
+  selectedDoctor: '',
   availableSpecialties: new Map(), // publicId -> nombre
   availableSites: new Map()        // publicId -> nombre
 };
@@ -88,6 +89,7 @@ export async function patientBookingView(container, context = {}) {
   // Extraer triageId opcional vinculado
   bookingState.triageId = context.queryParams?.get('triageId') || null;
   bookingState.selectedSlot = null;
+  bookingState.selectedDoctor = '';
   bookingState.filters = {
     especialidad: '',
     sede: '',
@@ -306,54 +308,168 @@ function renderSlotsGrouped(container) {
     return;
   }
 
-  const grouped = groupSlotsByDay(bookingState.slots);
+  const doctorsMap = new Map();
+  bookingState.slots.forEach(slot => {
+    if (slot.profesionalPublicId && slot.profesionalNombre) {
+      if (!doctorsMap.has(slot.profesionalPublicId)) {
+        doctorsMap.set(slot.profesionalPublicId, {
+          publicId: slot.profesionalPublicId,
+          nombre: slot.profesionalNombre,
+          especialidad: slot.especialidadNombre || 'Medicina General',
+          totalSlots: 0,
+          modalidades: new Set()
+        });
+      }
+      const doc = doctorsMap.get(slot.profesionalPublicId);
+      doc.totalSlots++;
+      if (slot.modalidad) doc.modalidades.add(slot.modalidad);
+    }
+  });
+
+  const displayedSlots = bookingState.selectedDoctor
+    ? bookingState.slots.filter(s => s.profesionalPublicId === bookingState.selectedDoctor)
+    : bookingState.slots;
+
+  const grouped = groupSlotsByDay(displayedSlots);
+  const selectedDoctorObj = bookingState.selectedDoctor ? doctorsMap.get(bookingState.selectedDoctor) : null;
 
   resultsContainer.innerHTML = `
-    <div class="mb-4 flex items-center justify-between">
-      <span class="text-xs text-muted font-bold uppercase tracking-wider">
-        ${bookingState.slots.length} horario(s) disponible(s)
-      </span>
+    <!-- Panel Gráfico de Selección de Médico -->
+    ${doctorsMap.size > 0 ? `
+      <div class="card p-5 mb-6" style="background: var(--surface); border-top: 3px solid var(--primary);">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h2 class="text-base font-bold m-0 flex items-center gap-2">
+              ${ui.icon('user', 'icon icon--sm text-primary')}
+              <span>Médicos disponibles con espacio para tu cita</span>
+            </h2>
+            <p class="text-xs text-muted m-0">Elige un médico específico o visualiza todos los turnos disponibles</p>
+          </div>
+          <span class="badge badge--scheduled text-xs">${doctorsMap.size} médico(s) disponible(s)</span>
+        </div>
+
+        <div class="doctor-cards-grid">
+          <!-- Opción: Todos los médicos -->
+          <button 
+            type="button" 
+            class="doctor-card ${!bookingState.selectedDoctor ? 'is-selected' : ''}" 
+            data-doctor-id=""
+            aria-pressed="${!bookingState.selectedDoctor}"
+          >
+            <div class="doctor-avatar doctor-avatar--all">
+              ${ui.icon('users', 'icon icon--md')}
+            </div>
+            <div class="text-left flex-1 min-w-0">
+              <strong class="block text-sm">Todos los médicos</strong>
+              <span class="text-xs text-muted block">${bookingState.slots.length} turnos en total</span>
+              <span class="badge badge--neutral text-xs mt-1" style="font-size: 10px;">Ver toda la oferta</span>
+            </div>
+          </button>
+
+          <!-- Opciones por cada médico disponible -->
+          ${Array.from(doctorsMap.values()).map(doc => {
+            const isSel = bookingState.selectedDoctor === doc.publicId;
+            const initials = doc.nombre.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase() || 'DR';
+            return `
+              <button 
+                type="button" 
+                class="doctor-card ${isSel ? 'is-selected' : ''}" 
+                data-doctor-id="${doc.publicId}"
+                aria-pressed="${isSel}"
+              >
+                <div class="doctor-avatar">
+                  <span>${initials}</span>
+                </div>
+                <div class="text-left flex-1 min-w-0">
+                  <strong class="block text-sm truncate" title="Dr(a). ${doc.nombre}">Dr(a). ${doc.nombre}</strong>
+                  <span class="text-xs text-muted block truncate">${doc.especialidad}</span>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span class="badge ${isSel ? 'badge--confirmed' : 'badge--scheduled'} text-xs" style="font-size: 10px;">
+                      ${doc.totalSlots} turno(s) libre(s)
+                    </span>
+                  </div>
+                </div>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <span class="text-xs text-muted font-bold uppercase tracking-wider">
+          ${displayedSlots.length} horario(s) disponible(s)
+          ${selectedDoctorObj ? `· Dr(a). ${selectedDoctorObj.nombre}` : '· Todos los médicos'}
+        </span>
+      </div>
       <span class="text-xs text-muted">Selecciona una hora para ver el resumen y confirmar</span>
     </div>
 
-    <div class="flex flex-col gap-6">
-      ${Array.from(grouped.entries()).map(([dayKey, daySlots]) => `
-        <div class="card p-5" style="border-left: 4px solid var(--primary);">
-          <div class="flex items-center gap-2 mb-3 pb-2 border-b">
-            ${ui.icon('calendar', 'icon icon--sm text-primary')}
-            <h3 class="text-md font-bold m-0 capitalize">${formatDayHeader(daySlots[0].fechaHoraInicio)}</h3>
-            <span class="badge badge--scheduled text-xs" style="margin-left: auto;">${daySlots.length} turnos</span>
-          </div>
+    ${displayedSlots.length === 0 ? `
+      <div class="card p-6 text-center">
+        <p class="text-muted m-0">No hay turnos disponibles para el médico seleccionado con los filtros actuales.</p>
+        <button type="button" class="btn btn-secondary btn--sm mt-3" id="btnShowAllDoctors">
+          <span>Ver todos los médicos</span>
+        </button>
+      </div>
+    ` : `
+      <div class="flex flex-col gap-6">
+        ${Array.from(grouped.entries()).map(([dayKey, daySlots]) => `
+          <div class="card p-5" style="border-left: 4px solid var(--primary);">
+            <div class="flex items-center gap-2 mb-3 pb-2 border-b">
+              ${ui.icon('calendar', 'icon icon--sm text-primary')}
+              <h3 class="text-md font-bold m-0 capitalize">${formatDayHeader(daySlots[0].fechaHoraInicio)}</h3>
+              <span class="badge badge--scheduled text-xs" style="margin-left: auto;">${daySlots.length} turnos</span>
+            </div>
 
-          <!-- Grid de Chips de Hora -->
-          <div class="slot-grid">
-            ${daySlots.map(slot => {
-              const isSelected = bookingState.selectedSlot?.slotPublicId === slot.slotPublicId;
-              const isTele = slot.modalidad === 'TELEMEDICINA';
+            <!-- Grid de Chips de Hora -->
+            <div class="slot-grid">
+              ${daySlots.map(slot => {
+                const isSelected = bookingState.selectedSlot?.slotPublicId === slot.slotPublicId;
+                const isTele = slot.modalidad === 'TELEMEDICINA';
 
-              return `
-                <button 
-                  type="button" 
-                  class="slot-chip ${isSelected ? 'is-selected' : ''}" 
-                  data-slot-id="${slot.slotPublicId}"
-                  aria-pressed="${isSelected}"
-                  aria-label="Cita a las ${formatTime(slot.fechaHoraInicio)} con ${slot.profesionalNombre}, ${slot.especialidadNombre}"
-                >
-                  <span class="text-md font-bold">${formatTime(slot.fechaHoraInicio)}</span>
-                  <span class="slot-chip-sub text-xs mt-1">
-                    ${isTele ? 'Telemedicina' : (slot.sedeNombre || 'Presencial')}
-                  </span>
-                  <span class="slot-chip-sub text-xs text-muted" style="font-size: 11px;">
-                    ${slot.profesionalNombre ? `Dr(a). ${slot.profesionalNombre.split(' ')[0]}` : ''}
-                  </span>
-                </button>
-              `;
-            }).join('')}
+                return `
+                  <button 
+                    type="button" 
+                    class="slot-chip ${isSelected ? 'is-selected' : ''}" 
+                    data-slot-id="${slot.slotPublicId}"
+                    aria-pressed="${isSelected}"
+                    aria-label="Cita a las ${formatTime(slot.fechaHoraInicio)} con ${slot.profesionalNombre}, ${slot.especialidadNombre}"
+                  >
+                    <span class="text-md font-bold">${formatTime(slot.fechaHoraInicio)}</span>
+                    <span class="slot-chip-sub text-xs mt-1">
+                      ${isTele ? 'Telemedicina' : (slot.sedeNombre || 'Presencial')}
+                    </span>
+                    <span class="slot-chip-sub text-xs text-muted" style="font-size: 11px;">
+                      ${slot.profesionalNombre ? `Dr(a). ${slot.profesionalNombre.split(' ')[0]}` : ''}
+                    </span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
           </div>
-        </div>
-      `).join('')}
-    </div>
+        `).join('')}
+      </div>
+    `}
   `;
+
+  // Asignar listeners a las tarjetas de doctores
+  resultsContainer.querySelectorAll('.doctor-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const docId = card.getAttribute('data-doctor-id') || '';
+      bookingState.selectedDoctor = docId;
+      hideConfirmationCard(container);
+      renderSlotsGrouped(container);
+    });
+  });
+
+  const btnShowAll = resultsContainer.querySelector('#btnShowAllDoctors');
+  btnShowAll?.addEventListener('click', () => {
+    bookingState.selectedDoctor = '';
+    hideConfirmationCard(container);
+    renderSlotsGrouped(container);
+  });
 
   // Asignar listeners de selección a cada slot chip
   resultsContainer.querySelectorAll('button[data-slot-id]').forEach(btn => {
