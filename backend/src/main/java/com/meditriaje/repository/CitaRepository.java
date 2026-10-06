@@ -10,6 +10,7 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
@@ -53,6 +54,18 @@ public class CitaRepository {
         Timestamp tsFin = rs.getTimestamp("FECHA_HORA_FIN");
         Timestamp tsCreated = rs.getTimestamp("CREATED_AT");
 
+        String triajeNivel = null;
+        try {
+            triajeNivel = rs.getString("TRIAJE_NIVEL");
+        } catch (SQLException ignored) {
+        }
+
+        String motivoConsulta = null;
+        try {
+            motivoConsulta = rs.getString("MOTIVO_CONSULTA");
+        } catch (SQLException ignored) {
+        }
+
         return new CitaResponse(
                 rs.getString("CITA_PUBLIC_ID"),
                 rs.getString("SLOT_PUBLIC_ID"),
@@ -71,6 +84,8 @@ public class CitaRepository {
                 rs.getString("ESTADO"),
                 rs.getString("TRIAJE_PUBLIC_ID"),
                 rs.getString("CITA_ORIGEN_PUBLIC_ID"),
+                triajeNivel,
+                motivoConsulta,
                 tsCreated != null ? tsCreated.toInstant() : null
         );
     };
@@ -172,6 +187,8 @@ public class CitaRepository {
                    c.ESTADO,
                    t.PUBLIC_ID AS TRIAJE_PUBLIC_ID,
                    co.PUBLIC_ID AS CITA_ORIGEN_PUBLIC_ID,
+                   t.NIVEL_PRIORIDAD AS TRIAJE_NIVEL,
+                   COALESCE(t.OBSERVACIONES, 'Consulta médica general') AS MOTIVO_CONSULTA,
                    c.CREATED_AT
             FROM CITA c
             JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
@@ -280,6 +297,8 @@ public class CitaRepository {
                    c.ESTADO,
                    t.PUBLIC_ID AS TRIAJE_PUBLIC_ID,
                    co.PUBLIC_ID AS CITA_ORIGEN_PUBLIC_ID,
+                   t.NIVEL_PRIORIDAD AS TRIAJE_NIVEL,
+                   COALESCE(t.OBSERVACIONES, 'Consulta médica general') AS MOTIVO_CONSULTA,
                    c.CREATED_AT
             FROM CITA c
             JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
@@ -429,6 +448,8 @@ public class CitaRepository {
                 c.ESTADO,
                 t.PUBLIC_ID AS TRIAJE_PUBLIC_ID,
                 co.PUBLIC_ID AS CITA_ORIGEN_PUBLIC_ID,
+                t.NIVEL_PRIORIDAD AS TRIAJE_NIVEL,
+                COALESCE(t.OBSERVACIONES, 'Consulta médica general') AS MOTIVO_CONSULTA,
                 c.CREATED_AT
             FROM CITA c
             JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID

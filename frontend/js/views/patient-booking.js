@@ -7,13 +7,15 @@
 import { api } from '../api.js';
 import { auth } from '../auth.js';
 import { router } from '../router.js';
-import { ui } from '../ui.js';
+import { ui, esc } from '../ui.js';
 
 // Estado local de la vista de agendamiento
 let bookingState = {
   slots: [],
   selectedSlot: null,
   triageId: null,
+  triageData: null,
+  consultationReason: 'Consulta médica general o chequeo preventivo',
   filters: {
     especialidad: '',
     sede: '',
@@ -90,6 +92,8 @@ export async function patientBookingView(container, context = {}) {
   bookingState.triageId = context.queryParams?.get('triageId') || null;
   bookingState.selectedSlot = null;
   bookingState.selectedDoctor = '';
+  bookingState.triageData = null;
+  bookingState.consultationReason = 'Consulta médica general o chequeo preventivo';
   bookingState.filters = {
     especialidad: '',
     sede: '',
@@ -97,11 +101,24 @@ export async function patientBookingView(container, context = {}) {
     fecha: ''
   };
 
+  // Si hay triaje vinculado, cargar sus detalles clínicos para la razón de la consulta
+  if (bookingState.triageId) {
+    try {
+      bookingState.triageData = await api.get(`/triage/${bookingState.triageId}`);
+      if (bookingState.triageData) {
+        const sNames = (bookingState.triageData.sintomas || []).map(s => s.nombre).join(', ');
+        bookingState.consultationReason = bookingState.triageData.observaciones || (sNames ? `Síntomas reportados: ${sNames}` : 'Orientación médica por triaje clínico');
+      }
+    } catch {
+      bookingState.triageData = null;
+    }
+  }
+
   container.innerHTML = `
     <div style="max-width: var(--container); margin: 0 auto; padding-top: var(--space-4); padding-bottom: var(--space-12);">
       
       <!-- Encabezado -->
-      <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
           <div class="flex items-center gap-2 mb-1">
             <a href="#/patient/dashboard" class="btn btn-ghost btn--sm btn--icon-only" aria-label="Volver al panel" title="Volver al panel">
@@ -109,7 +126,7 @@ export async function patientBookingView(container, context = {}) {
             </a>
             <h1 class="text-2xl font-bold m-0">Disponibilidad de Citas Médicas</h1>
           </div>
-          <p class="text-sm text-muted m-0">Consulta los turnos libres en tiempo real y agenda tu cita médica</p>
+          <p class="text-sm text-muted m-0">Consulta los turnos libres en tiempo real y agenda tu cita con el especialista indicado</p>
         </div>
 
         ${bookingState.triageId ? `
@@ -120,6 +137,27 @@ export async function patientBookingView(container, context = {}) {
         ` : ''}
       </div>
 
+      <!-- Tarjeta informativa de Triaje Clínico Vinculado si aplica -->
+      ${bookingState.triageData ? `
+        <div class="card p-4 mb-6" style="border-left: 4px solid var(--primary); background: var(--surface);">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="badge ${bookingState.triageData.nivelPrioridad === 'II' ? 'badge--triage-2' : (bookingState.triageData.nivelPrioridad === 'IV' ? 'badge--triage-4' : 'badge--triage-3')} text-xs font-bold">
+                  Triaje Nivel ${bookingState.triageData.nivelPrioridad}
+                </span>
+                <span class="text-xs text-muted font-mono">ID: ${bookingState.triageId.slice(0, 8)}</span>
+              </div>
+              <strong class="text-sm block text-text">Razón de la consulta vinculada:</strong>
+              <p class="text-xs text-muted m-0 font-medium">${bookingState.consultationReason}</p>
+            </div>
+            <div>
+              <span class="badge badge--neutral text-xs">Ruta sugerida: ${bookingState.triageData.rutaSugerida || 'Cita Presencial'}</span>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
       <!-- Barra de Filtros de Búsqueda -->
       <div class="card mb-6" id="bookingFiltersCard">
         <div class="card-body">
@@ -127,9 +165,22 @@ export async function patientBookingView(container, context = {}) {
             
             <!-- Filtro Especialidad -->
             <div class="form-group m-0">
-              <label for="filterSpecialty" class="form-label text-xs">Especialidad</label>
+              <label for="filterSpecialty" class="form-label text-xs">Especialidad médica</label>
               <select id="filterSpecialty" class="form-select text-sm">
                 <option value="">Todas las especialidades</option>
+              </select>
+            </div>
+
+            <!-- Filtro Razón de la Consulta -->
+            <div class="form-group m-0">
+              <label for="filterReason" class="form-label text-xs">Razón de la consulta</label>
+              <select id="filterReason" class="form-select text-sm" ${bookingState.triageData ? 'disabled' : ''}>
+                <option value="Consulta médica general o chequeo preventivo">Consulta general / chequeo preventivo</option>
+                <option value="Valoración médica por síntomas recientes">Valoración médica por síntomas</option>
+                <option value="Control y seguimiento de tratamiento">Control y seguimiento de tratamiento</option>
+                <option value="Lectura y revisión de exámenes de laboratorio">Lectura de exámenes de laboratorio</option>
+                <option value="Consulta pediátrica / control infantil">Consulta pediátrica / control infantil</option>
+                <option value="Renovación de fórmula médica">Renovación de fórmula médica</option>
               </select>
             </div>
 
@@ -152,13 +203,14 @@ export async function patientBookingView(container, context = {}) {
             </div>
 
             <!-- Botones de Acción -->
-            <div class="flex items-center gap-2">
-              <button type="submit" class="btn btn-primary w-full text-sm" id="btnApplyFilters">
+            <div class="flex items-center gap-2 col-span-full">
+              <button type="submit" class="btn btn-primary text-sm" id="btnApplyFilters">
                 ${ui.icon('search')}
-                <span>Buscar</span>
+                <span>Buscar turnos y especialistas</span>
               </button>
               <button type="button" class="btn btn-secondary text-sm" id="btnResetFilters" title="Limpiar filtros" aria-label="Limpiar filtros">
                 ${ui.icon('x')}
+                <span>Restablecer</span>
               </button>
             </div>
           </form>
@@ -268,6 +320,10 @@ function setupFilterEvents(container) {
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     bookingState.filters.especialidad = container.querySelector('#filterSpecialty')?.value || '';
+    if (!bookingState.triageData) {
+      const reasonVal = container.querySelector('#filterReason')?.value;
+      if (reasonVal) bookingState.consultationReason = reasonVal;
+    }
     bookingState.filters.sede = container.querySelector('#filterSite')?.value || '';
     bookingState.filters.modalidad = container.querySelector('#filterModality')?.value || '';
     
@@ -276,9 +332,30 @@ function setupFilterEvents(container) {
     await loadAvailability(container);
   });
 
+  const filterReasonEl = container.querySelector('#filterReason');
+  filterReasonEl?.addEventListener('change', () => {
+    if (!bookingState.triageData) {
+      bookingState.consultationReason = filterReasonEl.value;
+      hideConfirmationCard(container);
+      renderSlotsGrouped(container);
+    }
+  });
+
+  const filterSpecialtyEl = container.querySelector('#filterSpecialty');
+  filterSpecialtyEl?.addEventListener('change', async () => {
+    bookingState.filters.especialidad = filterSpecialtyEl.value;
+    bookingState.selectedDoctor = '';
+    hideConfirmationCard(container);
+    await loadAvailability(container);
+  });
+
   btnReset?.addEventListener('click', async () => {
     if (form) form.reset();
     bookingState.filters = { especialidad: '', sede: '', modalidad: '', fecha: '' };
+    bookingState.selectedDoctor = '';
+    if (!bookingState.triageData) {
+      bookingState.consultationReason = 'Consulta médica general o chequeo preventivo';
+    }
     hideConfirmationCard(container);
     await loadAvailability(container);
   });
@@ -301,6 +378,7 @@ function renderSlotsGrouped(container) {
         const form = container.querySelector('#filtersForm');
         if (form) form.reset();
         bookingState.filters = { especialidad: '', sede: '', modalidad: '', fecha: '' };
+        bookingState.selectedDoctor = '';
         hideConfirmationCard(container);
         loadAvailability(container);
       }
@@ -308,14 +386,21 @@ function renderSlotsGrouped(container) {
     return;
   }
 
+  const selectedSpecialtyName = bookingState.availableSpecialties.get(bookingState.filters.especialidad) || '';
+
   const doctorsMap = new Map();
   bookingState.slots.forEach(slot => {
     if (slot.profesionalPublicId && slot.profesionalNombre) {
+      // Filtrar estrictamente por la especialidad seleccionada
+      if (bookingState.filters.especialidad && slot.especialidadPublicId !== bookingState.filters.especialidad) {
+        return;
+      }
       if (!doctorsMap.has(slot.profesionalPublicId)) {
         doctorsMap.set(slot.profesionalPublicId, {
           publicId: slot.profesionalPublicId,
           nombre: slot.profesionalNombre,
           especialidad: slot.especialidadNombre || 'Medicina General',
+          especialidadPublicId: slot.especialidadPublicId,
           totalSlots: 0,
           modalidades: new Set()
         });
@@ -327,25 +412,29 @@ function renderSlotsGrouped(container) {
   });
 
   const displayedSlots = bookingState.selectedDoctor
-    ? bookingState.slots.filter(s => s.profesionalPublicId === bookingState.selectedDoctor)
-    : bookingState.slots;
+    ? bookingState.slots.filter(s => s.profesionalPublicId === bookingState.selectedDoctor && (!bookingState.filters.especialidad || s.especialidadPublicId === bookingState.filters.especialidad))
+    : (bookingState.filters.especialidad 
+        ? bookingState.slots.filter(s => s.especialidadPublicId === bookingState.filters.especialidad) 
+        : bookingState.slots);
 
   const grouped = groupSlotsByDay(displayedSlots);
   const selectedDoctorObj = bookingState.selectedDoctor ? doctorsMap.get(bookingState.selectedDoctor) : null;
 
   resultsContainer.innerHTML = `
-    <!-- Panel Gráfico de Selección de Médico -->
+    <!-- Panel Gráfico de Selección de Médico Filtrado por Especialidad y Motivo -->
     ${doctorsMap.size > 0 ? `
       <div class="card p-5 mb-6" style="background: var(--surface); border-top: 3px solid var(--primary);">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
             <h2 class="text-base font-bold m-0 flex items-center gap-2">
               ${ui.icon('user', 'icon icon--sm text-primary')}
-              <span>Médicos disponibles con espacio para tu cita</span>
+              <span>Médicos disponibles para tu consulta</span>
             </h2>
-            <p class="text-xs text-muted m-0">Elige un médico específico o visualiza todos los turnos disponibles</p>
+            <p class="text-xs text-muted m-0">
+              ${selectedSpecialtyName ? `Especialidad: <strong>${selectedSpecialtyName}</strong> · ` : ''}Razón de consulta: <strong>${esc(bookingState.consultationReason)}</strong>
+            </p>
           </div>
-          <span class="badge badge--scheduled text-xs">${doctorsMap.size} médico(s) disponible(s)</span>
+          <span class="badge badge--scheduled text-xs">${doctorsMap.size} profesional(es) disponible(s)</span>
         </div>
 
         <div class="doctor-cards-grid">
@@ -360,8 +449,8 @@ function renderSlotsGrouped(container) {
               ${ui.icon('users', 'icon icon--md')}
             </div>
             <div class="text-left flex-1 min-w-0">
-              <strong class="block text-sm">Todos los médicos</strong>
-              <span class="text-xs text-muted block">${bookingState.slots.length} turnos en total</span>
+              <strong class="block text-sm">${selectedSpecialtyName ? `Todos en ${selectedSpecialtyName}` : 'Todos los médicos'}</strong>
+              <span class="text-xs text-muted block">${displayedSlots.length} turnos en total</span>
               <span class="badge badge--neutral text-xs mt-1" style="font-size: 10px;">Ver toda la oferta</span>
             </div>
           </button>
@@ -382,10 +471,13 @@ function renderSlotsGrouped(container) {
                 </div>
                 <div class="text-left flex-1 min-w-0">
                   <strong class="block text-sm truncate" title="Dr(a). ${doc.nombre}">Dr(a). ${doc.nombre}</strong>
-                  <span class="text-xs text-muted block truncate">${doc.especialidad}</span>
-                  <div class="flex items-center gap-2 mt-1">
+                  <span class="text-xs text-muted block truncate font-medium">${doc.especialidad}</span>
+                  <div class="flex flex-wrap items-center gap-1.5 mt-1">
                     <span class="badge ${isSel ? 'badge--confirmed' : 'badge--scheduled'} text-xs" style="font-size: 10px;">
                       ${doc.totalSlots} turno(s) libre(s)
+                    </span>
+                    <span class="badge badge--neutral text-xs" style="font-size: 10px;">
+                      Apto para tu motivo
                     </span>
                   </div>
                 </div>
@@ -394,7 +486,13 @@ function renderSlotsGrouped(container) {
           }).join('')}
         </div>
       </div>
-    ` : ''}
+    ` : `
+      ${bookingState.filters.especialidad ? `
+        <div class="card p-6 text-center mb-6">
+          <p class="text-muted m-0">No se encontraron profesionales con turnos libres para ${selectedSpecialtyName || 'la especialidad seleccionada'}.</p>
+        </div>
+      ` : ''}
+    `}
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div>
@@ -541,6 +639,11 @@ function showConfirmationCard(container, slot) {
           <p class="text-sm m-0">
             ${bookingState.triageId ? `Vinculado (${bookingState.triageId.slice(0, 8)}...)` : 'Sin triaje previo'}
           </p>
+        </div>
+
+        <div class="col-span-full p-2.5" style="background-color: var(--surface-2); border-radius: var(--radius-sm); border-left: 3px solid var(--primary);">
+          <span class="text-xs text-muted font-bold uppercase tracking-wider block mb-0.5">Razón de la Consulta / Motivo Asistencial:</span>
+          <p class="text-sm font-semibold m-0 text-text">${esc(bookingState.consultationReason)}</p>
         </div>
       </div>
 
@@ -691,6 +794,11 @@ function renderSuccessBookingView(container, cita, slot) {
             <span class="badge ${isTele ? 'badge--rescheduled' : 'badge--scheduled'} text-xs">
               ${isTele ? 'Telemedicina' : 'Presencial'}
             </span>
+          </div>
+
+          <div class="col-span-full p-2.5" style="background-color: var(--surface-2); border-radius: var(--radius-sm); border-left: 3px solid var(--primary);">
+            <span class="text-xs text-muted font-bold uppercase tracking-wider block mb-0.5">Razón de la Consulta / Motivo Asistencial:</span>
+            <p class="text-sm font-semibold m-0 text-text">${esc(cita.motivoConsulta || bookingState.consultationReason || 'Consulta médica general')}</p>
           </div>
         </div>
 

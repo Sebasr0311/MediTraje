@@ -179,7 +179,7 @@ export async function professionalAgendaView(container) {
                   </div>
 
                   <!-- Paciente y Detalles -->
-                  <div>
+                  <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2">
                       ${ui.icon('user', 'icon icon--sm text-primary')}
                       <span class="font-bold text-base block text-text">${esc(c.pacienteNombre)}</span>
@@ -187,11 +187,26 @@ export async function professionalAgendaView(container) {
                     <div class="flex flex-wrap items-center gap-2 mt-1.5">
                       ${statusBadge(c.estado)}
                       <span class="badge badge--neutral text-xs">${esc(c.especialidadNombre || 'Medicina General')}</span>
-                      ${c.triajePublicId ? `
-                        <span class="badge badge--scheduled text-xs">
-                          ${ui.icon('activity', 'icon icon--sm')} Triaje vinculado
+                      ${c.triajeNivel ? `
+                        <span class="badge badge--triage-${esc(c.triajeNivel.toLowerCase())} text-xs font-bold">
+                          ${ui.icon('activity', 'icon icon--xs')} Triaje Nivel ${esc(c.triajeNivel)}
                         </span>
-                      ` : ''}
+                      ` : (c.triajePublicId ? `
+                        <span class="badge badge--scheduled text-xs">
+                          ${ui.icon('activity', 'icon icon--xs')} Triaje vinculado
+                        </span>
+                      ` : '')}
+                    </div>
+
+                    <!-- Razón de la consulta / Triaje Clínico -->
+                    <div class="mt-2 p-2.5" style="background-color: var(--surface-2); border-radius: var(--radius-sm); border-left: 3px solid var(--primary); max-width: 600px;">
+                      <div class="text-xs text-muted font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                        ${ui.icon('info', 'icon icon--xs text-primary')}
+                        <span>Razón de la consulta:</span>
+                      </div>
+                      <p class="text-xs text-text m-0 font-medium leading-relaxed">
+                        ${esc(c.motivoConsulta) || (c.triajePublicId ? 'Valoración médica asistencial según triaje clínico' : 'Consulta médica programada')}
+                      </p>
                     </div>
                   </div>
                 </div>
