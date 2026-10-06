@@ -10,8 +10,8 @@
 import { api } from '../api.js';
 import { ui, esc } from '../ui.js';
 
-/** Altura base en píxeles por cada hora en la cuadrícula */
-const PX_PER_HOUR = 70;
+/** Altura base en píxeles por cada hora en la cuadrícula (1h = 96px, 30m = 48px, 1m = 1.6px) */
+const PX_PER_HOUR = 96;
 const PX_PER_MIN = PX_PER_HOUR / 60;
 
 /** Fecha de hoy en formato YYYY-MM-DD en zona America/Bogota. */
@@ -87,6 +87,19 @@ function formatTimeBogota(isoString) {
   }
 }
 
+/** Formatea hora compacta HH:MM en zona America/Bogota (ej: 09:00, 14:30). */
+function formatTimeCompactBogota(isoString) {
+  if (!isoString) return '—';
+  try {
+    const parts = getBogotaDateParts(isoString);
+    const h = String(parts.hours).padStart(2, '0');
+    const m = String(parts.minutes).padStart(2, '0');
+    return `${h}:${m}`;
+  } catch {
+    return isoString;
+  }
+}
+
 /** Formatea fecha corta en zona America/Bogota (ej: 06 oct). */
 function formatDateShortBogota(isoString) {
   if (!isoString) return '—';
@@ -157,19 +170,19 @@ function getStatusMeta(estado) {
   const est = (estado || '').toUpperCase();
   switch (est) {
     case 'PROGRAMADA':
-      return { label: 'Programada', iconText: '◷', iconName: 'clock', badgeClass: 'badge--scheduled' };
+      return { label: 'Programada', shortLabel: 'Prog', iconText: '◷', iconName: 'clock', badgeClass: 'badge--scheduled' };
     case 'CONFIRMADA':
-      return { label: 'Confirmada', iconText: '✓', iconName: 'check', badgeClass: 'badge--confirmed' };
+      return { label: 'Confirmada', shortLabel: 'Conf', iconText: '✓', iconName: 'check', badgeClass: 'badge--confirmed' };
     case 'ATENDIDA':
-      return { label: 'Atendida', iconText: '●', iconName: 'activity', badgeClass: 'badge--attended' };
+      return { label: 'Atendida', shortLabel: 'Atend', iconText: '●', iconName: 'activity', badgeClass: 'badge--attended' };
     case 'CANCELADA':
-      return { label: 'Cancelada', iconText: '✕', iconName: 'x', badgeClass: 'badge--cancelled' };
+      return { label: 'Cancelada', shortLabel: 'Cancelada', iconText: '✕', iconName: 'x', badgeClass: 'badge--cancelled' };
     case 'NO_ASISTIO':
-      return { label: 'No asistió', iconText: '!', iconName: 'alert-circle', badgeClass: 'badge--cancelled' };
+      return { label: 'No asistió', shortLabel: 'No asistió', iconText: '!', iconName: 'alert-circle', badgeClass: 'badge--cancelled' };
     case 'REPROGRAMADA':
-      return { label: 'Reprogramada', iconText: '⟳', iconName: 'calendar', badgeClass: 'badge--rescheduled' };
+      return { label: 'Reprogramada', shortLabel: 'Reprog', iconText: '⟳', iconName: 'calendar', badgeClass: 'badge--rescheduled' };
     default:
-      return { label: estado || 'Estado', iconText: '•', iconName: 'circle', badgeClass: 'badge--neutral' };
+      return { label: estado || 'Estado', shortLabel: estado || '•', iconText: '•', iconName: 'circle', badgeClass: 'badge--neutral' };
   }
 }
 
@@ -179,10 +192,10 @@ function citaStatusBadge(estado) {
   return `<span class="badge ${meta.badgeClass}">${ui.icon(meta.iconName, 'icon icon--xs')} ${esc(meta.label)}</span>`;
 }
 
-/** Calcula el rango de horas operativo del centro (07:00 a 19:00 o dinámico si hay citas más temprano/tarde). */
+/** Calcula el rango de horas operativo del centro (base 08:00 a 18:00 o dinámico si hay citas más temprano/tarde). */
 function computeOperatingHours(citas) {
-  let minH = 7;
-  let maxH = 19;
+  let minH = 8;
+  let maxH = 18;
   citas.forEach(c => {
     if (c.fechaHoraInicio) {
       const parts = getBogotaDateParts(c.fechaHoraInicio);
@@ -199,7 +212,8 @@ function computeOperatingHours(citas) {
 
 /**
  * Algoritmo de resolución matemática de superposición de citas (Time-Grid Interval Packing).
- * Agrupa citas colisionantes en clusters continuos y asigna carriles horizontales proporcionales (lanes).
+ * Agrupa citas colisionantes en clusters continuos, asigna carriles horizontales proporcionales (lanes),
+ * y calcula alturas visuales adaptativas garantizando legibilidad y gaps visibles entre citas consecutivas.
  */
 function layoutDayEvents(citasDelDia, startHour) {
   if (!citasDelDia || citasDelDia.length === 0) return [];
@@ -220,7 +234,7 @@ function layoutDayEvents(citasDelDia, startHour) {
     }
     const durationMin = endMin - startMin;
     const topPx = (startMin - dayStartMin) * PX_PER_MIN;
-    const heightPx = Math.max(32, durationMin * PX_PER_MIN);
+    const mathHeightPx = durationMin * PX_PER_MIN;
 
     return {
       cita: c,
@@ -228,7 +242,8 @@ function layoutDayEvents(citasDelDia, startHour) {
       endMin,
       durationMin,
       topPx,
-      heightPx
+      mathHeightPx,
+      heightPx: mathHeightPx
     };
   });
 
@@ -285,7 +300,32 @@ function layoutDayEvents(citasDelDia, startHour) {
       const leftPct = item.lane * widthPct;
       item.leftStyle = `${leftPct}%`;
       item.widthStyle = totalLanes > 1 ? `calc(${widthPct}% - 3px)` : 'calc(100% - 3px)';
+      item.isSplit = totalLanes > 1;
       result.push(item);
+    }
+  }
+
+  // 5. Ajustar altura visual (heightPx):
+  // Garantizar legibilidad (mínimo ~50px si hay espacio), pero SIN invadir
+  // la siguiente cita en el mismo carril/columna, dejando un gap visible si están contiguas.
+  for (let i = 0; i < result.length; i++) {
+    const item = result[i];
+    let nextStartMin = Infinity;
+    for (let j = 0; j < result.length; j++) {
+      if (i !== j && result[j].lane === item.lane && result[j].startMin >= item.startMin) {
+        if (result[j].startMin < nextStartMin) {
+          nextStartMin = result[j].startMin;
+        }
+      }
+    }
+
+    const naturalMinHeight = Math.max(50, item.mathHeightPx);
+    if (nextStartMin !== Infinity) {
+      // Dejar al menos 4px de separación física para pausas o descansos
+      const maxAvailable = Math.max(28, (nextStartMin - item.startMin) * PX_PER_MIN - 4);
+      item.heightPx = Math.min(naturalMinHeight, maxAvailable);
+    } else {
+      item.heightPx = naturalMinHeight;
     }
   }
 
@@ -359,59 +399,63 @@ export async function renderAdminAppointments(container) {
         <!-- Barra de Métricas Rápidas (KPIs) de la Semana / Día -->
         <div class="calendar-kpi-bar" id="calendarKpiBar" aria-label="Métricas del período"></div>
 
-        <!-- Barra de Navegación Temporal y Filtros Combinables -->
+        <!-- Barra de Navegación Temporal y Filtros Combinables (2 filas organizadas) -->
         <div class="calendar-filters-row">
-          <!-- Navegación Temporal -->
-          <div class="flex items-center gap-1.5 flex-wrap">
-            <button type="button" class="btn btn-secondary btn--sm btn--icon-only" id="btnPrevDate" title="Período anterior" aria-label="Período anterior">
-              ${ui.icon('chevron-left')}
-            </button>
-            <button type="button" class="btn btn-secondary btn--sm" id="btnTodayDate">
-              <span>Hoy</span>
-            </button>
-            <button type="button" class="btn btn-secondary btn--sm btn--icon-only" id="btnNextDate" title="Período siguiente" aria-label="Período siguiente">
-              ${ui.icon('chevron-right')}
-            </button>
-            <input type="date" id="inputJumpDate" class="form-input text-xs" style="max-width: 140px; padding: 4px 8px;" value="${state.selectedDate}">
+          <!-- Fila 1: Navegación de período y salto de fecha -->
+          <div class="calendar-filters-top">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <button type="button" class="btn btn-secondary btn--sm btn--icon-only" id="btnPrevDate" title="Período anterior" aria-label="Período anterior">
+                ${ui.icon('chevron-left')}
+              </button>
+              <button type="button" class="btn btn-secondary btn--sm" id="btnTodayDate">
+                <span>Hoy</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn--sm btn--icon-only" id="btnNextDate" title="Período siguiente" aria-label="Período siguiente">
+                ${ui.icon('chevron-right')}
+              </button>
+              <input type="date" id="inputJumpDate" class="form-input text-xs" style="max-width: 135px; padding: 4px 8px;" value="${state.selectedDate}">
+            </div>
+
+            <!-- Indicador del Período Actual -->
+            <div class="flex items-center gap-2">
+              <span class="badge badge--scheduled text-xs font-bold" id="currentPeriodLabel" style="font-size: 11px; padding: 4px 10px;">—</span>
+            </div>
           </div>
 
-          <!-- Indicador del Período Actual -->
-          <div class="flex items-center gap-2">
-            <span class="badge badge--scheduled text-xs font-bold" id="currentPeriodLabel" style="font-size: 11px; padding: 4px 10px;">—</span>
-          </div>
+          <!-- Fila 2: Filtros combinables de Estado, Especialidad, Médico y Búsqueda -->
+          <div class="calendar-filters-bottom">
+            <div class="flex items-center gap-2 flex-wrap w-full">
+              <!-- Filtro Estado -->
+              <select id="selectFilterEstado" class="form-select text-xs" style="min-width: 140px; max-width: 160px;">
+                <option value="">Todos los estados</option>
+                <option value="PROGRAMADA">Programadas</option>
+                <option value="CONFIRMADA">Confirmadas</option>
+                <option value="ATENDIDA">Atendidas</option>
+                <option value="CANCELADA">Canceladas</option>
+                <option value="NO_ASISTIO">No asistió</option>
+                <option value="REPROGRAMADA">Reprogramadas</option>
+              </select>
 
-          <!-- Filtros Combinables: Estado, Profesional, Especialidad y Búsqueda -->
-          <div class="flex items-center gap-2 flex-wrap flex-1 justify-end">
-            <!-- Filtro Estado -->
-            <select id="selectFilterEstado" class="form-select text-xs" style="max-width: 150px;">
-              <option value="">Todos los estados</option>
-              <option value="PROGRAMADA">Programadas</option>
-              <option value="CONFIRMADA">Confirmadas</option>
-              <option value="ATENDIDA">Atendidas</option>
-              <option value="CANCELADA">Canceladas</option>
-              <option value="NO_ASISTIO">No asistió</option>
-              <option value="REPROGRAMADA">Reprogramadas</option>
-            </select>
+              <!-- Filtro Especialidad -->
+              <select id="selectFilterEspecialidad" class="form-select text-xs" style="min-width: 150px; max-width: 180px;">
+                <option value="">Todas las especialidades</option>
+                ${state.specialties.map(s => `
+                  <option value="${esc(s.publicId)}">${esc(s.nombre)}</option>
+                `).join('')}
+              </select>
 
-            <!-- Filtro Especialidad -->
-            <select id="selectFilterEspecialidad" class="form-select text-xs" style="max-width: 160px;">
-              <option value="">Todas las especialidades</option>
-              ${state.specialties.map(s => `
-                <option value="${esc(s.publicId)}">${esc(s.nombre)}</option>
-              `).join('')}
-            </select>
+              <!-- Filtro Profesional -->
+              <select id="selectFilterProfesional" class="form-select text-xs" style="min-width: 160px; max-width: 200px;">
+                <option value="">Todos los médicos</option>
+                ${state.professionals.map(p => `
+                  <option value="${esc(p.publicId)}">Dr(a). ${esc(p.nombres)} ${esc(p.apellidos)}</option>
+                `).join('')}
+              </select>
 
-            <!-- Filtro Profesional -->
-            <select id="selectFilterProfesional" class="form-select text-xs" style="max-width: 170px;">
-              <option value="">Todos los médicos</option>
-              ${state.professionals.map(p => `
-                <option value="${esc(p.publicId)}">Dr(a). ${esc(p.nombres)} ${esc(p.apellidos)}</option>
-              `).join('')}
-            </select>
-
-            <!-- Búsqueda reactiva de paciente -->
-            <div class="relative" style="min-width: 170px; max-width: 220px;">
-              <input type="search" id="inputSearchPaciente" class="form-input text-xs w-full" placeholder="Buscar paciente / doc...">
+              <!-- Búsqueda reactiva de paciente -->
+              <div class="relative flex-1" style="min-width: 180px;">
+                <input type="search" id="inputSearchPaciente" class="form-input text-xs w-full" placeholder="Buscar por paciente o documento...">
+              </div>
             </div>
           </div>
         </div>
@@ -656,31 +700,35 @@ export async function renderAdminAppointments(container) {
                   ${layoutEvents.map(item => {
                     const c = item.cita;
                     const meta = getStatusMeta(c.estado);
-                    const horaInicio = formatTimeBogota(c.fechaHoraInicio);
-                    const horaFin = formatTimeBogota(c.fechaHoraFin);
+                    const horaInicio = formatTimeCompactBogota(c.fechaHoraInicio);
+                    const horaFin = formatTimeCompactBogota(c.fechaHoraFin);
+                    const horaInicioLarga = formatTimeBogota(c.fechaHoraInicio);
+                    const horaFinLarga = formatTimeBogota(c.fechaHoraFin);
 
                     return `
                       <div 
-                        class="calendar-event-block status-${esc(c.estado)}" 
+                        class="calendar-event-block status-${esc(c.estado)} ${item.isSplit ? 'is-split' : ''}" 
                         data-cita-id="${esc(c.citaPublicId || c.publicId)}"
                         style="top: ${item.topPx}px; height: ${item.heightPx}px; left: ${item.leftStyle}; width: ${item.widthStyle};"
                         tabindex="0"
                         role="button"
-                        aria-label="Cita de ${esc(c.pacienteNombre)} de ${horaInicio} a ${horaFin}, estado ${meta.label}"
+                        aria-label="Cita de ${esc(c.pacienteNombre)} de ${horaInicioLarga} a ${horaFinLarga}, estado ${meta.label}"
                       >
                         <div class="event-header">
                           <span class="event-time">${horaInicio} - ${horaFin}</span>
-                          <span class="event-badge">${meta.iconText} ${meta.label}</span>
+                          <span class="event-badge" title="${meta.label}">
+                            ${meta.iconText} <span class="event-badge-label">${meta.shortLabel}</span>
+                          </span>
                         </div>
                         <span class="event-patient" title="${esc(c.pacienteNombre)}">
                           ${esc(c.pacienteNombre)}
                         </span>
-                        ${item.heightPx >= 48 ? `
+                        ${item.heightPx >= 44 ? `
                           <span class="event-doctor" title="Dr(a). ${esc(c.profesionalNombre)}">
                             Dr(a). ${esc(c.profesionalNombre)}
                           </span>
                         ` : ''}
-                        ${item.heightPx >= 66 ? `
+                        ${item.heightPx >= 60 ? `
                           <span class="event-service">
                             ${esc(c.especialidadNombre)}
                           </span>

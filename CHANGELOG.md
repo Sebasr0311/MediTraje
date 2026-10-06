@@ -8,6 +8,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Fixed
+- **Refinamiento de UX/UI y Proporción Temporal en Calendario Médico Time-Grid (`admin-appointments.js`, `components.css`)**:
+  - Escala temporal balanceada con `PX_PER_HOUR = 96` (1 hora = 96px, 30 min = 48px, 1 min = 1.6px) eliminando vacíos desproporcionados y logrando lectura cómoda.
+  - Rango operativo dinámico base de 08:00 a 18:00 (o ampliado dinámicamente si hay citas más tempranas o tardías) eliminando franjas muertas nocturnas.
+  - Altura visual adaptativa para citas cortas (20 min) con protección de intervalos (`gap` visible): citas contiguas separadas por pausas (ej. 09:00–09:20 y 09:30–10:00) dejan visible el intervalo intermedio sin invadir ni solapar.
+  - Diseño de tarjetas de cita con hora compacta (`HH:MM`), badges contenidos (`✕ Cancelada`, `◷ Prog`), paciente en negrita y médico/especialidad según altura disponible. Citas canceladas con borde punteado rojo y texto tachado suave.
+  - Cero scroll horizontal en Desktop: distribución fluida al 100% del ancho con 7 columnas (`minmax(0, 1fr)`) que garantiza visualización completa de Lunes a Domingo en 1366px, 1440px y 1920px sin cortar el Domingo ni generar scroll horizontal.
+  - Encabezados de días verticales apilados y sutiles (nombre abreviado, número grande y badge de conteo) con acento superior de 3px para el día actual.
+  - Línea "Ahora" discreta de 1.5px con badge pequeño `● Ahora HH:MM` circunscrita exclusivamente a la columna de hoy.
+  - Barra de filtros reorganizada en dos filas limpias y balanceadas (Fila 1: navegación temporal, salto de fecha y badge de período; Fila 2: selects de estado, especialidad, médico y buscador fluido de pacientes).
 - **Navegación del Logo MediTriaje y Guardia de Inicio para Usuarios Autenticados**:
   - Enlace de marca `.navbar-brand` configurado de forma reactiva para redirigir al panel del rol activo (`#/admin/dashboard`, `#/professional/agenda`, `#/patient/dashboard`, `#/pharmacy/dispensation`) evitando desviar a usuarios autenticados al landing page.
   - Guardia en `router.js` que redirige automáticamente a usuarios con sesión activa que accedan a la raíz `/` hacia su panel principal.
