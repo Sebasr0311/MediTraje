@@ -25,6 +25,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - Normalización de rutas en `admin-reports.js` (`/admin/reports/operational`), `admin-audit.js` (`/admin/audit`) y `system-assistant-widget.js` (`/assistant/chat`).
 
 ### Added
+- **Calendario Médico Semanal Time-Grid Continuo y Supervisión Integral (`admin-appointments.js`, `components.css`)**:
+  - Transformación integral del módulo de supervisión (`#/admin/appointments`) en un verdadero calendario médico con cuadrícula horaria continua (Time-Grid) y eje horario vertical a la izquierda (jornada 07:00 a 19:00 o dinámico).
+  - Posicionamiento vertical (`top`) y altura (`height`) matemáticamente proporcionales a la duración real de cada cita (30m, 60m, 90m, 120m) en zona horaria `America/Bogota` (UTC-5).
+  - Algoritmo de clustering y resolución de citas superpuestas (concurrencia): empaquetado de carriles (lane greedy assignment) dividiendo el ancho de la columna proporcionalmente (50%, 33.3%, etc.) sin solapamiento ni ocultamiento visual.
+  - Indicador dinámico de hora actual ("● AHORA HH:MM") con línea horizontal en vivo en la columna de hoy.
+  - Bloques de citas con contención estricta de textos y badges: las citas canceladas se mantienen visibles con estilo tenue, borde distintivo y badge interno `✕ Cancelada` sin desbordar el contenedor.
+  - Barra superior de métricas KPI en tiempo real (Total, Programadas, Confirmadas, Atendidas, Canceladas, No asistió) con filtrado instantáneo interactivo al hacer clic.
+  - Filtros combinables por estado, especialidad médica, profesional asistencial y búsqueda reactiva de pacientes (por nombre o documento).
+  - Vista diaria cronológica expandida en un solo carril horario ancho con mayor detalle y los mismos principios de alineación temporal.
+  - Modal de detalle completo con datos del paciente (documento, contacto), médico, sede, motivo de consulta, triaje y motivo de cancelación.
+  - Exportación a Excel (.csv UTF-8 BOM) con rango de fechas predefinidas o personalizadas y filtros de estado y especialidad.
+  - Verificación responsiva visual con Playwright en Desktop (1280x950), Tablet (768x1024) y Móvil (375x667).
 - **Calendario Administrativo 100% Responsivo y Navegación Táctil Móvil (`admin-appointments.js`, `components.css`)**:
   - Rediseño responsivo del calendario de supervisión (`#/admin/appointments`) con soporte fluido en desktop, tablet y móviles (viewport <= 768px).
   - Barra de herramientas con flex-wrap optimizado y selector rápido de días con píldoras táctiles (`.calendar-day-tabs-mobile`) con desplazamiento suave (`scroll-snap`) a la columna del día seleccionado.

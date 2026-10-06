@@ -1884,7 +1884,7 @@
   color: var(--slate-700);
 }
 
-/* Calendario Semanal de Administración */
+/* Calendario Semanal de Administración (Legacy container) */
 .calendar-week-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(140px, 1fr));
@@ -2022,6 +2022,410 @@
 .calendar-cita-item.status-CANCELADA {
   border-left: 3.5px solid var(--danger);
   opacity: 0.8;
+}
+
+/* ==========================================================================
+   CALENDARIO MÉDICO SEMANAL / DIARIO TIME-GRID (Panel Admin)
+   ========================================================================== */
+
+/* Barra de Resumen / KPIs de Citas */
+.calendar-kpi-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.calendar-kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  transition: all var(--duration) var(--ease);
+  cursor: pointer;
+}
+
+.calendar-kpi-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.calendar-kpi-card.is-active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.calendar-kpi-label {
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.calendar-kpi-value {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--text);
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+/* Contenedor principal de Time-Grid */
+.time-grid-wrapper {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* Encabezado fijo de columnas */
+.time-grid-header {
+  display: grid;
+  grid-template-columns: 68px repeat(7, minmax(150px, 1fr));
+  border-bottom: 2px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.time-grid-header.is-day-view {
+  grid-template-columns: 68px 1fr;
+}
+
+.time-grid-header-corner {
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  background: var(--surface-2);
+}
+
+.time-grid-header-day {
+  padding: var(--space-2) var(--space-3);
+  text-align: center;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  transition: background 0.15s ease;
+}
+
+.time-grid-header-day:last-child {
+  border-right: none;
+}
+
+.time-grid-header-day.is-today {
+  background: var(--teal-50);
+  border-bottom: 3px solid var(--primary);
+}
+
+.time-grid-header-day .day-name {
+  font-size: 11px;
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.time-grid-header-day.is-today .day-name {
+  color: var(--primary);
+}
+
+.time-grid-header-day .day-num {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text);
+  line-height: 1.2;
+  margin: 2px 0;
+}
+
+.time-grid-header-day.is-today .day-num {
+  color: var(--primary);
+}
+
+.time-grid-header-day .day-badge {
+  font-size: 10px;
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+}
+
+/* Área con scroll vertical de horas */
+.time-grid-scroll-area {
+  max-height: 680px;
+  overflow-y: auto;
+  position: relative;
+  background: var(--surface);
+}
+
+.time-grid-body {
+  display: grid;
+  grid-template-columns: 68px repeat(7, minmax(150px, 1fr));
+  position: relative;
+  min-height: 840px; /* 12h * 70px */
+}
+
+.time-grid-body.is-day-view {
+  grid-template-columns: 68px 1fr;
+}
+
+/* Columna izquierda de horas (Gutter) */
+.time-grid-gutter {
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+  position: relative;
+  user-select: none;
+}
+
+.time-grid-gutter-hour {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+/* Columnas de los días */
+.time-grid-day-column {
+  border-right: 1px solid var(--border);
+  position: relative;
+  background: var(--surface);
+  transition: background 0.15s ease;
+}
+
+.time-grid-day-column:last-child {
+  border-right: none;
+}
+
+.time-grid-day-column.is-today {
+  background: rgba(240, 253, 250, 0.45);
+}
+
+/* Líneas de guía horaria de fondo */
+.time-grid-line-hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--border);
+  pointer-events: none;
+}
+
+.time-grid-line-half {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  border-top: 1px dashed var(--slate-200);
+  pointer-events: none;
+}
+
+/* Indicador horizontal de "Ahora" */
+.calendar-now-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 8;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.calendar-now-line {
+  flex: 1;
+  height: 2px;
+  background-color: var(--danger);
+  box-shadow: 0 0 4px rgba(220, 38, 38, 0.4);
+}
+
+.calendar-now-badge {
+  background-color: var(--danger);
+  color: #FFFFFF;
+  font-size: 9px;
+  font-weight: var(--weight-bold);
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  margin-right: 2px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* Bloques de Citas Médicas */
+.calendar-event-block {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  padding: 4px 6px;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 3;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, z-index 0.15s ease;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.calendar-event-block:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  z-index: 9;
+}
+
+.calendar-event-block .event-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  line-height: 1.2;
+}
+
+.calendar-event-block .event-time {
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  font-family: var(--font-mono);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.calendar-event-block .event-badge {
+  font-size: 9px;
+  font-weight: var(--weight-bold);
+  padding: 1px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.calendar-event-block .event-patient {
+  font-size: 11px;
+  font-weight: var(--weight-bold);
+  color: var(--text);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.calendar-event-block .event-doctor {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.calendar-event-block .event-service {
+  font-size: 9px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+/* Variantes por estado */
+.calendar-event-block.status-PROGRAMADA {
+  border-left-color: var(--primary);
+  background: #F0FDFA; /* teal-50 */
+}
+.calendar-event-block.status-PROGRAMADA .event-badge {
+  background: var(--teal-100);
+  color: var(--teal-800);
+}
+
+.calendar-event-block.status-CONFIRMADA {
+  border-left-color: var(--success);
+  background: var(--success-bg);
+}
+.calendar-event-block.status-CONFIRMADA .event-badge {
+  background: #BBF7D0;
+  color: var(--on-success-bg);
+}
+
+.calendar-event-block.status-ATENDIDA {
+  border-left-color: var(--info);
+  background: var(--info-bg);
+}
+.calendar-event-block.status-ATENDIDA .event-badge {
+  background: #BFDBFE;
+  color: var(--on-info-bg);
+}
+
+.calendar-event-block.status-CANCELADA {
+  border-left-color: var(--danger);
+  border-style: dashed;
+  background: #FEF2F2;
+  opacity: 0.9;
+}
+.calendar-event-block.status-CANCELADA .event-patient {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.calendar-event-block.status-CANCELADA .event-badge {
+  background: var(--danger-bg);
+  color: var(--on-danger-bg);
+}
+
+.calendar-event-block.status-NO_ASISTIO {
+  border-left-color: var(--warning);
+  background: var(--warning-bg);
+}
+.calendar-event-block.status-NO_ASISTIO .event-badge {
+  background: #FDE68A;
+  color: var(--on-warning-bg);
+}
+
+.calendar-event-block.status-REPROGRAMADA {
+  border-left-color: #9333EA;
+  background: #FAF5FF;
+}
+.calendar-event-block.status-REPROGRAMADA .event-badge {
+  background: #F3E8FF;
+  color: #6B21A8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .time-grid-header {
+    grid-template-columns: 56px repeat(7, minmax(140px, 1fr));
+  }
+  .time-grid-body {
+    grid-template-columns: 56px repeat(7, minmax(140px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .time-grid-wrapper {
+    border-radius: var(--radius-md);
+  }
+  .time-grid-header {
+    grid-template-columns: 50px repeat(7, minmax(130px, 1fr));
+  }
+  .time-grid-body {
+    grid-template-columns: 50px repeat(7, minmax(130px, 1fr));
+  }
 }
 
 
