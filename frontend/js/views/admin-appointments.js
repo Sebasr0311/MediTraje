@@ -164,10 +164,10 @@ export async function renderAdminAppointments(container) {
           </div>
         </div>
 
-        <!-- Barra de Navegación de Fechas y Filtros -->
-        <div class="grid grid-cols-1 grid-cols-3-md gap-4 items-end mb-4">
+        <!-- Barra de Navegación de Fechas y Filtros (Responsive & Organizada) -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 p-3" style="background: var(--surface-2); border-radius: var(--radius-md); border: 1px solid var(--border);">
           <!-- Controles de Navegación Temporal -->
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1.5 flex-wrap">
             <button type="button" class="btn btn-secondary btn--sm btn--icon-only" id="btnPrevDate" title="Período anterior" aria-label="Período anterior">
               ${ui.icon('chevron-left')}
             </button>
@@ -177,12 +177,12 @@ export async function renderAdminAppointments(container) {
             <button type="button" class="btn btn-secondary btn--sm btn--icon-only" id="btnNextDate" title="Período siguiente" aria-label="Período siguiente">
               ${ui.icon('chevron-right')}
             </button>
-            <input type="date" id="inputJumpDate" class="form-input text-xs" style="max-width: 140px;" value="${state.selectedDate}">
+            <input type="date" id="inputJumpDate" class="form-input text-xs" style="max-width: 140px; padding: 4px 8px;" value="${state.selectedDate}">
           </div>
 
           <!-- Filtro de Estado -->
-          <div class="form-group m-0">
-            <label for="selectFilterEstado" class="form-label text-xs">Filtrar por estado</label>
+          <div class="flex items-center gap-2 m-0 flex-1" style="min-width: 200px; max-width: 280px;">
+            <label for="selectFilterEstado" class="form-label text-xs m-0 shrink-0 font-medium text-muted">Estado:</label>
             <select id="selectFilterEstado" class="form-select text-xs">
               <option value="">Todos los estados</option>
               <option value="PROGRAMADA">Programadas</option>
@@ -194,9 +194,8 @@ export async function renderAdminAppointments(container) {
           </div>
 
           <!-- Indicador del Período Actual -->
-          <div class="text-right">
-            <span class="text-xs text-muted block uppercase tracking-wider font-bold">Período Seleccionado:</span>
-            <strong class="text-sm text-primary block" id="currentPeriodLabel">—</strong>
+          <div class="flex items-center gap-2">
+            <span class="badge badge--scheduled text-xs font-bold" id="currentPeriodLabel" style="font-size: 11px; padding: 4px 10px;">—</span>
           </div>
         </div>
 
@@ -281,7 +280,30 @@ export async function renderAdminAppointments(container) {
     });
 
     viewportEl.innerHTML = `
-      <div class="calendar-week-grid">
+      <!-- Selector rápido de días para navegación táctil/móvil -->
+      <div class="calendar-day-tabs-mobile" role="tablist" aria-label="Días de la semana">
+        ${weekDays.map(day => {
+          const dayCitas = citasPorDia.get(day.dateStr) || [];
+          const [y, m, d] = day.dateStr.split('-');
+          return `
+            <button 
+              type="button" 
+              class="calendar-day-tab-btn ${day.isToday ? 'is-today is-active' : ''}" 
+              data-target-day="${day.dateStr}"
+              role="tab"
+              aria-selected="${day.isToday}"
+            >
+              <span class="uppercase font-bold" style="font-size: 10px;">${day.shortName}</span>
+              <span class="text-sm font-bold">${d}</span>
+              <span class="badge ${dayCitas.length > 0 ? 'badge--scheduled' : 'badge--neutral'}" style="font-size: 9px; padding: 0 4px; margin-top: 2px;">
+                ${dayCitas.length}
+              </span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      <div class="calendar-week-grid" id="calendarWeekGrid">
         ${weekDays.map(day => {
           const dayCitas = citasPorDia.get(day.dateStr) || [];
           const [y, m, d] = day.dateStr.split('-');
@@ -301,7 +323,7 @@ export async function renderAdminAppointments(container) {
                     Sin citas
                   </div>
                 ` : dayCitas.map(c => `
-                  <div class="calendar-cita-item status-${esc(c.estado)}" data-cita-id="${esc(c.citaPublicId)}">
+                  <div class="calendar-cita-item status-${esc(c.estado)}" data-cita-id="${esc(c.citaPublicId || c.publicId)}">
                     <div class="flex items-center justify-between gap-1 mb-1">
                       <strong class="text-xs text-primary">${formatTimeBogota(c.fechaHoraInicio)}</strong>
                       ${citaStatusBadge(c.estado)}
@@ -312,9 +334,14 @@ export async function renderAdminAppointments(container) {
                     <span class="text-xs text-muted block truncate" title="Dr(a). ${esc(c.profesionalNombre)}">
                       Dr(a). ${esc(c.profesionalNombre)}
                     </span>
-                    <span class="text-xs text-muted block truncate" style="font-size: 10px;">
-                      ${esc(c.especialidadNombre)}
-                    </span>
+                    <div class="flex items-center gap-1 mt-0.5">
+                      <span class="text-xs text-muted truncate" style="font-size: 10px;">
+                        ${esc(c.especialidadNombre)}
+                      </span>
+                      ${c.triajeNivel ? `
+                        <span class="badge badge--scheduled" style="font-size: 9px; padding: 0 4px;">Nivel ${esc(c.triajeNivel)}</span>
+                      ` : ''}
+                    </div>
                   </div>
                 `).join('')}
               </div>
@@ -323,6 +350,23 @@ export async function renderAdminAppointments(container) {
         }).join('')}
       </div>
     `;
+
+    // Asignar listeners a los botones de días en móvil para navegación suave
+    viewportEl.querySelectorAll('.calendar-day-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetDay = btn.getAttribute('data-target-day');
+        viewportEl.querySelectorAll('.calendar-day-tab-btn').forEach(b => {
+          b.classList.remove('is-active');
+          b.setAttribute('aria-selected', 'false');
+        });
+        btn.classList.add('is-active');
+        btn.setAttribute('aria-selected', 'true');
+        const targetCol = viewportEl.querySelector(`.calendar-day-col[data-day="${targetDay}"]`);
+        if (targetCol) {
+          targetCol.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+        }
+      });
+    });
 
     // Asignar clics a cada cita para abrir modal de detalle
     attachCitaClickListeners();
@@ -349,7 +393,7 @@ export async function renderAdminAppointments(container) {
 
       <div class="flex flex-col gap-3">
         ${citas.map(c => `
-          <div class="card p-4 calendar-cita-item status-${esc(c.estado)}" data-cita-id="${esc(c.citaPublicId)}" style="cursor: pointer;">
+          <div class="card p-4 calendar-cita-item status-${esc(c.estado)}" data-cita-id="${esc(c.citaPublicId || c.publicId)}" style="cursor: pointer;">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-start gap-4">
                 <div style="min-width: 6.5rem;">
@@ -396,7 +440,7 @@ export async function renderAdminAppointments(container) {
     viewportEl.querySelectorAll('.calendar-cita-item').forEach(item => {
       item.addEventListener('click', () => {
         const citaId = item.getAttribute('data-cita-id');
-        const cita = state.citas.find(c => c.citaPublicId === citaId);
+        const cita = state.citas.find(c => (c.citaPublicId || c.publicId) === citaId);
         if (cita) {
           showAppointmentDetailModal(cita);
         }
@@ -416,7 +460,7 @@ export async function renderAdminAppointments(container) {
         <div class="flex items-center justify-between pb-3 border-b mb-4">
           <div>
             <span class="text-xs text-muted font-bold uppercase tracking-wider block">Identificador de la Cita:</span>
-            <span class="font-mono font-bold text-sm text-primary">${esc(c.citaPublicId)}</span>
+            <span class="font-mono font-bold text-sm text-primary">${esc(c.citaPublicId || c.publicId)}</span>
           </div>
           <div>${citaStatusBadge(c.estado)}</div>
         </div>
@@ -522,15 +566,14 @@ export async function renderAdminAppointments(container) {
         <form id="formExportAppointments" class="flex flex-col gap-4">
           <!-- Rango Predefinido -->
           <div class="form-group m-0">
-            <label class="form-label text-xs">Seleccionar rango de exportación</label>
-            <div class="grid grid-cols-1 grid-cols-3-md gap-2">
-              <button type="button" class="btn btn-secondary btn--sm btn-preset" data-desde="${today}" data-hasta="${today}">
-                Solo hoy (${today.slice(5)})
+            <div class="flex flex-wrap gap-2">
+              <button type="button" class="btn btn-secondary btn--sm btn-preset flex-1" style="min-width: 110px;" data-desde="${today}" data-hasta="${today}">
+                Solo hoy
               </button>
-              <button type="button" class="btn btn-secondary btn--sm btn-preset" data-desde="${monday}" data-hasta="${sunday}">
-                Esta semana (${monday.slice(5)} al ${sunday.slice(5)})
+              <button type="button" class="btn btn-secondary btn--sm btn-preset flex-1" style="min-width: 120px;" data-desde="${monday}" data-hasta="${sunday}">
+                Esta semana
               </button>
-              <button type="button" class="btn btn-secondary btn--sm btn-preset" data-desde="${addDays(today, -30)}" data-hasta="${today}">
+              <button type="button" class="btn btn-secondary btn--sm btn-preset flex-1" style="min-width: 120px;" data-desde="${addDays(today, -30)}" data-hasta="${today}">
                 Últimos 30 días
               </button>
             </div>

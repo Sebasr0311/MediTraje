@@ -436,31 +436,36 @@
 }
 
 /* Niveles de Triaje (I..V) con texto e icono siempre */
-.badge--triage-1 {
+.badge--triage-1,
+.badge--triage-i {
   background-color: var(--triage-1-bg);
   color: var(--triage-1-fg);
   border: 1px solid var(--triage-1-bd);
 }
 
-.badge--triage-2 {
+.badge--triage-2,
+.badge--triage-ii {
   background-color: var(--triage-2-bg);
   color: var(--triage-2-fg);
   border: 1px solid var(--triage-2-bd);
 }
 
-.badge--triage-3 {
+.badge--triage-3,
+.badge--triage-iii {
   background-color: var(--triage-3-bg);
   color: var(--triage-3-fg);
   border: 1px solid var(--triage-3-bd);
 }
 
-.badge--triage-4 {
+.badge--triage-4,
+.badge--triage-iv {
   background-color: var(--triage-4-bg);
   color: var(--triage-4-fg);
   border: 1px solid var(--triage-4-bd);
 }
 
-.badge--triage-5 {
+.badge--triage-5,
+.badge--triage-v {
   background-color: var(--triage-5-bg);
   color: var(--triage-5-fg);
   border: 1px solid var(--triage-5-bd);
@@ -1888,11 +1893,21 @@
   background-color: var(--border);
   padding: var(--space-2);
   border-radius: var(--radius-lg);
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (max-width: 1024px) {
   .calendar-week-grid {
     grid-template-columns: repeat(7, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .calendar-week-grid {
+    grid-template-columns: repeat(7, minmax(84vw, 1fr));
+    scroll-snap-type: x mandatory;
+    scroll-padding: var(--space-2);
+    gap: var(--space-3);
   }
 }
 
@@ -1903,11 +1918,20 @@
   min-height: 420px;
   display: flex;
   flex-direction: column;
+  transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+}
+
+@media (max-width: 768px) {
+  .calendar-day-col {
+    scroll-snap-align: start;
+    min-height: 380px;
+  }
 }
 
 .calendar-day-col.is-today {
   background-color: var(--teal-50);
   border: 2px solid var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
 }
 
 .calendar-day-header {
@@ -1917,6 +1941,52 @@
   text-align: center;
 }
 
+/* Selector rápido de días para móviles */
+.calendar-day-tabs-mobile {
+  display: none;
+  overflow-x: auto;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .calendar-day-tabs-mobile {
+    display: flex;
+  }
+}
+
+.calendar-day-tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  transition: all var(--duration) var(--ease);
+  flex-shrink: 0;
+}
+
+.calendar-day-tab-btn.is-active {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.calendar-day-tab-btn.is-today:not(.is-active) {
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: var(--weight-bold);
+}
+
 .calendar-cita-item {
   display: block;
   width: 100%;
@@ -1924,7 +1994,7 @@
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: var(--space-2);
+  padding: var(--space-2) 10px;
   margin-bottom: var(--space-2);
   cursor: pointer;
   transition: all var(--duration) var(--ease);
@@ -1951,7 +2021,7 @@
 
 .calendar-cita-item.status-CANCELADA {
   border-left: 3.5px solid var(--danger);
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 

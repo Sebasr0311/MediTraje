@@ -25,6 +25,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - Normalización de rutas en `admin-reports.js` (`/admin/reports/operational`), `admin-audit.js` (`/admin/audit`) y `system-assistant-widget.js` (`/assistant/chat`).
 
 ### Added
+- **Calendario Administrativo 100% Responsivo y Navegación Táctil Móvil (`admin-appointments.js`, `components.css`)**:
+  - Rediseño responsivo del calendario de supervisión (`#/admin/appointments`) con soporte fluido en desktop, tablet y móviles (viewport <= 768px).
+  - Barra de herramientas con flex-wrap optimizado y selector rápido de días con píldoras táctiles (`.calendar-day-tabs-mobile`) con desplazamiento suave (`scroll-snap`) a la columna del día seleccionado.
+  - Inclusión de badges de clasificación de triaje en las tarjetas semanales y visualización completa en el modal de detalle de cita (paciente, profesional, fecha, sede, motivo de consulta y nivel de triaje).
+- **Filtrado Estricto de Médicos por Especialidad y Razón de Consulta (`patient-booking.js`)**:
+  - Acotamiento dinámico de los profesionales mostrados en el agendamiento del paciente (`#/patient/book`) según la especialidad seleccionada y el motivo asistencial (capturado del triaje o seleccionado por el paciente).
+  - Badge visual "Apto para tu motivo" en la tarjeta del médico, preservación del motivo en el resumen de confirmación y en la pantalla de éxito post-agendamiento.
+- **Agenda del Profesional Enriquecida con Triaje y Razón Asistencial (`professional-agenda.js`, `CitaRepository`)**:
+  - Proyección en backend (`CitaResponse`, `CitaRepository`) de `TRIAJE_NIVEL` y `MOTIVO_CONSULTA` para consultas de citas y agenda profesional.
+  - Despliegue en la agenda médica de badges cromáticos oficiales de triaje (Niveles I al V en números y números romanos) y caja destacada con la razón de la consulta del paciente.
 - **Agendamiento Gráfico por Médico y Visualización de Turnos por Especialidad (`patient-booking.js`)**:
   - Incorporación de panel gráfico de selección de profesionales con tarjetas interactivas: avatar con iniciales, nombre del profesional, especialidad asignada y badge con conteo dinámico de turnos disponibles.
   - Alternancia fluida entre "Todos los médicos" y un profesional específico, filtrando instantáneamente los chips de horarios de atención disponibles.
