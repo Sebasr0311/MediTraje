@@ -501,7 +501,7 @@ export async function renderAdminAppointments(container) {
 
     ui.showModal({
       title: 'Detalle de la Cita Médica',
-      customHtml: bodyHtml,
+      message: bodyHtml,
       confirmText: 'Cerrar',
       cancelText: '',
       onConfirm: () => {}
@@ -565,7 +565,7 @@ export async function renderAdminAppointments(container) {
 
     ui.showModal({
       title: 'Exportar Citas a Plantilla Excel',
-      customHtml: exportHtml,
+      message: exportHtml,
       confirmText: 'Descargar archivo Excel (.csv)',
       cancelText: 'Cancelar',
       onConfirm: async () => {
