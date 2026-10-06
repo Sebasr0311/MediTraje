@@ -185,6 +185,7 @@ function setupRoutes() {
   router.addRoute('/admin/specialties', (c) => adminDashboardView(c, { tab: 'specialties' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/professionals', (c) => adminDashboardView(c, { tab: 'professionals' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/slots', (c) => adminDashboardView(c, { tab: 'slots' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/admin/appointments', (c) => adminDashboardView(c, { tab: 'appointments' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/reports', (c) => adminDashboardView(c, { tab: 'reports' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/audit', (c) => adminDashboardView(c, { tab: 'audit' }), { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
 

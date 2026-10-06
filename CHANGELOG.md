@@ -25,6 +25,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - Normalización de rutas en `admin-reports.js` (`/admin/reports/operational`), `admin-audit.js` (`/admin/audit`) y `system-assistant-widget.js` (`/assistant/chat`).
 
 ### Added
+- **Agendamiento Gráfico por Médico y Visualización de Turnos por Especialidad (`patient-booking.js`)**:
+  - Incorporación de panel gráfico de selección de profesionales con tarjetas interactivas: avatar con iniciales, nombre del profesional, especialidad asignada y badge con conteo dinámico de turnos disponibles.
+  - Alternancia fluida entre "Todos los médicos" y un profesional específico, filtrando instantáneamente los chips de horarios de atención disponibles.
+  - Resumen de confirmación con detalles completos del médico, sede/telemedicina y motivo de triaje clínico.
+- **Agenda del Profesional Asistencial Enriquecida (`professional-agenda.js`)**:
+  - Visualización prominente del rango horario completo de la cita (inicio - fin), día exacto en formato largo regional, paciente con documento, sede/modalidad y motivo de consulta o triaje vinculado.
+- **Calendario Semanal Dinámico y Supervisión Administrativa de Citas (`admin-appointments.js`, `AdminAppointmentController`)**:
+  - Pestaña "Calendario de Citas" en el panel administrativo (`#/admin/appointments`) con alternancia entre vista semanal (grid responsivo de 7 días Lunes a Domingo) y vista diaria cronológica.
+  - Navegación temporal en tiempo real (anterior, hoy, siguiente y selector de fecha directa) con filtros por estado de cita.
+  - Modal interactivo con inspección completa de cada cita: datos del paciente, médico asignado, lugar de atención, motivo de consulta, triaje y auditoría.
+- **Plantilla de Exportación a Microsoft Excel con Filtros de Fecha (`AdminAppointmentService`)**:
+  - Endpoint `GET /api/v1/admin/appointments/export` que genera archivos CSV estructurados con BOM UTF-8 (`\uFEFF`) y delimitadores punto y coma (;) para apertura directa en Microsoft Excel sin corrupción de caracteres en español.
+  - Modal de exportación con rangos rápidos ("Solo hoy", "Esta semana", "Últimos 30 días") y rango de fechas personalizado (ej. del 15 al 20) con sanitización contra inyecciones de fórmulas CSV.
 - **Validación de Talento Humano en Salud y ReTHUS según Normativa Colombiana (Ley 1164/2007, Dec. 780/2016)**:
   - Migración Flyway `V015__profesional_colombia_y_especialidades.sql`: adición de columnas `TIPO_DOCUMENTO` (`CHECK (TIPO_DOCUMENTO IN ('CC', 'CE'))`), `NUMERO_DOCUMENTO` (`UQ_PROFESIONAL_DOC`) y `TELEFONO` a la tabla `PROFESIONAL`.
   - Backend — `AdminProfessionalService`, `ProfesionalRepository` y DTOs (`CrearProfesionalRequest`, `ActualizarProfesionalRequest`, `ProfesionalResponse`, `CrearProfesionalResponse`):

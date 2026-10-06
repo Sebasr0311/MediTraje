@@ -1817,4 +1817,142 @@
   text-align: left;
 }
 
+/* ==========================================================================
+   16. TARJETAS GRÁFICAS DE MÉDICOS Y CALENDARIO SEMANAL
+   ========================================================================== */
+.doctor-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.doctor-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--duration) var(--ease);
+  position: relative;
+  width: 100%;
+}
+
+.doctor-card:hover {
+  border-color: var(--primary);
+  background-color: var(--primary-soft);
+  transform: translateY(-1px);
+}
+
+.doctor-card:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.doctor-card.is-selected {
+  border-color: var(--primary);
+  background-color: var(--primary-soft);
+  box-shadow: 0 0 0 2px var(--primary-soft-border);
+}
+
+.doctor-avatar {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: var(--radius-full);
+  background: var(--teal-100);
+  color: var(--teal-800);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--weight-bold);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.doctor-avatar--all {
+  background: var(--slate-100);
+  color: var(--slate-700);
+}
+
+/* Calendario Semanal de Administración */
+.calendar-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(140px, 1fr));
+  gap: var(--space-2);
+  overflow-x: auto;
+  background-color: var(--border);
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 1024px) {
+  .calendar-week-grid {
+    grid-template-columns: repeat(7, minmax(180px, 1fr));
+  }
+}
+
+.calendar-day-col {
+  background-color: var(--surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-day-col.is-today {
+  background-color: var(--teal-50);
+  border: 2px solid var(--primary);
+}
+
+.calendar-day-header {
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+
+.calendar-cita-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  margin-bottom: var(--space-2);
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  box-shadow: var(--shadow-sm);
+}
+
+.calendar-cita-item:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.calendar-cita-item.status-PROGRAMADA {
+  border-left: 3.5px solid var(--primary);
+}
+
+.calendar-cita-item.status-CONFIRMADA {
+  border-left: 3.5px solid var(--success);
+}
+
+.calendar-cita-item.status-ATENDIDA {
+  border-left: 3.5px solid var(--info);
+}
+
+.calendar-cita-item.status-CANCELADA {
+  border-left: 3.5px solid var(--danger);
+  opacity: 0.75;
+}
+
+
 
