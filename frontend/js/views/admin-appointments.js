@@ -1,19 +1,78 @@
 /**
- * MediTriaje 2.0 — Calendario Semanal y Exportación de Citas en Panel Admin (admin-appointments.js)
- * Visualización dinámica en tiempo real por semana y día, inspección de detalles de cita
- * y exportación a plantillas compatibles con Microsoft Excel (BOM UTF-8) (ADR-003, ADR-006, RF-26).
+ * MediTriaje 2.0 — Calendario Semanal y Supervisión de Citas Médicas (admin-appointments.js)
+ * Motor Time-Grid continuo con resolución temporal real, cálculo de duración proporcional,
+ * resolución matemática de citas superpuestas (clustering & lane greedy assignment),
+ * indicador dinámico de hora actual (Now Indicator), métricas KPI en tiempo real,
+ * filtros combinables (estado, médico, especialidad, paciente) y exportación a Excel (UTF-8 BOM).
  * REGLA ESTRICTA: El rol administrativo no accede a historias clínicas ni datos clínicos privados (ADR-007).
  */
 
 import { api } from '../api.js';
 import { ui, esc } from '../ui.js';
 
+/** Altura base en píxeles por cada hora en la cuadrícula */
+const PX_PER_HOUR = 70;
+const PX_PER_MIN = PX_PER_HOUR / 60;
+
 /** Fecha de hoy en formato YYYY-MM-DD en zona America/Bogota. */
 function todayBogota() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
 }
 
-/** Formatea hora en zona America/Bogota. */
+/** Descompone un instante ISO en fecha y minutos del día en zona America/Bogota. */
+function getBogotaDateParts(isoString) {
+  if (!isoString) {
+    return { dateStr: '', hours: 0, minutes: 0, totalMinutes: 0, timeStr: '—' };
+  }
+  const d = new Date(isoString);
+  const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(d);
+  const timeStr = new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }).format(d);
+  const time24Str = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(d);
+  const [h, m] = time24Str.split(':').map(Number);
+  return {
+    dateStr,
+    hours: h,
+    minutes: m,
+    totalMinutes: h * 60 + m,
+    timeStr
+  };
+}
+
+/** Retorna la hora actual en minutos en Bogotá y su representación formateada. */
+function getCurrentBogotaTime() {
+  const now = new Date();
+  const timeStr = new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }).format(now);
+  const time24Str = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(now);
+  const [h, m] = time24Str.split(':').map(Number);
+  return {
+    hours: h,
+    minutes: m,
+    totalMinutes: h * 60 + m,
+    timeStr
+  };
+}
+
+/** Formatea hora legible en zona America/Bogota. */
 function formatTimeBogota(isoString) {
   if (!isoString) return '—';
   try {
@@ -28,7 +87,7 @@ function formatTimeBogota(isoString) {
   }
 }
 
-/** Formatea fecha corta en zona America/Bogota. */
+/** Formatea fecha corta en zona America/Bogota (ej: 06 oct). */
 function formatDateShortBogota(isoString) {
   if (!isoString) return '—';
   try {
@@ -42,7 +101,7 @@ function formatDateShortBogota(isoString) {
   }
 }
 
-/** Formatea fecha larga en zona America/Bogota. */
+/** Formatea fecha larga en zona America/Bogota (ej: martes, 6 de octubre de 2026). */
 function formatDateLongBogota(isoString) {
   if (!isoString) return '—';
   try {
@@ -58,7 +117,7 @@ function formatDateLongBogota(isoString) {
   }
 }
 
-/** Suma o resta días a una fecha ISO YYYY-MM-DD en UTC. */
+/** Suma o resta días a una fecha ISO YYYY-MM-DD. */
 function addDays(isoDate, days) {
   const [y, m, d] = isoDate.split('-').map(Number);
   const date = new Date(Date.UTC(y, m - 1, d + days));
@@ -69,8 +128,7 @@ function addDays(isoDate, days) {
 function getWeekRange(isoDate) {
   const [y, m, d] = isoDate.split('-').map(Number);
   const date = new Date(Date.UTC(y, m - 1, d));
-  // getUTCDay: 0=Domingo, 1=Lunes, ..., 6=Sábado
-  const day = date.getUTCDay();
+  const day = date.getUTCDay(); // 0=Domingo, 1=Lunes, ...
   const diffToMonday = day === 0 ? -6 : 1 - day;
   const monday = addDays(isoDate, diffToMonday);
   const sunday = addDays(monday, 6);
@@ -82,39 +140,156 @@ function getWeekDays(isoDate) {
   const { monday } = getWeekRange(isoDate);
   const days = [];
   const nombres = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const today = todayBogota();
   for (let i = 0; i < 7; i++) {
     const dStr = addDays(monday, i);
     days.push({
       dateStr: dStr,
       shortName: nombres[i],
-      isToday: dStr === todayBogota()
+      isToday: dStr === today
     });
   }
   return days;
 }
 
-/** Badge visual para el estado de una cita médica. */
-function citaStatusBadge(estado) {
+/** Metadatos visuales y semánticos por estado de cita (icono + texto + clases). */
+function getStatusMeta(estado) {
   const est = (estado || '').toUpperCase();
-  if (est === 'PROGRAMADA') {
-    return `<span class="badge badge--scheduled">${ui.icon('clock', 'icon icon--xs')} Programada</span>`;
+  switch (est) {
+    case 'PROGRAMADA':
+      return { label: 'Programada', iconText: '◷', iconName: 'clock', badgeClass: 'badge--scheduled' };
+    case 'CONFIRMADA':
+      return { label: 'Confirmada', iconText: '✓', iconName: 'check', badgeClass: 'badge--confirmed' };
+    case 'ATENDIDA':
+      return { label: 'Atendida', iconText: '●', iconName: 'activity', badgeClass: 'badge--attended' };
+    case 'CANCELADA':
+      return { label: 'Cancelada', iconText: '✕', iconName: 'x', badgeClass: 'badge--cancelled' };
+    case 'NO_ASISTIO':
+      return { label: 'No asistió', iconText: '!', iconName: 'alert-circle', badgeClass: 'badge--cancelled' };
+    case 'REPROGRAMADA':
+      return { label: 'Reprogramada', iconText: '⟳', iconName: 'calendar', badgeClass: 'badge--rescheduled' };
+    default:
+      return { label: estado || 'Estado', iconText: '•', iconName: 'circle', badgeClass: 'badge--neutral' };
   }
-  if (est === 'CONFIRMADA') {
-    return `<span class="badge badge--confirmed">${ui.icon('check', 'icon icon--xs')} Confirmada</span>`;
+}
+
+/** Badge visual para el estado de una cita médica en vistas o modales. */
+function citaStatusBadge(estado) {
+  const meta = getStatusMeta(estado);
+  return `<span class="badge ${meta.badgeClass}">${ui.icon(meta.iconName, 'icon icon--xs')} ${esc(meta.label)}</span>`;
+}
+
+/** Calcula el rango de horas operativo del centro (07:00 a 19:00 o dinámico si hay citas más temprano/tarde). */
+function computeOperatingHours(citas) {
+  let minH = 7;
+  let maxH = 19;
+  citas.forEach(c => {
+    if (c.fechaHoraInicio) {
+      const parts = getBogotaDateParts(c.fechaHoraInicio);
+      if (parts.hours < minH) minH = Math.max(0, parts.hours);
+    }
+    if (c.fechaHoraFin) {
+      const parts = getBogotaDateParts(c.fechaHoraFin);
+      const endH = parts.minutes > 0 ? parts.hours + 1 : parts.hours;
+      if (endH > maxH) maxH = Math.min(24, endH);
+    }
+  });
+  return { startHour: minH, endHour: maxH };
+}
+
+/**
+ * Algoritmo de resolución matemática de superposición de citas (Time-Grid Interval Packing).
+ * Agrupa citas colisionantes en clusters continuos y asigna carriles horizontales proporcionales (lanes).
+ */
+function layoutDayEvents(citasDelDia, startHour) {
+  if (!citasDelDia || citasDelDia.length === 0) return [];
+
+  const dayStartMin = startHour * 60;
+
+  // 1. Calcular minutos de inicio, fin y duración real
+  const items = citasDelDia.map(c => {
+    const startParts = getBogotaDateParts(c.fechaHoraInicio);
+    const startMin = startParts.totalMinutes;
+    let endMin;
+    if (c.fechaHoraFin) {
+      const endParts = getBogotaDateParts(c.fechaHoraFin);
+      endMin = endParts.totalMinutes;
+      if (endMin <= startMin) endMin = startMin + 30;
+    } else {
+      endMin = startMin + 30; // 30 min por defecto
+    }
+    const durationMin = endMin - startMin;
+    const topPx = (startMin - dayStartMin) * PX_PER_MIN;
+    const heightPx = Math.max(32, durationMin * PX_PER_MIN);
+
+    return {
+      cita: c,
+      startMin,
+      endMin,
+      durationMin,
+      topPx,
+      heightPx
+    };
+  });
+
+  // 2. Ordenar por hora de inicio ascendente, y luego por mayor duración
+  items.sort((a, b) => a.startMin - b.startMin || b.durationMin - a.durationMin);
+
+  // 3. Crear clusters conexos de citas que se superponen
+  const clusters = [];
+  let currentCluster = [];
+  let clusterMaxEnd = -1;
+
+  for (const item of items) {
+    if (currentCluster.length === 0) {
+      currentCluster.push(item);
+      clusterMaxEnd = item.endMin;
+    } else if (item.startMin < clusterMaxEnd) {
+      currentCluster.push(item);
+      if (item.endMin > clusterMaxEnd) {
+        clusterMaxEnd = item.endMin;
+      }
+    } else {
+      clusters.push(currentCluster);
+      currentCluster = [item];
+      clusterMaxEnd = item.endMin;
+    }
   }
-  if (est === 'ATENDIDA') {
-    return `<span class="badge badge--attended">${ui.icon('activity', 'icon icon--xs')} Atendida</span>`;
+  if (currentCluster.length > 0) {
+    clusters.push(currentCluster);
   }
-  if (est === 'CANCELADA') {
-    return `<span class="badge badge--cancelled">${ui.icon('x', 'icon icon--xs')} Cancelada</span>`;
+
+  // 4. Asignar carriles (lanes) dentro de cada cluster usando greedy column packing
+  const result = [];
+  for (const cluster of clusters) {
+    const laneEndTimes = [];
+    for (const item of cluster) {
+      let placedLane = -1;
+      for (let l = 0; l < laneEndTimes.length; l++) {
+        if (laneEndTimes[l] <= item.startMin) {
+          placedLane = l;
+          laneEndTimes[l] = item.endMin;
+          break;
+        }
+      }
+      if (placedLane === -1) {
+        placedLane = laneEndTimes.length;
+        laneEndTimes.push(item.endMin);
+      }
+      item.lane = placedLane;
+    }
+
+    const totalLanes = laneEndTimes.length;
+    for (const item of cluster) {
+      const widthPct = 100 / totalLanes;
+      const leftPct = item.lane * widthPct;
+      item.leftStyle = `${leftPct}%`;
+      item.widthStyle = totalLanes > 1 ? `calc(${widthPct}% - 3px)` : 'calc(100% - 3px)';
+      result.push(item);
+    }
   }
-  if (est === 'NO_ASISTIO') {
-    return `<span class="badge badge--cancelled">${ui.icon('alert-circle', 'icon icon--xs')} No asistió</span>`;
-  }
-  if (est === 'REPROGRAMADA') {
-    return `<span class="badge badge--rescheduled">${ui.icon('calendar', 'icon icon--xs')} Reprogramada</span>`;
-  }
-  return `<span class="badge badge--neutral">${esc(estado)}</span>`;
+
+  return result;
 }
 
 /**
@@ -126,22 +301,39 @@ export async function renderAdminAppointments(container) {
     selectedDate: todayBogota(),
     filtroEstado: '',
     filtroEspecialidad: '',
+    filtroProfesional: '',
+    busquedaPaciente: '',
     citas: [],
-    loading: false
+    specialties: [],
+    professionals: [],
+    activeKpiFilter: '',
+    timerNowId: null
   };
+
+  // Cargar catálogos iniciales para los filtros (especialidades y profesionales)
+  try {
+    const [resSpec, resProf] = await Promise.all([
+      api.get('/admin/specialties', { size: 100, estado: 'ACTIVO' }).catch(() => ({ content: [] })),
+      api.get('/admin/professionals', { size: 100, estado: 'ACTIVO' }).catch(() => ({ content: [] }))
+    ]);
+    state.specialties = resSpec?.content || [];
+    state.professionals = resProf?.content || [];
+  } catch {
+    // Si falla catálogo, los filtros permanecen básicos
+  }
 
   container.innerHTML = `
     <div class="card mb-6">
       <div class="card-body">
         <!-- Barra Superior de Control: Título, Vistas y Exportar -->
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-5 pb-4 border-b">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-4 border-b">
           <div>
             <h2 class="text-xl font-bold m-0 flex items-center gap-2">
               ${ui.icon('calendar', 'icon icon--md text-primary')}
               <span>Calendario de Citas y Supervisión</span>
             </h2>
             <p class="text-xs text-muted m-0">
-              Supervisión de agendamiento en tiempo real, navegación semanal/diaria y exportación para reportes
+              Supervisión de agenda en cuadrícula horaria en tiempo real, control de turnos y reporte analítico
             </p>
           </div>
 
@@ -164,9 +356,12 @@ export async function renderAdminAppointments(container) {
           </div>
         </div>
 
-        <!-- Barra de Navegación de Fechas y Filtros (Responsive & Organizada) -->
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4 p-3" style="background: var(--surface-2); border-radius: var(--radius-md); border: 1px solid var(--border);">
-          <!-- Controles de Navegación Temporal -->
+        <!-- Barra de Métricas Rápidas (KPIs) de la Semana / Día -->
+        <div class="calendar-kpi-bar" id="calendarKpiBar" aria-label="Métricas del período"></div>
+
+        <!-- Barra de Navegación Temporal y Filtros Combinables -->
+        <div class="calendar-filters-row">
+          <!-- Navegación Temporal -->
           <div class="flex items-center gap-1.5 flex-wrap">
             <button type="button" class="btn btn-secondary btn--sm btn--icon-only" id="btnPrevDate" title="Período anterior" aria-label="Período anterior">
               ${ui.icon('chevron-left')}
@@ -180,27 +375,49 @@ export async function renderAdminAppointments(container) {
             <input type="date" id="inputJumpDate" class="form-input text-xs" style="max-width: 140px; padding: 4px 8px;" value="${state.selectedDate}">
           </div>
 
-          <!-- Filtro de Estado -->
-          <div class="flex items-center gap-2 m-0 flex-1" style="min-width: 200px; max-width: 280px;">
-            <label for="selectFilterEstado" class="form-label text-xs m-0 shrink-0 font-medium text-muted">Estado:</label>
-            <select id="selectFilterEstado" class="form-select text-xs">
+          <!-- Indicador del Período Actual -->
+          <div class="flex items-center gap-2">
+            <span class="badge badge--scheduled text-xs font-bold" id="currentPeriodLabel" style="font-size: 11px; padding: 4px 10px;">—</span>
+          </div>
+
+          <!-- Filtros Combinables: Estado, Profesional, Especialidad y Búsqueda -->
+          <div class="flex items-center gap-2 flex-wrap flex-1 justify-end">
+            <!-- Filtro Estado -->
+            <select id="selectFilterEstado" class="form-select text-xs" style="max-width: 150px;">
               <option value="">Todos los estados</option>
               <option value="PROGRAMADA">Programadas</option>
               <option value="CONFIRMADA">Confirmadas</option>
               <option value="ATENDIDA">Atendidas</option>
               <option value="CANCELADA">Canceladas</option>
               <option value="NO_ASISTIO">No asistió</option>
+              <option value="REPROGRAMADA">Reprogramadas</option>
             </select>
-          </div>
 
-          <!-- Indicador del Período Actual -->
-          <div class="flex items-center gap-2">
-            <span class="badge badge--scheduled text-xs font-bold" id="currentPeriodLabel" style="font-size: 11px; padding: 4px 10px;">—</span>
+            <!-- Filtro Especialidad -->
+            <select id="selectFilterEspecialidad" class="form-select text-xs" style="max-width: 160px;">
+              <option value="">Todas las especialidades</option>
+              ${state.specialties.map(s => `
+                <option value="${esc(s.publicId)}">${esc(s.nombre)}</option>
+              `).join('')}
+            </select>
+
+            <!-- Filtro Profesional -->
+            <select id="selectFilterProfesional" class="form-select text-xs" style="max-width: 170px;">
+              <option value="">Todos los médicos</option>
+              ${state.professionals.map(p => `
+                <option value="${esc(p.publicId)}">Dr(a). ${esc(p.nombres)} ${esc(p.apellidos)}</option>
+              `).join('')}
+            </select>
+
+            <!-- Búsqueda reactiva de paciente -->
+            <div class="relative" style="min-width: 170px; max-width: 220px;">
+              <input type="search" id="inputSearchPaciente" class="form-input text-xs w-full" placeholder="Buscar paciente / doc...">
+            </div>
           </div>
         </div>
 
-        <!-- Contenedor Principal del Calendario -->
-        <div id="calendarViewport" class="mt-4" aria-live="polite"></div>
+        <!-- Contenedor Principal del Calendario (Viewport Time-Grid) -->
+        <div id="calendarViewport" class="mt-2" aria-live="polite"></div>
       </div>
     </div>
   `;
@@ -209,10 +426,74 @@ export async function renderAdminAppointments(container) {
   const periodLabelEl = container.querySelector('#currentPeriodLabel');
   const inputJumpDate = container.querySelector('#inputJumpDate');
   const selectFilterEstado = container.querySelector('#selectFilterEstado');
+  const selectFilterEspecialidad = container.querySelector('#selectFilterEspecialidad');
+  const selectFilterProfesional = container.querySelector('#selectFilterProfesional');
+  const inputSearchPaciente = container.querySelector('#inputSearchPaciente');
+  const kpiBarEl = container.querySelector('#calendarKpiBar');
+
+  // Actualización de métricas en la barra KPI
+  function updateKpiBar(citas) {
+    const total = citas.length;
+    const programadas = citas.filter(c => c.estado === 'PROGRAMADA').length;
+    const confirmadas = citas.filter(c => c.estado === 'CONFIRMADA').length;
+    const atendidas = citas.filter(c => c.estado === 'ATENDIDA').length;
+    const canceladas = citas.filter(c => c.estado === 'CANCELADA').length;
+    const noAsistio = citas.filter(c => c.estado === 'NO_ASISTIO').length;
+
+    kpiBarEl.innerHTML = `
+      <div class="calendar-kpi-card ${state.filtroEstado === '' ? 'is-active' : ''}" data-status="">
+        <span class="calendar-kpi-label">${ui.icon('calendar', 'icon icon--xs')} Total Citas</span>
+        <span class="calendar-kpi-value text-primary">${total}</span>
+      </div>
+      <div class="calendar-kpi-card ${state.filtroEstado === 'PROGRAMADA' ? 'is-active' : ''}" data-status="PROGRAMADA">
+        <span class="calendar-kpi-label">${ui.icon('clock', 'icon icon--xs')} Programadas</span>
+        <span class="calendar-kpi-value">${programadas}</span>
+      </div>
+      <div class="calendar-kpi-card ${state.filtroEstado === 'CONFIRMADA' ? 'is-active' : ''}" data-status="CONFIRMADA">
+        <span class="calendar-kpi-label">${ui.icon('check', 'icon icon--xs text-success')} Confirmadas</span>
+        <span class="calendar-kpi-value text-success">${confirmadas}</span>
+      </div>
+      <div class="calendar-kpi-card ${state.filtroEstado === 'ATENDIDA' ? 'is-active' : ''}" data-status="ATENDIDA">
+        <span class="calendar-kpi-label">${ui.icon('activity', 'icon icon--xs text-info')} Atendidas</span>
+        <span class="calendar-kpi-value text-info">${atendidas}</span>
+      </div>
+      <div class="calendar-kpi-card ${state.filtroEstado === 'CANCELADA' ? 'is-active' : ''}" data-status="CANCELADA">
+        <span class="calendar-kpi-label">${ui.icon('x', 'icon icon--xs text-danger')} Canceladas</span>
+        <span class="calendar-kpi-value text-danger">${canceladas}</span>
+      </div>
+      <div class="calendar-kpi-card ${state.filtroEstado === 'NO_ASISTIO' ? 'is-active' : ''}" data-status="NO_ASISTIO">
+        <span class="calendar-kpi-label">${ui.icon('alert-circle', 'icon icon--xs text-warning')} No asistió</span>
+        <span class="calendar-kpi-value text-warning">${noAsistio}</span>
+      </div>
+    `;
+
+    // Conectar clic en KPI para filtrar rápidamente
+    kpiBarEl.querySelectorAll('.calendar-kpi-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const targetStatus = card.getAttribute('data-status');
+        selectFilterEstado.value = targetStatus;
+        state.filtroEstado = targetStatus;
+        loadAndRender();
+      });
+    });
+  }
+
+  // Filtrado de citas en memoria por búsqueda de paciente
+  function getFilteredCitas() {
+    let list = state.citas;
+    if (state.busquedaPaciente.trim()) {
+      const q = state.busquedaPaciente.trim().toLowerCase();
+      list = list.filter(c =>
+        (c.pacienteNombre && c.pacienteNombre.toLowerCase().includes(q)) ||
+        (c.pacienteDocumentoNumero && c.pacienteDocumentoNumero.includes(q))
+      );
+    }
+    return list;
+  }
 
   // Carga y renderizado
   async function loadAndRender() {
-    ui.renderLoading(viewportEl, 'Actualizando citas médicas del período...');
+    ui.renderLoading(viewportEl, 'Actualizando cuadrícula de citas médicas...');
 
     let desde;
     let hasta;
@@ -237,18 +518,15 @@ export async function renderAdminAppointments(container) {
         page: 0,
         size: 500
       };
-      if (state.filtroEstado) {
-        params.estado = state.filtroEstado;
-      }
+      if (state.filtroEstado) params.estado = state.filtroEstado;
+      if (state.filtroEspecialidad) params.especialidadPublicId = state.filtroEspecialidad;
+      if (state.filtroProfesional) params.profesionalPublicId = state.filtroProfesional;
 
       const res = await api.get('/admin/appointments', params);
       state.citas = res?.content || [];
 
-      if (state.viewMode === 'week') {
-        renderWeekView(state.citas, desde, hasta);
-      } else {
-        renderDayView(state.citas, state.selectedDate);
-      }
+      updateKpiBar(state.citas);
+      renderCurrentView();
     } catch (err) {
       ui.renderError(viewportEl, {
         title: 'Error al consultar las citas',
@@ -258,40 +536,61 @@ export async function renderAdminAppointments(container) {
     }
   }
 
-  // Renderizado de Vista Semanal (Grid de 7 columnas)
-  function renderWeekView(citas, monday, sunday) {
-    const weekDays = getWeekDays(state.selectedDate);
+  // Despacho de vista actual (Semana o Día)
+  function renderCurrentView() {
+    const filteredCitas = getFilteredCitas();
 
-    // Agrupar citas por fecha en Colombia (YYYY-MM-DD)
+    if (state.viewMode === 'week') {
+      const { monday, sunday } = getWeekRange(state.selectedDate);
+      renderWeekTimeGrid(filteredCitas, monday, sunday);
+    } else {
+      renderDayTimeGrid(filteredCitas, state.selectedDate);
+    }
+  }
+
+  // Renderizado de la Vista Semanal con Cuadrícula Horaria (Time-Grid)
+  function renderWeekTimeGrid(citas, monday, sunday) {
+    const weekDays = getWeekDays(state.selectedDate);
+    const { startHour, endHour } = computeOperatingHours(citas);
+    const totalHours = endHour - startHour;
+    const totalGridHeight = totalHours * PX_PER_HOUR;
+
+    // Agrupar citas por día en Colombia
     const citasPorDia = new Map();
     weekDays.forEach(d => citasPorDia.set(d.dateStr, []));
 
     citas.forEach(c => {
       if (c.fechaHoraInicio) {
-        try {
-          const dStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date(c.fechaHoraInicio));
-          if (citasPorDia.has(dStr)) {
-            citasPorDia.get(dStr).push(c);
-          }
-        } catch {
-          // Ignorar si fecha es inválida
+        const parts = getBogotaDateParts(c.fechaHoraInicio);
+        if (citasPorDia.has(parts.dateStr)) {
+          citasPorDia.get(parts.dateStr).push(c);
         }
       }
     });
 
+    // Generar horas para el eje lateral (Gutter)
+    const hoursList = [];
+    for (let h = startHour; h <= endHour; h++) {
+      const formattedHour = `${String(h).padStart(2, '0')}:00`;
+      const topPx = (h - startHour) * PX_PER_HOUR;
+      hoursList.push({ hour: h, label: formattedHour, topPx });
+    }
+
+    const todayStr = todayBogota();
+
     viewportEl.innerHTML = `
-      <!-- Selector rápido de días para navegación táctil/móvil -->
+      <!-- Selector rápido de días para móviles y tablets -->
       <div class="calendar-day-tabs-mobile" role="tablist" aria-label="Días de la semana">
         ${weekDays.map(day => {
           const dayCitas = citasPorDia.get(day.dateStr) || [];
-          const [y, m, d] = day.dateStr.split('-');
+          const [, , d] = day.dateStr.split('-');
           return `
             <button 
               type="button" 
-              class="calendar-day-tab-btn ${day.isToday ? 'is-today is-active' : ''}" 
+              class="calendar-day-tab-btn ${day.isToday ? 'is-today' : ''} ${day.dateStr === state.selectedDate ? 'is-active' : ''}" 
               data-target-day="${day.dateStr}"
               role="tab"
-              aria-selected="${day.isToday}"
+              aria-selected="${day.dateStr === state.selectedDate}"
             >
               <span class="uppercase font-bold" style="font-size: 10px;">${day.shortName}</span>
               <span class="text-sm font-bold">${d}</span>
@@ -303,55 +602,107 @@ export async function renderAdminAppointments(container) {
         }).join('')}
       </div>
 
-      <div class="calendar-week-grid" id="calendarWeekGrid">
-        ${weekDays.map(day => {
-          const dayCitas = citasPorDia.get(day.dateStr) || [];
-          const [y, m, d] = day.dateStr.split('-');
-          return `
-            <div class="calendar-day-col ${day.isToday ? 'is-today' : ''}" data-day="${day.dateStr}">
-              <div class="calendar-day-header">
-                <span class="text-xs uppercase font-bold text-muted block">${day.shortName}</span>
-                <span class="text-lg font-bold block ${day.isToday ? 'text-primary' : ''}">${d}</span>
-                <span class="badge ${dayCitas.length > 0 ? 'badge--scheduled' : 'badge--neutral'} text-xs" style="font-size: 10px;">
-                  ${dayCitas.length} cita(s)
+      <!-- Cuadrícula Horaria Semanal Continua (Time-Grid) -->
+      <div class="time-grid-wrapper" id="timeGridWrapper">
+        <!-- Encabezado de Columnas (Sticky Header) -->
+        <div class="time-grid-header" id="timeGridHeader">
+          <div class="time-grid-header-corner" title="Eje Horario">
+            ${ui.icon('clock', 'icon icon--xs')}
+          </div>
+          ${weekDays.map(day => {
+            const dayCitas = citasPorDia.get(day.dateStr) || [];
+            const [, , d] = day.dateStr.split('-');
+            return `
+              <div class="time-grid-header-day ${day.isToday ? 'is-today' : ''}" data-day="${day.dateStr}">
+                <span class="day-name block">${day.shortName}</span>
+                <span class="day-num block">${d}</span>
+                <span class="badge day-badge ${dayCitas.length > 0 ? (day.isToday ? 'badge--confirmed' : 'badge--scheduled') : 'badge--neutral'}">
+                  ${dayCitas.length} ${dayCitas.length === 1 ? 'cita' : 'citas'}
                 </span>
               </div>
+            `;
+          }).join('')}
+        </div>
 
-              <div class="flex-1 flex flex-col gap-2 overflow-y-auto" style="max-height: 480px;">
-                ${dayCitas.length === 0 ? `
-                  <div class="text-center p-3 text-xs text-muted" style="margin: auto 0;">
-                    Sin citas
-                  </div>
-                ` : dayCitas.map(c => `
-                  <div class="calendar-cita-item status-${esc(c.estado)}" data-cita-id="${esc(c.citaPublicId || c.publicId)}">
-                    <div class="flex items-center justify-between gap-1 mb-1">
-                      <strong class="text-xs text-primary">${formatTimeBogota(c.fechaHoraInicio)}</strong>
-                      ${citaStatusBadge(c.estado)}
-                    </div>
-                    <strong class="block text-xs truncate" title="${esc(c.pacienteNombre)}">
-                      ${esc(c.pacienteNombre)}
-                    </strong>
-                    <span class="text-xs text-muted block truncate" title="Dr(a). ${esc(c.profesionalNombre)}">
-                      Dr(a). ${esc(c.profesionalNombre)}
-                    </span>
-                    <div class="flex items-center gap-1 mt-0.5">
-                      <span class="text-xs text-muted truncate" style="font-size: 10px;">
-                        ${esc(c.especialidadNombre)}
-                      </span>
-                      ${c.triajeNivel ? `
-                        <span class="badge badge--scheduled" style="font-size: 9px; padding: 0 4px;">Nivel ${esc(c.triajeNivel)}</span>
-                      ` : ''}
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
+        <!-- Área Scrollable con Cuadrícula y Citas -->
+        <div class="time-grid-scroll-area" id="timeGridScrollArea">
+          <div class="time-grid-body" style="height: ${totalGridHeight}px;">
+            <!-- Eje lateral de horas (Gutter) -->
+            <div class="time-grid-gutter" style="height: ${totalGridHeight}px;">
+              ${hoursList.map(item => `
+                <span class="time-grid-gutter-hour" style="top: ${item.topPx}px;">${item.label}</span>
+              `).join('')}
             </div>
-          `;
-        }).join('')}
+
+            <!-- 7 Columnas de Días -->
+            ${weekDays.map(day => {
+              const dayCitas = citasPorDia.get(day.dateStr) || [];
+              const layoutEvents = layoutDayEvents(dayCitas, startHour);
+
+              return `
+                <div class="time-grid-day-column ${day.isToday ? 'is-today' : ''}" data-day="${day.dateStr}" style="height: ${totalGridHeight}px;">
+                  <!-- Líneas horizontales de guía horaria -->
+                  ${hoursList.map(item => `
+                    <div class="time-grid-line-hour" style="top: ${item.topPx}px;"></div>
+                    ${item.hour < endHour ? `
+                      <div class="time-grid-line-half" style="top: ${item.topPx + (PX_PER_HOUR / 2)}px;"></div>
+                    ` : ''}
+                  `).join('')}
+
+                  <!-- Indicador dinámico de hora actual ("Ahora") si corresponde al día de hoy -->
+                  <div class="now-indicator-slot" data-day="${day.dateStr}"></div>
+
+                  <!-- Bloques de Citas Médicas con Posición y Altura Proporcional -->
+                  ${layoutEvents.map(item => {
+                    const c = item.cita;
+                    const meta = getStatusMeta(c.estado);
+                    const horaInicio = formatTimeBogota(c.fechaHoraInicio);
+                    const horaFin = formatTimeBogota(c.fechaHoraFin);
+
+                    return `
+                      <div 
+                        class="calendar-event-block status-${esc(c.estado)}" 
+                        data-cita-id="${esc(c.citaPublicId || c.publicId)}"
+                        style="top: ${item.topPx}px; height: ${item.heightPx}px; left: ${item.leftStyle}; width: ${item.widthStyle};"
+                        tabindex="0"
+                        role="button"
+                        aria-label="Cita de ${esc(c.pacienteNombre)} de ${horaInicio} a ${horaFin}, estado ${meta.label}"
+                      >
+                        <div class="event-header">
+                          <span class="event-time">${horaInicio} - ${horaFin}</span>
+                          <span class="event-badge">${meta.iconText} ${meta.label}</span>
+                        </div>
+                        <span class="event-patient" title="${esc(c.pacienteNombre)}">
+                          ${esc(c.pacienteNombre)}
+                        </span>
+                        ${item.heightPx >= 48 ? `
+                          <span class="event-doctor" title="Dr(a). ${esc(c.profesionalNombre)}">
+                            Dr(a). ${esc(c.profesionalNombre)}
+                          </span>
+                        ` : ''}
+                        ${item.heightPx >= 66 ? `
+                          <span class="event-service">
+                            ${esc(c.especialidadNombre)}
+                          </span>
+                        ` : ''}
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
       </div>
     `;
 
-    // Asignar listeners a los botones de días en móvil para navegación suave
+    // Conectar indicador de "Ahora"
+    attachNowIndicator(startHour, endHour);
+
+    // Conectar clics a citas para abrir modal de detalle
+    attachCitaClickListeners();
+
+    // Conectar tabs de días en móvil para scroll horizontal suave
     viewportEl.querySelectorAll('.calendar-day-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const targetDay = btn.getAttribute('data-target-day');
@@ -361,83 +712,197 @@ export async function renderAdminAppointments(container) {
         });
         btn.classList.add('is-active');
         btn.setAttribute('aria-selected', 'true');
-        const targetCol = viewportEl.querySelector(`.calendar-day-col[data-day="${targetDay}"]`);
+        const targetCol = viewportEl.querySelector(`.time-grid-day-column[data-day="${targetDay}"]`);
         if (targetCol) {
           targetCol.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
         }
       });
     });
 
-    // Asignar clics a cada cita para abrir modal de detalle
-    attachCitaClickListeners();
+    // Auto-scroll inicial a la hora de las primeras citas o a la hora actual
+    setTimeout(() => {
+      const scrollArea = viewportEl.querySelector('#timeGridScrollArea');
+      if (scrollArea) {
+        const currentBogota = getCurrentBogotaTime();
+        let targetHour = currentBogota.hours;
+        if (targetHour < startHour || targetHour > endHour) {
+          targetHour = 8; // default 08:00 AM
+        }
+        const scrollTarget = Math.max(0, (targetHour - startHour - 1) * PX_PER_HOUR);
+        scrollArea.scrollTop = scrollTarget;
+      }
+
+      // En dispositivos móviles, auto-scroll horizontal a la columna del día actual
+      const todayCol = viewportEl.querySelector('.time-grid-day-column.is-today');
+      if (todayCol && window.innerWidth <= 768) {
+        todayCol.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }, 60);
   }
 
-  // Renderizado de Vista Diaria (Lista detallada y cronológica)
-  function renderDayView(citas, dateStr) {
-    if (citas.length === 0) {
-      ui.renderEmpty(viewportEl, {
-        icon: 'calendar',
-        title: 'Sin citas para este día',
-        description: `No hay citas médicas registradas para el ${formatDateLongBogota(dateStr + 'T12:00:00Z')}.`
-      });
-      return;
+  // Renderizado de la Vista Diaria con Cuadrícula Ampliada (Time-Grid Día)
+  function renderDayTimeGrid(citas, dateStr) {
+    const { startHour, endHour } = computeOperatingHours(citas);
+    const totalHours = endHour - startHour;
+    const totalGridHeight = totalHours * PX_PER_HOUR;
+    const isToday = dateStr === todayBogota();
+
+    // Filtrar citas del día seleccionado
+    const dayCitas = citas.filter(c => {
+      if (!c.fechaHoraInicio) return false;
+      const parts = getBogotaDateParts(c.fechaHoraInicio);
+      return parts.dateStr === dateStr;
+    });
+
+    const layoutEvents = layoutDayEvents(dayCitas, startHour);
+
+    const hoursList = [];
+    for (let h = startHour; h <= endHour; h++) {
+      const formattedHour = `${String(h).padStart(2, '0')}:00`;
+      const topPx = (h - startHour) * PX_PER_HOUR;
+      hoursList.push({ hour: h, label: formattedHour, topPx });
     }
 
     viewportEl.innerHTML = `
-      <div class="flex items-center justify-between mb-3 pb-2 border-b">
-        <span class="text-xs font-bold uppercase tracking-wider text-muted">
-          ${citas.length} cita(s) programada(s) para hoy
-        </span>
-        <span class="text-xs text-muted">Haz clic en cualquier cita para ver la información completa</span>
-      </div>
+      <div class="time-grid-wrapper" id="timeGridWrapper">
+        <!-- Encabezado Diario -->
+        <div class="time-grid-header is-day-view">
+          <div class="time-grid-header-corner" title="Eje Horario">
+            ${ui.icon('clock', 'icon icon--xs')}
+          </div>
+          <div class="time-grid-header-day ${isToday ? 'is-today' : ''}" data-day="${dateStr}">
+            <span class="day-name block">${formatDateLongBogota(dateStr + 'T12:00:00Z')}</span>
+            <span class="badge day-badge ${dayCitas.length > 0 ? 'badge--confirmed' : 'badge--neutral'} mt-1">
+              ${dayCitas.length} ${dayCitas.length === 1 ? 'cita programada' : 'citas programadas'}
+            </span>
+          </div>
+        </div>
 
-      <div class="flex flex-col gap-3">
-        ${citas.map(c => `
-          <div class="card p-4 calendar-cita-item status-${esc(c.estado)}" data-cita-id="${esc(c.citaPublicId || c.publicId)}" style="cursor: pointer;">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div class="flex items-start gap-4">
-                <div style="min-width: 6.5rem;">
-                  <span class="text-lg font-bold block text-primary">${formatTimeBogota(c.fechaHoraInicio)}</span>
-                  <span class="text-xs text-muted">${formatTimeBogota(c.fechaHoraFin)}</span>
-                  <span class="badge ${c.modalidad === 'TELEMEDICINA' ? 'badge--rescheduled' : 'badge--neutral'} text-xs mt-1">
-                    ${c.modalidad === 'TELEMEDICINA' ? 'Telemedicina' : (esc(c.sedeNombre) || 'Presencial')}
-                  </span>
-                </div>
+        <!-- Área con Scroll Vertical -->
+        <div class="time-grid-scroll-area" id="timeGridScrollArea">
+          <div class="time-grid-body is-day-view" style="height: ${totalGridHeight}px;">
+            <!-- Eje lateral de horas (Gutter) -->
+            <div class="time-grid-gutter" style="height: ${totalGridHeight}px;">
+              ${hoursList.map(item => `
+                <span class="time-grid-gutter-hour" style="top: ${item.topPx}px;">${item.label}</span>
+              `).join('')}
+            </div>
 
-                <div>
-                  <div class="flex items-center gap-2">
-                    <strong class="text-base text-text">${esc(c.pacienteNombre)}</strong>
-                    <span class="text-xs text-muted font-mono">(${esc(c.pacienteDocumentoTipo)} ${esc(c.pacienteDocumentoNumero)})</span>
+            <!-- Columna única del Día con mayor espacio -->
+            <div class="time-grid-day-column ${isToday ? 'is-today' : ''}" data-day="${dateStr}" style="height: ${totalGridHeight}px;">
+              <!-- Líneas guía horarias -->
+              ${hoursList.map(item => `
+                <div class="time-grid-line-hour" style="top: ${item.topPx}px;"></div>
+                ${item.hour < endHour ? `
+                  <div class="time-grid-line-half" style="top: ${item.topPx + (PX_PER_HOUR / 2)}px;"></div>
+                ` : ''}
+              `).join('')}
+
+              <!-- Indicador "Ahora" en vista día -->
+              <div class="now-indicator-slot" data-day="${dateStr}"></div>
+
+              ${dayCitas.length === 0 ? `
+                <div class="flex items-center justify-center h-full p-6 text-center text-muted text-sm">
+                  <div>
+                    ${ui.icon('calendar', 'icon icon--lg text-muted mb-2')}
+                    <p class="m-0">No hay citas médicas registradas para este día.</p>
                   </div>
-                  <div class="flex flex-wrap items-center gap-2 mt-1">
-                    ${citaStatusBadge(c.estado)}
-                    <span class="badge badge--neutral text-xs">Dr(a). ${esc(c.profesionalNombre)}</span>
-                    <span class="badge badge--neutral text-xs">${esc(c.especialidadNombre)}</span>
-                    ${c.triajeNivel ? `<span class="badge badge--scheduled text-xs">Triaje: Nivel ${esc(c.triajeNivel)}</span>` : ''}
-                  </div>
-                  ${c.motivoConsulta ? `
-                    <p class="text-xs text-muted m-0 mt-2"><strong>Motivo:</strong> ${esc(c.motivoConsulta)}</p>
-                  ` : ''}
                 </div>
-              </div>
+              ` : layoutEvents.map(item => {
+                const c = item.cita;
+                const meta = getStatusMeta(c.estado);
+                const horaInicio = formatTimeBogota(c.fechaHoraInicio);
+                const horaFin = formatTimeBogota(c.fechaHoraFin);
 
-              <div>
-                <button type="button" class="btn btn-secondary btn--sm">
-                  ${ui.icon('info')}<span>Ver detalle</span>
-                </button>
-              </div>
+                return `
+                  <div 
+                    class="calendar-event-block status-${esc(c.estado)}" 
+                    data-cita-id="${esc(c.citaPublicId || c.publicId)}"
+                    style="top: ${item.topPx}px; height: ${item.heightPx}px; left: ${item.leftStyle}; width: ${item.widthStyle};"
+                    tabindex="0"
+                    role="button"
+                    aria-label="Cita de ${esc(c.pacienteNombre)} de ${horaInicio} a ${horaFin}, estado ${meta.label}"
+                  >
+                    <div class="event-header">
+                      <div class="flex items-center gap-2">
+                        <span class="event-time">${horaInicio} - ${horaFin}</span>
+                        <span class="badge ${c.modalidad === 'TELEMEDICINA' ? 'badge--rescheduled' : 'badge--neutral'}" style="font-size: 9px; padding: 0 4px;">
+                          ${c.modalidad === 'TELEMEDICINA' ? 'Telemedicina' : (esc(c.sedeNombre) || 'Presencial')}
+                        </span>
+                      </div>
+                      <span class="event-badge">${meta.iconText} ${meta.label}</span>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-2 mt-1">
+                      <strong class="event-patient text-sm">
+                        ${esc(c.pacienteNombre)}
+                      </strong>
+                      <span class="text-xs text-muted font-mono">
+                        ${esc(c.pacienteDocumentoTipo)} ${esc(c.pacienteDocumentoNumero)}
+                      </span>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-xs text-muted mt-0.5">
+                      <span>Dr(a). ${esc(c.profesionalNombre)}</span>
+                      <span>•</span>
+                      <span>${esc(c.especialidadNombre)}</span>
+                      ${c.triajeNivel ? `
+                        <span class="badge badge--scheduled" style="font-size: 9px; padding: 0 4px;">Triaje Nivel ${esc(c.triajeNivel)}</span>
+                      ` : ''}
+                    </div>
+
+                    ${c.motivoConsulta && item.heightPx >= 75 ? `
+                      <p class="text-xs text-muted truncate m-0 mt-1" style="font-size: 11px;">
+                        <strong>Motivo:</strong> ${esc(c.motivoConsulta)}
+                      </p>
+                    ` : ''}
+                  </div>
+                `;
+              }).join('')}
             </div>
           </div>
-        `).join('')}
+        </div>
       </div>
     `;
 
+    attachNowIndicator(startHour, endHour);
     attachCitaClickListeners();
   }
 
-  // Listener para inspección de citas
+  // Indicador horizontal dinámico de hora actual ("Ahora")
+  function attachNowIndicator(startHour, endHour) {
+    if (state.timerNowId) {
+      clearInterval(state.timerNowId);
+      state.timerNowId = null;
+    }
+
+    const todayStr = todayBogota();
+
+    function updateIndicator() {
+      const nowInfo = getCurrentBogotaTime();
+      const slot = viewportEl.querySelector(`.now-indicator-slot[data-day="${todayStr}"]`);
+      if (!slot) return;
+
+      if (nowInfo.hours >= startHour && nowInfo.hours <= endHour) {
+        const topPx = (nowInfo.totalMinutes - startHour * 60) * PX_PER_MIN;
+        slot.innerHTML = `
+          <div class="calendar-now-indicator" style="top: ${topPx}px;" title="Hora actual en Bogotá: ${nowInfo.timeStr}">
+            <div class="calendar-now-badge">● AHORA ${nowInfo.timeStr}</div>
+            <div class="calendar-now-line"></div>
+          </div>
+        `;
+      } else {
+        slot.innerHTML = '';
+      }
+    }
+
+    updateIndicator();
+    state.timerNowId = setInterval(updateIndicator, 60000);
+  }
+
+  // Listener para abrir el modal de detalle completo
   function attachCitaClickListeners() {
-    viewportEl.querySelectorAll('.calendar-cita-item').forEach(item => {
+    viewportEl.querySelectorAll('.calendar-event-block').forEach(item => {
       item.addEventListener('click', () => {
         const citaId = item.getAttribute('data-cita-id');
         const cita = state.citas.find(c => (c.citaPublicId || c.publicId) === citaId);
@@ -445,26 +910,42 @@ export async function renderAdminAppointments(container) {
           showAppointmentDetailModal(cita);
         }
       });
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const citaId = item.getAttribute('data-cita-id');
+          const cita = state.citas.find(c => (c.citaPublicId || c.publicId) === citaId);
+          if (cita) {
+            showAppointmentDetailModal(cita);
+          }
+        }
+      });
     });
   }
 
-  // Modal de Detalle Completo de la Cita
+  // Modal de Detalle Completo de la Cita Médica
   function showAppointmentDetailModal(c) {
     const isTele = c.modalidad === 'TELEMEDICINA';
     const fechaTexto = formatDateLongBogota(c.fechaHoraInicio);
     const horaInicio = formatTimeBogota(c.fechaHoraInicio);
     const horaFin = formatTimeBogota(c.fechaHoraFin);
+    let duracionMin = 30;
+    if (c.fechaHoraInicio && c.fechaHoraFin) {
+      duracionMin = Math.max(15, Math.round((new Date(c.fechaHoraFin) - new Date(c.fechaHoraInicio)) / 60000));
+    }
 
     const bodyHtml = `
-      <div class="p-4" style="max-height: 75vh; overflow-y: auto;">
+      <div class="p-4" style="max-height: 78vh; overflow-y: auto;">
+        <!-- Cabecera de Identificación y Estado -->
         <div class="flex items-center justify-between pb-3 border-b mb-4">
           <div>
-            <span class="text-xs text-muted font-bold uppercase tracking-wider block">Identificador de la Cita:</span>
+            <span class="text-xs text-muted font-bold uppercase tracking-wider block">Identificador de la Cita</span>
             <span class="font-mono font-bold text-sm text-primary">${esc(c.citaPublicId || c.publicId)}</span>
           </div>
           <div>${citaStatusBadge(c.estado)}</div>
         </div>
 
+        <!-- Tarjetas de Información del Paciente y Médico -->
         <div class="grid grid-cols-1 grid-cols-2-md gap-4 mb-4">
           <!-- Paciente -->
           <div class="p-3 bg-surface-2 rounded-md">
@@ -480,53 +961,56 @@ export async function renderAdminAppointments(container) {
           <!-- Profesional Asignado -->
           <div class="p-3 bg-surface-2 rounded-md">
             <span class="text-xs text-muted font-bold uppercase tracking-wider block mb-1">
-              ${ui.icon('award', 'icon icon--xs')} Médico Asignado
+              ${ui.icon('award', 'icon icon--xs')} Profesional Asignado
             </span>
             <strong class="block text-sm text-text">Dr(a). ${esc(c.profesionalNombre)}</strong>
-            <span class="text-xs text-muted block">Registro: ${esc(c.registroMedico || '—')}</span>
+            <span class="text-xs text-muted block">Registro Médico: ${esc(c.registroMedico || '—')}</span>
             <span class="badge badge--neutral text-xs mt-1">${esc(c.especialidadNombre)}</span>
           </div>
 
-          <!-- Fecha y Horario -->
+          <!-- Fecha, Horario y Duración -->
           <div class="p-3 bg-surface-2 rounded-md">
             <span class="text-xs text-muted font-bold uppercase tracking-wider block mb-1">
-              ${ui.icon('calendar', 'icon icon--xs')} Fecha y Horario
+              ${ui.icon('calendar', 'icon icon--xs')} Horario y Duración
             </span>
             <strong class="block text-sm capitalize text-text">${fechaTexto}</strong>
-            <span class="text-xs font-semibold text-primary block">${horaInicio} – ${horaFin}</span>
+            <span class="text-xs font-semibold text-primary block mt-0.5">
+              ${horaInicio} – ${horaFin} (${duracionMin} minutos)
+            </span>
             <span class="badge ${isTele ? 'badge--rescheduled' : 'badge--scheduled'} text-xs mt-1">
               ${isTele ? 'Telemedicina Virtual' : 'Presencial en Sede'}
             </span>
           </div>
 
-          <!-- Sede y Lugar -->
+          <!-- Ubicación de Atención -->
           <div class="p-3 bg-surface-2 rounded-md">
             <span class="text-xs text-muted font-bold uppercase tracking-wider block mb-1">
-              ${ui.icon('map-pin', 'icon icon--xs')} Ubicación de Atención
+              ${ui.icon('map-pin', 'icon icon--xs')} Sede y Consultorio
             </span>
             <strong class="block text-sm text-text">${esc(c.sedeNombre || 'Centro Médico MediTriaje')}</strong>
             <span class="text-xs text-muted block">${esc(c.sedeCiudad || 'Colombia')}</span>
           </div>
         </div>
 
-        <!-- Motivo de Consulta y Triaje Clínico -->
+        <!-- Motivo de Consulta y Clasificación de Triaje -->
         <div class="p-3 bg-surface-2 rounded-md mb-4">
           <span class="text-xs text-muted font-bold uppercase tracking-wider block mb-1">
-            ${ui.icon('activity', 'icon icon--xs')} Motivo de la Consulta y Triaje
+            ${ui.icon('activity', 'icon icon--xs')} Motivo de Consulta y Triaje Clínico
           </span>
           <p class="text-sm m-0 mb-2">
-            ${c.motivoConsulta ? esc(c.motivoConsulta) : 'Consulta médica solicitada directamente por el paciente.'}
+            ${c.motivoConsulta ? esc(c.motivoConsulta) : 'Consulta médica programada por el paciente.'}
           </p>
           <div class="flex items-center gap-2">
             ${c.triajeNivel ? `
               <span class="badge badge--scheduled text-xs">Clasificación Triaje: Nivel ${esc(c.triajeNivel)}</span>
             ` : '<span class="badge badge--neutral text-xs">Sin triaje preliminar</span>'}
             ${c.triajePublicId ? `
-              <span class="text-xs text-muted font-mono">ID Triaje: ${esc(c.triajePublicId.slice(0, 8))}...</span>
+              <span class="text-xs text-muted font-mono">Ref: ${esc(c.triajePublicId.slice(0, 8))}...</span>
             ` : ''}
           </div>
         </div>
 
+        <!-- Alerta de Cancelación si aplica -->
         ${c.motivoCancelacion ? `
           <div class="alert alert--danger mb-4">
             ${ui.icon('alert-triangle', 'icon alert-icon text-danger')}
@@ -538,7 +1022,7 @@ export async function renderAdminAppointments(container) {
         ` : ''}
 
         <div class="text-xs text-muted text-right">
-          Fecha de solicitud: ${c.createdAt ? new Date(c.createdAt).toLocaleString('es-CO') : '—'}
+          Fecha de registro: ${c.createdAt ? new Date(c.createdAt).toLocaleString('es-CO') : '—'}
         </div>
       </div>
     `;
@@ -552,7 +1036,7 @@ export async function renderAdminAppointments(container) {
     });
   }
 
-  // Modal para Exportar Citas a Excel (.csv con UTF-8 BOM)
+  // Modal para Exportar Citas a Plantilla Excel (.csv con UTF-8 BOM)
   function showExportModal() {
     const today = todayBogota();
     const { monday, sunday } = getWeekRange(state.selectedDate);
@@ -564,13 +1048,14 @@ export async function renderAdminAppointments(container) {
         </p>
 
         <form id="formExportAppointments" class="flex flex-col gap-4">
-          <!-- Rango Predefinido -->
+          <!-- Botones de Rango Rápido -->
           <div class="form-group m-0">
+            <label class="form-label text-xs mb-1">Rangos Rápidos</label>
             <div class="flex flex-wrap gap-2">
-              <button type="button" class="btn btn-secondary btn--sm btn-preset flex-1" style="min-width: 110px;" data-desde="${today}" data-hasta="${today}">
+              <button type="button" class="btn btn-secondary btn--sm btn-preset flex-1" style="min-width: 100px;" data-desde="${today}" data-hasta="${today}">
                 Solo hoy
               </button>
-              <button type="button" class="btn btn-secondary btn--sm btn-preset flex-1" style="min-width: 120px;" data-desde="${monday}" data-hasta="${sunday}">
+              <button type="button" class="btn btn-secondary btn--sm btn-preset flex-1" style="min-width: 110px;" data-desde="${monday}" data-hasta="${sunday}">
                 Esta semana
               </button>
               <button type="button" class="btn btn-secondary btn--sm btn-preset flex-1" style="min-width: 120px;" data-desde="${addDays(today, -30)}" data-hasta="${today}">
@@ -600,6 +1085,18 @@ export async function renderAdminAppointments(container) {
               <option value="CONFIRMADA">Solo Confirmadas</option>
               <option value="ATENDIDA">Solo Atendidas</option>
               <option value="CANCELADA">Solo Canceladas</option>
+              <option value="NO_ASISTIO">Solo No Asistió</option>
+            </select>
+          </div>
+
+          <!-- Filtro de Especialidad Opcional -->
+          <div class="form-group m-0">
+            <label for="exportEspecialidad" class="form-label text-xs">Especialidad (opcional)</label>
+            <select id="exportEspecialidad" class="form-select text-xs">
+              <option value="">Todas las especialidades</option>
+              ${state.specialties.map(s => `
+                <option value="${esc(s.publicId)}">${esc(s.nombre)}</option>
+              `).join('')}
             </select>
           </div>
         </form>
@@ -615,6 +1112,7 @@ export async function renderAdminAppointments(container) {
         const fDesde = document.getElementById('exportFechaDesde')?.value;
         const fHasta = document.getElementById('exportFechaHasta')?.value;
         const est = document.getElementById('exportEstado')?.value;
+        const esp = document.getElementById('exportEspecialidad')?.value;
 
         if (!fDesde || !fHasta) {
           ui.showToast('Por favor selecciona las fechas inicial y final para la exportación.', 'warning');
@@ -628,10 +1126,10 @@ export async function renderAdminAppointments(container) {
             hasta: fHasta
           });
           if (est) queryParams.set('estado', est);
+          if (esp) queryParams.set('especialidadPublicId', esp);
 
           const downloadUrl = `/api/v1/admin/appointments/export?${queryParams.toString()}`;
           
-          // Descarga directa con credenciales de cookie JWT
           const response = await fetch(downloadUrl, {
             method: 'GET',
             headers: { 'Accept': 'text/csv' },
@@ -660,7 +1158,6 @@ export async function renderAdminAppointments(container) {
       }
     });
 
-    // Conectar botones predefinidos dentro del modal
     setTimeout(() => {
       document.querySelectorAll('.btn-preset').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -717,6 +1214,21 @@ export async function renderAdminAppointments(container) {
   selectFilterEstado?.addEventListener('change', () => {
     state.filtroEstado = selectFilterEstado.value;
     loadAndRender();
+  });
+
+  selectFilterEspecialidad?.addEventListener('change', () => {
+    state.filtroEspecialidad = selectFilterEspecialidad.value;
+    loadAndRender();
+  });
+
+  selectFilterProfesional?.addEventListener('change', () => {
+    state.filtroProfesional = selectFilterProfesional.value;
+    loadAndRender();
+  });
+
+  inputSearchPaciente?.addEventListener('input', () => {
+    state.busquedaPaciente = inputSearchPaciente.value;
+    renderCurrentView();
   });
 
   container.querySelector('#btnOpenExportModal')?.addEventListener('click', () => {
