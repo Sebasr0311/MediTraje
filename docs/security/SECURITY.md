@@ -139,3 +139,16 @@ Cada evento sensible se persiste en la tabla `AUDITORIA` mediante `AuditoriaServ
 | **A08: Software & Data Integrity** | Inmutabilidad de registros clínicos en BD (triggers PL/SQL), migraciones Flyway inmutables validadas por checksum. |
 | **A09: Security Logging & Monitoring** | Tabla de auditoría inmutable, sin datos sensibles en logs, correlación con `traceId` en cada `ApiError`. |
 | **A10: Server-Side Request Forgery (SSRF)** | La aplicación no realiza peticiones HTTP salientes basadas en URLs suministradas por el usuario. |
+
+---
+
+## 10. Seguridad en Notificaciones y Correos Electrónicos (ADR-015, T3)
+
+MediTriaje 2.0 implementa una política rigurosa de protección de datos personales (PII) y de salud (PHI) en su subsistema de correos electrónicos transaccionales:
+
+1. **Ausencia Absoluta de Contenido Clínico en Correos:** Ninguna de las 5 plantillas HTML institucionales (`bienvenida-credenciales.html`, `cancelacion-cita.html`, `confirmacion-cita.html`, `recuperacion-password.html`, `resumen-atencion-seguimiento.html`) contiene diagnósticos, códigos CIE-10, prescripción de medicamentos, signos vitales ni notas de evolución médica. Toda información asistencial detallada reside exclusivamente tras las barreras de autenticación y autorización del portal web.
+2. **Transporte Seguro HTTPS y Mitigación de Bloqueo SMTP:** En producción, el transporte oficial opera mediante la **API HTTP de Brevo** sobre TLS (puerto 443 estándar), eliminando la dependencia de puertos SMTP salientes (25, 465, 587) bloqueados por defecto en entornos PaaS como Render.
+3. **Enmascaramiento de PII y Censura de Secretos en Logs:** Toda traza de log que registre un intento de envío enmascara la dirección de correo (`p***@ejemplo.com`). Los mensajes de error retornados por la API de Brevo son procesados por `EmailUtil.sanitizarMensajeError`, sustituyendo cualquier ocurrencia de la clave `BREVO_API_KEY` por `[REDACTED_API_KEY]`, eliminando fragmentos HTML y truncando a un máximo de 500 caracteres.
+4. **Protección contra Enumeración de Cuentas en Recuperación de Clave:** Ante solicitudes en `POST /api/v1/auth/forgot-password`, el endpoint retorna un HTTP 200 genérico e idéntico tanto si el usuario existe, como si no existe o si el despacho de correo falló. Cualquier fallo operativo es auditado internamente bajo el evento `EMAIL_FALLIDO` (con resultado `FALLO`) sin comprometer la respuesta externa hacia el cliente.
+5. **Visibilidad Operativa sin Silenciamiento:** Los fallos de transporte (códigos 400 por remitente no verificado, 401 por credenciales inválidas, 429 por cuota o 5xx por problemas de red) se capturan y persisten explícitamente en `RECORDATORIO_CITA` con `ESTADO_ENVIO = 'FALLIDO'` y detalle del error, garantizando que el personal operativo detecte de inmediato cualquier degradación del canal de mensajería.
+

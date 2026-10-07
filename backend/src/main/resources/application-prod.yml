@@ -38,4 +38,14 @@ security:
 app:
   frontend-url: ${FRONTEND_URL:https://meditriaje.com}
 
+meditriaje:
+  mail:
+    transport: ${MAIL_TRANSPORT:brevo-api}
+    brevo:
+      api-url: ${BREVO_API_URL:https://api.brevo.com/v3/smtp/email}
+      api-key: ${BREVO_API_KEY}
+    from: ${MAIL_FROM}
+    from-name: ${MAIL_FROM_NAME}
+
+
 

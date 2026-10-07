@@ -7,6 +7,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Added
+- **Transporte de Correo por API HTTP de Brevo y Visibilidad Operativa de Fallos (T3, Decisión D1, Plan Post-Auditoría)**:
+  - Implementación de `BrevoApiEmailTransport` con `HttpClient` nativo de Java 21 comunicándose vía HTTPS (puerto 443 estándar a `https://api.brevo.com/v3/smtp/email`) para resolver el bloqueo de puertos SMTP salientes (25, 465, 587) de la capa gratuita de Render.
+  - Timeouts seguros (conexión 5s, petición 10s), política de máximo 1 reintento exclusivo ante errores transitorios de red o 5xx (sin reintentos ante 4xx).
+  - Sanitización estricta de mensajes en `EmailUtil`: censura de API key por `[REDACTED_API_KEY]`, remoción de etiquetas HTML, truncamiento a ≤ 500 caracteres y enmascaramiento de correos electrónicos PII (`u***@domain.com`) en logs.
+  - Desacoplamiento de transportes con la interfaz `EmailTransport` y fábrica dinámica `EmailConfig`: soporte para `brevo-api` (producción), `smtp` (relevo local) y `log` (pruebas y desarrollo local con `LogEmailTransport`).
+  - `EmailService` y `DefaultEmailService` actualizados para devolver el record explícito inmutable `ResultadoEnvio(boolean exito, String codigo, String mensaje)` eliminando el silenciamiento de excepciones.
+  - Integración en `AppointmentNotificationService`: registro de `ESTADO_ENVIO = 'FALLIDO'` con mensaje de error en la tabla `RECORDATORIO_CITA` ante fallos de despacho, garantizando visibilidad operativa.
+  - Integración en `AuthService.solicitarRecuperacionPassword`: auditoría interna inmutable bajo la nueva acción `AccionAuditable.EMAIL_FALLIDO` ante fallos de entrega, manteniendo respuesta HTTP 200 genérica para mitigar ataques de enumeración de usuarios.
+  - Refuerzo de validación fail-fast en producción con `ProdEnvironmentValidator` y `ProdSecretsFailFastTest` (8 variables requeridas: incluye `BREVO_API_KEY`, `MAIL_FROM` y `MAIL_FROM_NAME`).
+  - Suite de pruebas automatizadas: 8 pruebas en `BrevoApiEmailTransportTest` (con mock server `HttpServer`), actualización de `EmailServiceTest` verificando `ResultadoEnvio.fallido` y ausencia de terminología clínica en las 5 plantillas HTML, pruebas en `AuthServiceTest` y `AppointmentNotificationServiceTest` (totalizando 854 pruebas al 100% de éxito).
+
 ### Changed
 - **Máquina de Estados de Citas y Protección Operacional (T2, Decisión D2, Plan Post-Auditoría)**:
   - Simplificación del flujo activo del ciclo de vida de citas médicas: `PROGRAMADA → ATENDIDA | CANCELADA | NO_ASISTIO`.

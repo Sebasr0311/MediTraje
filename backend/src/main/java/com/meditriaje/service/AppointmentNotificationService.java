@@ -7,6 +7,8 @@ import com.meditriaje.repository.RecordatorioCitaRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import com.meditriaje.service.email.EmailService;
 import com.meditriaje.service.email.EmailTemplateService;
+import com.meditriaje.service.email.EmailUtil;
+import com.meditriaje.service.email.ResultadoEnvio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -154,9 +156,14 @@ public class AppointmentNotificationService {
         String asunto = "MediTriaje 2.0 — Plan de Cuidado y Seguimiento Post-Atención";
 
         try {
-            emailService.enviarCorreoHtml(emailDestinatario, asunto, cuerpoHtml);
+            ResultadoEnvio resultado = emailService.enviarCorreoHtml(emailDestinatario, asunto, cuerpoHtml);
+            if (resultado != null && !resultado.exito()) {
+                log.warn("Fallo no bloqueante al enviar correo de resumen de atencion a [{}]: {}",
+                        EmailUtil.enmascararEmail(emailDestinatario), resultado.mensaje());
+            }
         } catch (Exception ex) {
-            log.warn("Fallo no bloqueante al enviar correo de resumen de atencion a [{}]: {}", emailDestinatario, ex.getMessage());
+            log.warn("Fallo no bloqueante al enviar correo de resumen de atencion a [{}]: {}",
+                    EmailUtil.enmascararEmail(emailDestinatario), ex.getMessage());
         }
     }
 
@@ -178,14 +185,16 @@ public class AppointmentNotificationService {
         String errorMensaje = null;
 
         try {
-            emailService.enviarCorreoHtml(destinatario, asunto, cuerpoHtml);
-        } catch (Exception ex) {
-            log.warn("Fallo no bloqueante al despachar correo [{}] hacia [{}]: {}", tipo, destinatario, ex.getMessage());
-            estadoEnvio = "FALLIDO";
-            errorMensaje = ex.getMessage();
-            if (errorMensaje != null && errorMensaje.length() > 500) {
-                errorMensaje = errorMensaje.substring(0, 500);
+            ResultadoEnvio resultado = emailService.enviarCorreoHtml(destinatario, asunto, cuerpoHtml);
+            if (resultado != null && !resultado.exito()) {
+                estadoEnvio = "FALLIDO";
+                errorMensaje = resultado.mensaje();
             }
+        } catch (Exception ex) {
+            log.warn("Fallo no bloqueante al despachar correo [{}] hacia [{}]: {}",
+                    tipo, EmailUtil.enmascararEmail(destinatario), ex.getMessage());
+            estadoEnvio = "FALLIDO";
+            errorMensaje = EmailUtil.sanitizarMensajeError(ex.getMessage(), null);
         }
 
         if (citaId != null && pacienteId != null) {

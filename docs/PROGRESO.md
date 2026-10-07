@@ -5,7 +5,7 @@
 
 ## Estado actual
 - **Fase actual:** Ejecución Plan Post-Auditoría (`PLAN_POST_AUDITORIA.md`)
-- **Tarea actual:** T2 completada · Iniciando T3 (Correo Brevo API)
+- **Tarea actual:** T3 completada · Iniciando T4 (Alergias clínicas)
 - **Última etiqueta:** v1.8-norma-colombiana-brevo
 - **Rama de integración:** `integration/post-auditoria`
 
@@ -142,8 +142,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 ### Plan Post-Auditoría (`PLAN_POST_AUDITORIA.md`)
 - [x] T0 Línea base
 - [x] T1 Secretos y configuración segura
-- [ ] T2 Estados de cita (decisión D2)
-- [ ] T3 Correo: API HTTP de Brevo y fallos visibles
+- [x] T2 Estados de cita (decisión D2)
+- [x] T3 Correo: API HTTP de Brevo y fallos visibles
 - [ ] T4 Alergias clínicas
 - [ ] T5 Inasistencia (no-show)
 - [ ] T6 Cierre de brechas de pruebas y trazabilidad
@@ -270,6 +270,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 - 2026-10-06 · T0 · Línea Base Post-Auditoría: Ejecución limpia de `mvn clean verify` en rama `integration/post-auditoria`. Java 21 (ms-21.0.11), Spring Boot 3.3.4, 15 migraciones Flyway (V001 a V015). Conteo real de pruebas Surefire: 828 ejecutadas, 0 fallos, 0 errores, 0 skipped. Integración Testcontainers (Failsafe): 29 pruebas skipped por ausencia de Docker daemon local (comportamiento esperado). Cero pruebas @Disabled en suite unitaria. Línea base 100% verde establecida para ejecución del PLAN_POST_AUDITORIA.md. · baseline: linea base post-auditoria verificada (T0)
 - 2026-10-06 · T1 · Secretos y Configuración Segura: Escaneo oficial con Gitleaks v8.30.1 sobre todo el historial Git (134 commits, --all, 0 fugas detectadas). Sanitización de contraseñas de ejemplo en docs/database/DATABASE.md (<password_owner>, <password_app>). Aislamiento de valores de conveniencia a application-dev.yml y eliminación de defaults en base/prod. Implementación de ProdEnvironmentValidator y suite ProdSecretsFailFastTest (5 pruebas nuevas parametrizadas verificando fallo inmediato en prod ante ausencia de JWT_SECRET, DB_URL, DB_USER, DB_PASSWORD, CORS_ORIGINS). Refuerzo de .gitignore (*.jks, *.pem, *.key). Total pruebas Surefire: 833 verdes (0 fallos). Informe completo en docs/security/ESCANEO_SECRETOS.md. · fix(security): secretos configuracion segura y fail fast en prod (T1)
 - 2026-10-06 · T2 · Estados de Cita (Decisión D2) — [HECHA]: Flujo estándar PROGRAMADA -> ATENDIDA | CANCELADA | NO_ASISTIO. Estados CONFIRMADA y REPROGRAMADA quedan reservados sin alteraciones DDL. Iniciar atención médica mantiene la cita en PROGRAMADA; al cerrar atención transiciona a ATENDIDA. Protección en AppointmentService.cancelarCita arrojando 409 ConflictoOperacionException si existe atención vinculada. Compatibilidad legacy saliente desde CONFIRMADA preservada. 0 filas hardcodeadas en migraciones. Actualizado ADR-006 (PROPUESTO) en docs/DECISIONES.md, docs/MVP.md (HU-05, HU-07) y docs/api/. Suite completa en 840 pruebas Surefire 100% verdes (0 fallos, 0 skipped). · refactor(citas): transiciones de estado d2 y proteccion contra cancelacion con atencion (T2)
+- 2026-10-06 · T3 · Correo: API HTTP de Brevo y Fallos Visibles — [HECHA]: Implementación de BrevoApiEmailTransport (HTTPS 443 vía java.net.http.HttpClient) mitigando el bloqueo de puertos SMTP salientes (25, 465, 587) en Render gratis. Política de reintentos restringida (máximo 1 ante 5xx o timeout; 4xx no se reintenta). EmailUtil con sanitización y censura de API keys ([REDACTED_API_KEY]), eliminación de HTML, truncamiento a <= 500 chars y enmascaramiento PII (u***@domain.com). Desacoplamiento con interfaz EmailTransport y beans dinámicos (brevo-api en prod, log en dev/test, smtp en local). EmailService y DefaultEmailService devuelven record explícito ResultadoEnvio. AppointmentNotificationService persiste ESTADO_ENVIO = 'FALLIDO' con mensaje de error en RECORDATORIO_CITA ante fallos de entrega. Endpoint forgot-password audita internamente EMAIL_FALLIDO (FALLO) ante error manteniendo respuesta genérica 200 anti-enumeración. ProdEnvironmentValidator y ProdSecretsFailFastTest ampliados para exigir BREVO_API_KEY, MAIL_FROM y MAIL_FROM_NAME en prod. Suite automatizada de 854 pruebas Surefire 100% verdes (0 fallos, 0 skipped), incluyendo BrevoApiEmailTransportTest (8 tests con mock HttpServer) y EmailServiceTest (garantía de cero términos clínicos en las 5 plantillas HTML). · feat(mail): transporte brevo api http y fallos visibles de envio (T3)
 
 
 

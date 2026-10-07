@@ -51,5 +51,7 @@ public enum AccionAuditable {
     /** Activación de acceso clínico excepcional de emergencia Break-Glass (F2.5, ADR-017). */
     ACCESO_BREAK_GLASS,
     /** Consulta de reportes y métricas operativas por administradores (F2.6, RF-30, ADR-018). */
-    CONSULTA_REPORTE_ADMINISTRATIVO
+    CONSULTA_REPORTE_ADMINISTRATIVO,
+    /** Fallo en el despacho de correo transaccional sin exponer datos sensibles (D1, T3). */
+    EMAIL_FALLIDO
 }
