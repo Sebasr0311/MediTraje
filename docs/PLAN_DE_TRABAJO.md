@@ -756,11 +756,44 @@ Actualiza el frontend Vanilla:
 Colección docs/api/F2.7.http, pruebas completas de integración y verificación. Puerta de salida F2.7: etiqueta v1.7-auditoria-reportes.
 ```
 
+## Módulo F2.8 — Validación de Identidad y Resiliencia de Correo (ADR-020)
+
+### F2.8.1 Validación de formato y coherencia etaria (en memoria)
+- Clase utilitaria `NormaColombianaValidator` en `com.meditriaje.util`.
+- Formato de documento: CC, TI, RC, CE, PA (patrones numéricos y alfanuméricos).
+- Coherencia documento vs edad: CC ≥ 18 años, TI 7–17 años, RC < 7 años.
+- Nombres/apellidos (2–60 chars) y celular colombiano (+57 3XX XXXXXXX).
+- Cero consultas a servicios externos (no consulta Registraduría ni ReTHUS).
+
+### F2.8.2 Live Validation reactiva en frontend
+- Validación en tiempo real en formularios de registro y perfil (`auth-views.js`).
+- Mensajes accesibles (`aria-describedby`) sin bloquear el render.
+
+### F2.8.3 Transporte de correo por API HTTP de Brevo y resiliencia
+- `BrevoApiEmailTransport` en producción (HTTPS 443) y SMTP/Log en desarrollo.
+- `EmailService` con retorno explícito `ResultadoEnvio(boolean exito, String codigo, String mensaje)`.
+- Registro de fallos en `RECORDATORIO_CITA` (`FALLIDO`) y auditoría `EMAIL_FALLIDO` en `forgot-password`.
+- Sanitización estricta de logs y censura de API key.
+
+### F2.8.4 Pruebas y verificación integral
+- Pruebas unitarias de validador (`NormaColombianaValidatorTest`), transporte (`BrevoApiEmailTransportTest`) y resiliencia (`EmailServiceTest`).
+
 ---
 
-# Otras iniciativas de Fase 2 (orden sugerido)
-1. Integraciones externas y mejoras analíticas adicionales.
+# Plan Post-Auditoría (T0 a T10)
 
+Ejecución secuencial y verificada de remediaciones y robustecimiento técnico:
+- **T0 — Línea base**: `mvn clean verify` verde, inventario de pruebas y migraciones.
+- **T1 — Secretos y configuración segura**: escaneo con Gitleaks, eliminación de defaults en prod, fail-fast (`ProdSecretsFailFastTest`).
+- **T2 — Estados de cita (Decisión D2)**: flujo `PROGRAMADA → ATENDIDA | CANCELADA | NO_ASISTIO`, estados `CONFIRMADA` y `REPROGRAMADA` reservados, rechazo de cancelación con atención ligada (409).
+- **T3 — Correo: API HTTP de Brevo y fallos visibles**: transporte Brevo HTTPS 443, visibilidad en `RECORDATORIO_CITA`, auditoría `EMAIL_FALLIDO`.
+- **T4 — Alergias clínicas**: migración `V016__alergias_clinicas.sql`, endpoints clínicos y del paciente, trigger `TR_ALERGIA_INMUTABILIDAD`, panel visual en atención y recetas.
+- **T5 — Inasistencia (no-show)**: endpoint `PATCH /api/v1/appointments/{id}/no-show`, validación temporal, slot conservado ocupado.
+- **T6 — Cierre de brechas de pruebas y trazabilidad**: 9 suites de seguridad y casos de borde críticos (940 pruebas verdes en Surefire), matriz honesta `docs/TRAZABILIDAD.md`.
+- **T7 — Reconciliación documental y avisos**: ADR 011–020 PROPUESTOS, F2.8 según código, avisos de prototipo en UI y limitaciones en README.
+- **T8 — Despliegue, demo y backups**: guía de despliegue en Render y Vercel, manejo de wallet, `DemoDataSeeder` y procedimiento de backup/restauración en ATP.
+- **T9 — CI/CD**: pipeline automatizado con Maven verify y escaneo de Gitleaks.
+- **T10 — Revisión de seguridad final**: auditoría OWASP y verificación final de la plataforma.
 
 ---
 

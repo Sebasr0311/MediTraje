@@ -241,7 +241,7 @@ function renderResumenClinico(container, data) {
           </div>
           <div class="text-xs leading-relaxed font-medium">
             <strong>AVISO CLÍNICO OBLIGATORIO:</strong>
-            ${esc(data.advertenciaLegal || 'Esta orientación es un prototipo médico prehospitalario. La información aquí presentada fue consolidada bajo autorización del paciente y no sustituye la historia clínica integral de un centro hospitalario.')}
+            Prototipo académico. Orienta, no diagnostica ni reemplaza la valoración de un profesional de la salud. ${esc(data.advertenciaLegal || 'Esta información consolidada no sustituye la historia clínica integral de un centro hospitalario ni el criterio de los equipos de urgencias.')}
           </div>
         </div>
       </div>
