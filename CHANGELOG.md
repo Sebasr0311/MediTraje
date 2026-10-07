@@ -8,6 +8,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Revisión de Seguridad Final y Auditoría de Superficie Expandida (T10, Plan Post-Auditoría)**:
+  - Ejecución de la auditoría de seguridad integral mediante la skill `meditriaje-security-review`, consolidando el informe formal en [`docs/security/REVISION_FINAL.md`](docs/security/REVISION_FINAL.md).
+  - Inspección exhaustiva de la superficie de ataque expandida en Fase 2:
+    - MFA/TOTP (RFC 6238) y 8 códigos de respaldo uniuso hasheados en base de datos.
+    - Recuperación de contraseña por OTP numérico de 6 dígitos con expiración (15 min), máximo 3 intentos, respuesta neutra anti-enumeración y revocación masiva de sesiones.
+    - Resumen QR de salud para emergencias: tokens de 256 bits, hash SHA-256 en reposo, PIN con Argon2id, límite de 3 lecturas, expiración a 15 min y revocación activa.
+    - Acceso excepcional Break-Glass: justificación $\ge 20$ caracteres, caducidad a 24h, aislamiento estricto (denegado a admin y pacientes), modalidad exclusiva de solo lectura (imposibilidad de iniciar atenciones sin cita) y auditoría inmutable.
+    - Farmacia y dispensación: autorización exclusiva `ROLE_FARMACEUTICO`, verificación de vigencia de receta y control matemático de saldos acumulados por ítem previniendo sobre-dispensación.
+    - Asistente virtual determinista: corte infalible ante palabras clave de riesgo vital remitiendo a la línea 123/urgencias, cero diagnósticos/medicamentos y cero acceso a expedientes individuales de pacientes.
+    - Notificaciones y correo transaccional: transporte HTTPS seguro vía Brevo API, sanitización de credenciales en logs (`[REDACTED_API_KEY]`), enmascaramiento de PII (`u***@domain.com`) y cero información clínica en plantillas.
+    - Base de datos: coherencia de grants mínimos para `MEDITRIAJE_APP` (cero privilegios `DELETE` en tablas clínicas y cero `UPDATE/DELETE` en `AUDITORIA`) y triggers PL/SQL de inmutabilidad.
+  - Matriz priorizada de 6 hallazgos técnicos (SEC-001 a SEC-006) detallando archivo exacto, línea, vector de ataque y propuesta de mitigación para evaluación y aprobación de Juan (cero modificaciones unilaterales en código).
+  - Suite de pruebas de regresión verificada al 100% verde: 944 pruebas unitarias y de integración pasando satisfactoriamente.
 - **Tuberías de CI/CD, Gitleaks y Pruebas E2E con Playwright (T9, Plan Post-Auditoría)**:
   - Tubería de Integración Continua (`.github/workflows/ci.yml`): escaneo profundo de secretos con Gitleaks v8 sobre la totalidad del historial Git (`fetch-depth: 0`) con fallo inmediato ante hallazgos, compilación Java 21 Temurin con caché Maven, ejecución de 944 pruebas unitarias Surefire y pruebas de integración Failsafe con Testcontainers (`OracleIntegrationTest` con Oracle Free `gvenzl/oracle-free:23-slim-faststart`) y persistencia de reportes como artefactos por 7 días.
   - Tubería End-to-End (`.github/workflows/e2e.yml`): servicio de contenedor efímero Oracle Free en GitHub Actions, script de aprovisionamiento de esquemas `MEDITRIAJE_OWNER` y `MEDITRIAJE_APP` ([`scripts/init-oracle-users.sql`](scripts/init-oracle-users.sql)), arranque de backend Spring Boot con datos demo sembrados (`DEMO_SEED=true`), servicio frontend estático y ejecución automatizada de Playwright en modo headless para los 3 flujos críticos de la plataforma:
