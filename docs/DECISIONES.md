@@ -1,6 +1,6 @@
 # MediTriaje 2.0 — Decisiones técnicas (ADRs)
 
-Estado: **APROBADO** por Juan (2026-10-01). Decisiones arquitectónicas firmes; no reabrir sin previa justificación y aviso.
+Estado general: ADR-001 a ADR-010 aprobados por Juan el 2026-10-01 (con ADR-006 modificado según Decisión D2 en estado PROPUESTO). ADR-011 a ADR-020 se encuentran en **Estado: PROPUESTO — pendiente de aprobación de Juan**. Decisiones arquitectónicas firmes; no reabrir sin previa justificación y aviso.
 Cada decisión resuelve uno o más de los 22 pendientes del Documento Maestro §54.
 
 ## Resumen
@@ -119,9 +119,11 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 **Defaults:** token aleatorio de 256 bits, expira a los 15 min, máximo 3 accesos, revocable. Alcance mínimo: alergias, medicamentos activos y antecedentes relevantes. Lectura sin login, con límite de intentos y PIN opcional. Cada acceso se audita. El QR contiene solo una URL con el token, nunca datos.
 
 ## ADR-011 Auditoría
+**Estado:** PROPUESTO — pendiente de aprobación de Juan.
 **Decisión:** tabla `AUDITORIA` insert-only (usuario, acción, tipo de recurso, id de recurso, resultado, IP, fecha). Prohibido guardar contenido clínico o secretos. Eventos del MVP listados en HU-11.
 
 ## ADR-012 Entornos, usuarios de BD, backups y despliegue
+**Estado:** PROPUESTO — pendiente de aprobación de Juan.
 - **Segregación de usuarios de base de datos:**
   - `MEDITRIAJE_OWNER`: propietario del esquema, utilizado exclusivamente por Flyway para migraciones y operaciones DDL (`CREATE`, `ALTER`, `DROP`, triggers, secuencias).
   - `MEDITRIAJE_APP`: usuario de mínimos privilegios utilizado por la aplicación en runtime (Spring Boot / HikariCP). En la inicialización de cada conexión física, su pool ejecuta en `connectionInitSql` un bloque anónimo PL/SQL (`BEGIN ... END;`) que fija `CURRENT_SCHEMA = MEDITRIAJE_OWNER` y `TIME_ZONE = 'America/Bogota'`, permitiendo acceder a los objetos sin prefijo de esquema y garantizando la zona horaria del proyecto.
@@ -135,13 +137,14 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
   - El frontend nunca interactúa directamente con Oracle; `CORS_ORIGINS` en Render se configura con el dominio de Vercel.
 
 ## ADR-013 Datos personales y cumplimiento (verificar con la norma vigente)
+**Estado:** PROPUESTO — pendiente de aprobación de Juan.
 - Consentimiento de tratamiento de datos (Ley 1581 de 2012) obligatorio en el registro, guardado en `CONSENTIMIENTO` con versión y fecha.
 - Datos de salud = datos sensibles: mínimo acceso, mínima exposición, sin datos reales en pruebas.
 - Historia clínica: no eliminación; conservación según Res. 1995 de 1999 (consultar plazo exacto). Interoperabilidad (Ley 2015 de 2020): fuera del MVP, pero no bloquear su evolución.
 - Catálogos: CIE-10 reducido para diagnósticos; tipos de documento CC, TI, RC, CE, PA. Código CUM de medicamentos: fase 2.
 
 ## ADR-014 Autenticación multifactor (MFA TOTP) y recuperación de contraseña con código OTP por correo
-**Estado:** APROBADO por Juan (2026-10-03).
+**Estado:** PROPUESTO — pendiente de aprobación de Juan.
 **Decisión:**
 1. **Recuperación de Contraseña con Código OTP y Plantilla de Correo:**
    - Para restablecer contraseña, el usuario solicita un código ingresando su correo en `POST /api/v1/auth/forgot-password`.
@@ -157,10 +160,10 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
    - Generación de 8 códigos de respaldo (backup codes) alfanuméricos uniuso, almacenados hasheados con SHA-256 en la tabla `MFA_BACKUP_CODE`.
 3. **Servicio de Correo Electrónico:**
    - Interfaz `EmailService` con carga de plantillas HTML desde `resources/templates/email/`.
-   - En perfiles `dev` y `test`, si no hay servidor SMTP configurado, registra el correo renderizado en logs de forma segura para permitir pruebas funcionales y automatizadas. En perfil `prod`, utiliza `JavaMailSender` con TLS/STARTTLS.
+   - En perfiles `dev` y `test`, si no hay servidor SMTP configurado, registra el correo renderizado en logs de forma segura para permitir pruebas funcionales y automatizadas. En perfil `prod`, utiliza `JavaMailSender` con TLS/STARTTLS o Brevo API HTTP (ADR-020).
 
 ## ADR-015 Seguimiento post-atención y recordatorios de citas por correo
-**Estado:** APROBADO por Juan (2026-10-04).
+**Estado:** PROPUESTO — pendiente de aprobación de Juan.
 **Decisión:**
 1. **Notificaciones de Citas por Correo Institucional:**
    - Confirmación inmediata al reservar cita (`POST /api/v1/appointments`): envía correo con plantilla `confirmacion-cita.html` indicando fecha, hora local en `America/Bogota`, profesional, especialidad, sede/modalidad, preparación previa y enlace a la plataforma.
@@ -179,7 +182,7 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
    - Cero contenido clínico ni indicaciones en logs ni en la tabla de auditoría.
 
 ## ADR-016 Dispensación y reclamación farmacéutica de recetas
-**Estado:** APROBADO por Juan (2026-10-04).
+**Estado:** PROPUESTO — pendiente de aprobación de Juan.
 **Contexto:** En el marco asistencial colombiano (Decreto 780 de 2016 y Resolución 1403 de 2007), la prescripción médica generada en la consulta debe ser dispensada de forma controlada por el servicio farmacéutico hospitalario o ambulatorio. Es imperativo garantizar que los medicamentos no se entreguen después de la vigencia de la receta, que no se sobrepase la cantidad formulada (control de entregas parciales y totales), que exista trazabilidad de lotes INVIMA y que el personal farmacéutico no acceda a evoluciones médicas reservadas (ADR-007).
 **Decisión:**
 1. **Rol de Farmacia (`ROLE_FARMACEUTICO`):**
@@ -197,7 +200,7 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
    - Toda entrega farmacéutica genera un evento `DISPENSACION_RECETA` en `AUDITORIA` con el ID del dispensador, IP de origen y el `publicId` de la receta. Cero nombres de fármacos o diagnósticos en los logs o auditoría.
 
 ## ADR-017 Acceso clínico de emergencia (Break-Glass)
-**Estado:** APROBADO (2026-10-04).
+**Estado:** PROPUESTO — pendiente de aprobación de Juan.
 **Contexto:** En situaciones clínicas de urgencia o emergencia médica (inconsciencia, trauma mayor, shock, alteración aguda del estado de conciencia o remisión urgente), el profesional de salud necesita consultar de manera inmediata el historial médico completo del paciente (diagnósticos previos, atenciones, signos vitales, alergias, recetas) sin que medie una cita previa agendada ni una atención propia en los últimos 12 meses (ADR-007). Sin embargo, permitir el acceso irrestricto violaría la reserva legal de la historia clínica (Resolución 1995 de 1999 y Ley Estatutaria 1581 de 2012). Es indispensable un protocolo formal de *Break-Glass* ("romper el vidrio") que habilite el acceso excepcional pero garantice justificación obligatoria, temporalidad estricta y auditoría indeleble.
 **Decisión:**
 1. **Autorización y Segregación de Roles (ADR-007):**
@@ -219,7 +222,7 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
    - Cero contenido clínico confidencial en la tabla general de auditoría o en logs de aplicación.
 
 ## ADR-018 Reportes operativos administrativos y asistente del sistema (RF-27, RF-30)
-**Estado:** APROBADO (2026-10-04).
+**Estado:** PROPUESTO — pendiente de aprobación de Juan.
 **Contexto:**
 1. *Métricas y reportes operativos (RF-30):* La gestión de infraestructura hospitalaria, disponibilidad de profesionales y evaluación del triaje requiere que el personal administrativo (`ROLE_ADMINISTRADOR`) cuente con indicadores y estadísticas de rendimiento del servicio (volumen de citas por estado, tasas de cancelación e inasistencia, distribución de triajes por nivel de prioridad I-V, demanda de especialidades y volumen de dispensación farmacéutica). Sin embargo, conforme a ADR-007, el administrador tiene prohibido el acceso a la historia clínica de los pacientes. Por ende, los reportes deben construirse exclusivamente mediante agregaciones matemáticas y estadísticas anónimas en base de datos (`COUNT`, `SUM`, `GROUP BY`), sin retornar jamás identificadores de pacientes, diagnósticos individuales ni datos sensibles de salud.
 2. *Asistente del sistema / chatbot (RF-27, DOCUMENTO_MAESTRO §5.19):* Los usuarios (pacientes y personal) necesitan una herramienta interactiva para resolver dudas operativas frecuentes (orientación sobre el triaje, preparación para citas, reclamación de medicamentos, uso del QR de emergencia y comprensión de estados). Para salvaguardar la seguridad del paciente, el asistente debe contar con reglas no negociables: jamás diagnostica ni prescribe fármacos, detecta inmediatamente expresiones de alarma médica para remitir al 123 o a urgencias, y opera con respuestas estructuradas y deterministas basadas en el conocimiento de la plataforma.
@@ -238,15 +241,15 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
    - Servicio `AssistantService` expuesto vía `POST /api/v1/assistant/chat`:
      - Detección inmediata de síntomas o términos de alarma (dolor torácico, ahogo severo, pérdida de conocimiento, sangrado masivo, etc.): genera respuesta prioritaria de emergencia con instrucciones de acudir a urgencias o llamar al 123 y enlaces de soporte inmediato.
      - Procesamiento de intenciones temáticas basado en base de conocimiento curada de MediTriaje 2.0:
-       - Triaje y niveles de prioridad (I a V).
-       - Agendamiento y cancelación de citas (regla de anticipación de 2 horas).
-       - Farmacia y reclamación con código `REC-XXXXXXXX`.
-       - Resumen de salud y QR temporal de emergencia.
-       - Derechos del paciente, inmutabilidad de historia clínica y enmiendas.
+        - Triaje y niveles de prioridad (I a V).
+        - Agendamiento y cancelación de citas (regla de anticipación de 2 horas).
+        - Farmacia y reclamación con código `REC-XXXXXXXX`.
+        - Resumen de salud y QR temporal de emergencia.
+        - Derechos del paciente, inmutabilidad de historia clínica y enmiendas.
      - Inclusión en cada respuesta de sugerencias interactivas de acción (rutas directas SPA como `#/patient/triage`, `#/patient/book`, `#/patient/prescriptions`) y aviso legal permanente: *"Soy un asistente de orientación para MediTriaje 2.0. No sustituyo la valoración médica profesional."*
 
 ## ADR-019 Visor de auditoría de seguridad y exportación de reportes operativos (RF-26, RF-30, RNF-11)
-**Estado:** APROBADO (2026-10-04).
+**Estado:** PROPUESTO — pendiente de aprobación de Juan.
 **Contexto:**
 1. *Visor de Auditoría de Seguridad (RF-26, RNF-11):* La tabla inmutable `AUDITORIA` registra de forma fidedigna y no repudiable todos los eventos sensibles del sistema (inicios de sesión, creación de atenciones, emisiones de recetas, dispensación farmacéutica, cortes de emergencia de triaje y activaciones Break-Glass). No obstante, para facilitar la labor del Oficial de Seguridad de la Información y Cumplimiento Hospitalario, se requiere una interfaz web protegida que permita consultar, filtrar y revisar la trazabilidad de accesos sin exponer diagnósticos ni notas confidenciales (ADR-007, ADR-011).
 2. *Exportación de Reportes Operativos (RF-30):* El personal administrativo necesita descargar y consolidar las métricas de rendimiento hospitalario (citas por estado, triajes por nivel, demanda por especialidad y sede, y balance de farmacia) en archivos planos estandarizados (CSV delimitado con UTF-8) para su análisis en herramientas de BI o informes a comités directivos.
@@ -259,6 +262,24 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
 2. **Exportación Estructurada de Reportes a CSV (RF-30):**
    - El dashboard de reportes del frontend (`admin-reports.js`) genera y descarga archivos CSV client-side (`text/csv;charset=utf-8;`) respetando el rango temporal seleccionado.
    - Incluye secciones para Resumen de Indicadores, Desglose de Citas, Distribución de Triajes y Farmacia.
+
+## ADR-020 Validación de formato de identidad y transporte de correo (F2.8)
+**Estado:** PROPUESTO — pendiente de aprobación de Juan.
+**Contexto:** En el registro de pacientes, gestión de usuarios y despacho de notificaciones, el sistema requiere validar la sintaxis y rangos etarios de documentos nacionales, números de contacto celular, y asegurar el transporte de correos institucionales sin bloqueos de infraestructura.
+**Decisión:**
+1. **Validación de Identidad y Coherencia Etaria (en memoria):**
+   - El sistema valida exclusivamente en memoria (mediante `NormaColombianaValidator`) el formato y la coherencia de datos, sin consultar servicios externos (no consulta la Registraduría Nacional ni ReTHUS):
+     - Tipos documentales admitidos: CC (6–10 dígitos numéricos), TI (10–11 dígitos numéricos), RC (10–11 dígitos numéricos), CE (3–10 caracteres alfanuméricos), PA (5–20 caracteres alfanuméricos).
+     - Rango de edad por documento: CC (≥ 18 años), TI (7 a 17 años cumplidos), RC (< 7 años). CE y PA sin restricción de rango etario (máximo 125 años; fecha de nacimiento no futura).
+     - Nombres y apellidos: entre 2 y 60 caracteres alfabéticos válidos en español (incluye espacios, tildes y guiones).
+     - Teléfono celular: formato opcional para Colombia de 10 dígitos iniciando por 3 o prefijo internacional `+573XXXXXXXXX`.
+     - Registro médico de profesionales: validación de tamaño y formato en `AdminProfessionalService`; el sistema almacena el registro médico provisto sin conectarse a bases de datos externas de talento humano en salud.
+2. **Transporte de Correo por API HTTP de Brevo:**
+   - En producción, el envío de correos se efectúa mediante la **API HTTP de Brevo** (puerto HTTPS 443 estándar a `https://api.brevo.com/v3/smtp/email`) con `HttpClient` nativo de Java 21, mitigando el bloqueo de puertos SMTP salientes (25, 465, 587) en la capa gratuita de Render.
+   - En perfiles locales o de desarrollo, se admite transporte SMTP o simulación en log (`LogEmailTransport`).
+   - `EmailService` devuelve el record explícito `ResultadoEnvio(boolean exito, String codigo, String mensaje)`. Los fallos de envío de recordatorios de citas se persisten como `FALLIDO` en `RECORDATORIO_CITA`.
+   - Recuperación de contraseña (`forgot-password`) audita internamente `EMAIL_FALLIDO` ante fallos de entrega pero mantiene la respuesta HTTP 200 genérica anti-enumeración.
+   - Sanitización estricta: censura de API key, censura de etiquetas HTML y enmascaramiento de direcciones de correo PII en logs. Cero variables clínicas o terminología de salud en plantillas de correo.
 
 ---
 

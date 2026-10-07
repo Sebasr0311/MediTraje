@@ -8,6 +8,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Reconciliación Documental y Avisos de Prototipo (T7, Plan Post-Auditoría)**:
+  - Documentación de arquitectura (`docs/DECISIONES.md`): estado fijado como `PROPUESTO — pendiente de aprobación de Juan` para todos los ADRs de Fase 2 (ADR-011 a ADR-020) sin auto-aprobación y preservando notas de verificación normativa ("verificar con la norma vigente").
+  - Incorporación de ADR-020 para F2.8 describiendo la validación colombiana en memoria (formato regex de documentos CC/TI/RC/CE/PA, coherencia etaria y prefijos de celular) y transporte Brevo API HTTP sin citas no verificadas a resoluciones externas.
+  - Actualización de `docs/MVP.md` con especificaciones de inasistencia (`no-show`), alergias clínicas V016 y consulta asistencial previa.
+  - Actualización de `docs/PLAN_DE_TRABAJO.md` integrando F2.8 y el plan post-auditoría completo (T0 a T10).
+  - Actualización de `README.md` con badges oficiales (940 pruebas Surefire, 16 migraciones Flyway) y sección destacada §7 de limitaciones conocidas (estados reservados D2/D5, reglas v1-prototipo sin validación clínica formal, datos demo ficticios, despliegue gratuito no apto para producción).
+  - Avisos visibles de prototipo en UI en `frontend/index.html` (footer global), `frontend/js/views/patient-triage.js` (asistente y pantallas de resultado) y `frontend/js/views/emergency-summary-view.js` (resumen QR de emergencia) con la leyenda unificada: *"Prototipo académico. Orienta, no diagnostica ni reemplaza la valoración de un profesional de la salud."*
 - **Cierre de Brechas de Pruebas y Trazabilidad (T6, Plan Post-Auditoría, MVP.md §7)**:
   - Implementación de 9 suites y casos de borde críticos para mitigación de riesgos de auditoría:
     1. `CrossPatientIdAccessSecurityTest` (8 tests): mitigación IDOR en triaje (`/triage/{id}`), citas (`/appointments/{id}`), cancelación ajena (`/appointments/{id}/cancel`), historia clínica (`/patients/me/history`), recetas (`/prescriptions/{id}`), alergias (`/clinical/patients/{id}/allergies`, `/patients/me/allergies`) y QR de emergencia.
