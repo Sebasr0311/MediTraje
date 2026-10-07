@@ -58,3 +58,7 @@ coverage/
 .nyc_output/
 test-output/
 .playwright-mcp/
+node_modules/
+playwright-report/
+test-results/
+.playwright/

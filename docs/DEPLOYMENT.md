@@ -143,3 +143,14 @@ Para validar que el procedimiento de respaldo es confiable:
 - [ ] 4. Comprobar que la base de datos retorna a estado *Available*.
 - [ ] 5. Intentar iniciar sesión con el paciente recién creado y comprobar que ya no existe (confirmando restauración exitosa del estado anterior).
 - [ ] 6. Verificar que las tablas clínicas conserven sus triggers e integridad referencial intactos.
+
+---
+
+## 7. Integración Continua y Pruebas Automatizadas (CI/CD)
+
+El repositorio cuenta con dos tuberías en GitHub Actions para asegurar la calidad y protección del código:
+- **CI (`.github/workflows/ci.yml`):** Detección de secretos con Gitleaks sobre todo el historial y verificación completa de 944 pruebas unitarias Surefire y pruebas de integración Failsafe con Testcontainers (Oracle Free).
+- **E2E (`.github/workflows/e2e.yml`):** Despliegue de servicio Oracle Free, arranque de backend con `DemoDataSeeder`, frontend estático y ejecución de pruebas Playwright en modo headless para los tres flujos críticos (triaje a cita, atención a receta, y aislamiento 403 para admin).
+
+Para instrucciones de ejecución local y gestión de secretos en GitHub Actions, consulta la guía detallada en [`docs/CI_CD.md`](CI_CD.md).
+
