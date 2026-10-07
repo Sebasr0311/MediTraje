@@ -27,3 +27,8 @@ security:
     secret: ${JWT_SECRET:dev-secret-key-must-be-at-least-256-bits-long-for-hmac-sha256}
     expiration-minutes: 15
     refresh-expiration-days: 7
+
+meditriaje:
+  mail:
+    transport: ${MAIL_TRANSPORT:log}
+

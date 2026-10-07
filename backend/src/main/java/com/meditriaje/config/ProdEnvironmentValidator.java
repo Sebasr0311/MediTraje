@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -28,13 +29,22 @@ public class ProdEnvironmentValidator {
 
     @PostConstruct
     public void validateRequiredProdProperties() {
-        List<String> requiredVars = List.of(
+        List<String> requiredVars = new ArrayList<>(List.of(
                 "JWT_SECRET",
                 "DB_URL",
                 "DB_USER",
                 "DB_PASSWORD",
                 "CORS_ORIGINS"
-        );
+        ));
+
+        String mailTransport = environment.getProperty("meditriaje.mail.transport",
+                environment.getProperty("MAIL_TRANSPORT", "brevo-api")).trim().toLowerCase();
+
+        if ("brevo-api".equals(mailTransport) || "brevo".equals(mailTransport)) {
+            requiredVars.add("BREVO_API_KEY");
+            requiredVars.add("MAIL_FROM");
+            requiredVars.add("MAIL_FROM_NAME");
+        }
 
         for (String var : requiredVars) {
             String val = environment.getProperty(var);
