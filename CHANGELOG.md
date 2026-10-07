@@ -8,6 +8,18 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Registro de Inasistencia (No-Show) y Blindaje Asistencial (T5, Decisión D4, Plan Post-Auditoría)**:
+  - Backend: endpoint `PATCH /api/v1/appointments/{publicId}/no-show` (`AppointmentController`) con `@PreAuthorize("hasAnyAuthority('ROLE_PROFESIONAL', 'ROLE_ADMINISTRADOR')")`.
+  - Reglas de dominio estrictas en `AppointmentService.marcarNoAsistio`:
+    - Autorización: profesional dueño del slot asignado o administrador. Pacientes u otros colegas reciben 403 `AccesoNoAutorizadoException`.
+    - Estado de origen: solo permitido desde citas en estado `PROGRAMADA`. Cualquier otro estado arroja 409 `ConflictoOperacionException`.
+    - Integridad clínica: prohibido marcar inasistencia si la cita cuenta con una atención médica vinculada (`atencionRepository.existePorCitaId`), arrojando 409 `ConflictoOperacionException`.
+    - Validación temporal estricta: solo aplicable una vez transcurrida o alcanzada la hora de inicio de la cita (`now >= slot.fechaHoraInicio()`). Intentos previos arrojan 400 `DatosInvalidosException`.
+    - Conservación del slot: el slot de disponibilidad no se libera (permanece `OCUPADO` reflejando el tiempo médico reservado).
+    - Auditoría inmutable obligatoria bajo `AccionAuditable.CITA_NO_ASISTIO` con usuario, ID público e IP.
+  - Modelo y DTO: `CitaResponse` enriquecido con `tieneAtencion`, `atencionPublicId` y `atencionEstado` con mapeo relacional en `CitaRepository` (`LEFT JOIN ATENCION`).
+  - Frontend: acción "No asistió" en agenda del profesional (`professional-agenda.js`) y panel administrativo (`admin-appointments.js`), visible únicamente cuando la cita está `PROGRAMADA`, ya ha comenzado y carece de atención clínica, acompañada de diálogo modal accesible con confirmación y advertencia.
+  - Pruebas automatizadas: 17 pruebas en `AppointmentServiceTest` y `AppointmentControllerTest` (llegando a 901 pruebas al 100% de éxito).
 - **Gestión e Inmutabilidad de Alergias Clínicas y Autorreportadas (T4, Decisión D3, Plan Post-Auditoría)**:
   - Migración Flyway `V016__alergias_clinicas.sql`: ampliación de tabla `ALERGIA` con `PUBLIC_ID`, `ESTADO` (`ACTIVA`, `INACTIVA`), `ORIGEN` (`PROFESIONAL`, `PACIENTE`), campos de inactivación (`INACTIVADA_AT`, `MOTIVO_INACTIVACION`, `INACTIVADA_POR_USUARIO_ID`), índice único funcional `uq_alergia_activa_paciente_sustancia` para prevenir duplicados activos por paciente y sustancia (case-insensitive), y trigger `tr_alergia_inmutabilidad` que prohíbe `DELETE` y solo admite transición `ACTIVA → INACTIVA` con motivo obligatorio.
   - Backend: `AllergyService`, `AlergiaRepository` JDBC 100% parametrizado, `ClinicalAllergyController` (`/api/v1/clinical/patients/{patientPublicId}/allergies`) y `PatientAllergyController` (`/api/v1/patients/me/allergies`).

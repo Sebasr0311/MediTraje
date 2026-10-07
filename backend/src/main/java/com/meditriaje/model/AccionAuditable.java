@@ -59,5 +59,7 @@ public enum AccionAuditable {
     /** Consulta de alergias e historial de hipersensibilidades (D3, T4). */
     ALERGIA_CONSULTADA,
     /** Inactivación de alergia por profesional o paciente con motivo obligatorio (D3, T4). */
-    ALERGIA_INACTIVADA
+    ALERGIA_INACTIVADA,
+    /** Registro de inasistencia (no-show) del paciente a la cita médica por profesional o admin (D4, T5). */
+    CITA_NO_ASISTIO
 }

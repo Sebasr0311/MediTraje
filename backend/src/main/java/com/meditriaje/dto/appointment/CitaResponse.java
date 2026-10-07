@@ -25,8 +25,63 @@ public record CitaResponse(
         String citaOrigenPublicId,
         String triajeNivel,
         String motivoConsulta,
-        Instant createdAt
+        Instant createdAt,
+        boolean tieneAtencion,
+        String atencionPublicId,
+        String atencionEstado
 ) {
+    /**
+     * Constructor de compatibilidad (20 parámetros) para preservar retrocompatibilidad.
+     */
+    public CitaResponse(
+            String publicId,
+            String slotPublicId,
+            String pacientePublicId,
+            String pacienteNombre,
+            String profesionalPublicId,
+            String profesionalNombre,
+            String especialidadPublicId,
+            String especialidadNombre,
+            String sedePublicId,
+            String sedeNombre,
+            String sedeDireccion,
+            Instant fechaHoraInicio,
+            Instant fechaHoraFin,
+            String modalidad,
+            String estado,
+            String triajePublicId,
+            String citaOrigenPublicId,
+            String triajeNivel,
+            String motivoConsulta,
+            Instant createdAt
+    ) {
+        this(
+                publicId,
+                slotPublicId,
+                pacientePublicId,
+                pacienteNombre,
+                profesionalPublicId,
+                profesionalNombre,
+                especialidadPublicId,
+                especialidadNombre,
+                sedePublicId,
+                sedeNombre,
+                sedeDireccion,
+                fechaHoraInicio,
+                fechaHoraFin,
+                modalidad,
+                estado,
+                triajePublicId,
+                citaOrigenPublicId,
+                triajeNivel,
+                motivoConsulta,
+                createdAt,
+                false,
+                null,
+                null
+        );
+    }
+
     /**
      * Constructor de compatibilidad (18 parámetros) para preservar retrocompatibilidad con tests y servicios existentes.
      */
@@ -70,7 +125,10 @@ public record CitaResponse(
                 citaOrigenPublicId,
                 null,
                 null,
-                createdAt
+                createdAt,
+                false,
+                null,
+                null
         );
     }
 }
