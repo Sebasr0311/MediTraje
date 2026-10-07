@@ -19,6 +19,9 @@ spring:
 cors:
   origins: ${CORS_ORIGINS}
 
+server:
+  forward-headers-strategy: framework
+
 management:
   endpoint:
     health:

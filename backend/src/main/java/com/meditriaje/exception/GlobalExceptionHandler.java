@@ -93,6 +93,14 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));
     }
 
+    @ExceptionHandler(LimitePeticionesExcedidoException.class)
+    public ResponseEntity<ApiError> handleLimitePeticionesExcedido(LimitePeticionesExcedidoException ex) {
+        log.warn("Limite de peticiones excedido: codigo={}", ex.getCodigo());
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(ApiError.of(ex.getCodigo(), ex.getMessage(), null));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidacion(MethodArgumentNotValidException ex) {
         String detalle = ex.getBindingResult().getFieldErrors().stream()

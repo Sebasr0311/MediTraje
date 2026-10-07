@@ -70,4 +70,22 @@ class PingControllerTest {
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.service").value("MediTriaje 2.0 API"));
     }
+
+    @Test
+    @DisplayName("Debe incluir HSTS explícito con max-age=1 año, subdominios y preload en peticiones HTTPS (SEC-004)")
+    void shouldIncludeHstsHeaderOnHttps() throws Exception {
+        mockMvc.perform(get("/api/v1/ping").secure(true))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Strict-Transport-Security", "max-age=31536000 ; includeSubDomains ; preload"));
+    }
+
+    @Test
+    @DisplayName("Actuator no expuesto arbitrariamente: endpoints fuera de health/info requieren autenticación (SEC-003)")
+    void shouldRequireAuthForNonHealthActuatorEndpoints() throws Exception {
+        mockMvc.perform(get("/actuator/beans"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/actuator/env"))
+                .andExpect(status().isUnauthorized());
+    }
 }

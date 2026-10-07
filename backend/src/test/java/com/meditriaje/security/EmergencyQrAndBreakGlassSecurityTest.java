@@ -171,7 +171,7 @@ class EmergencyQrAndBreakGlassSecurityTest {
     }
 
     @Test
-    @DisplayName("QR: PIN erróneo lanza CredencialesInvalidasException y no registra lectura exitosa")
+    @DisplayName("QR: PIN erróneo lanza CredencialesInvalidasException, incrementa fallos y no registra lectura exitosa")
     void qr_pinErroneo_esRechazadoConCredencialesInvalidas() {
         AccesoTemporalQr conPin = new AccesoTemporalQr(
                 3L, "qr-3", 10L, TOKEN_HASH, "argon2id$hashedpin",
@@ -190,6 +190,82 @@ class EmergencyQrAndBreakGlassSecurityTest {
                 .isInstanceOf(CredencialesInvalidasException.class)
                 .hasMessageContaining("PIN de seguridad proporcionado es incorrecto");
 
+        verify(accesoTemporalQrRepository).registrarPinFallido(3L);
+        verify(accesoTemporalQrRepository, never()).registrarAcceso(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("QR: Fuerza bruta de PIN — 3 intentos fallidos revocan el token y bloquean accesos subsiguientes")
+    void qr_fuerzaBrutaPin_tresIntentosRevocanToken() {
+        // Intento 1: token con 0 fallos
+        AccesoTemporalQr conPinInicial = new AccesoTemporalQr(
+                3L, "qr-3", 10L, TOKEN_HASH, "argon2id$hashedpin",
+                true, true, true, true,
+                3, 0, false, 0,
+                T0.plus(10, ChronoUnit.MINUTES),
+                T0.minus(5, ChronoUnit.MINUTES),
+                T0.minus(5, ChronoUnit.MINUTES)
+        );
+
+        when(accesoTemporalQrRepository.buscarPorTokenHash(TOKEN_HASH)).thenReturn(Optional.of(conPinInicial));
+        when(passwordEncoder.matches("1111", "argon2id$hashedpin")).thenReturn(false);
+
+        assertThatThrownBy(() -> emergencySummaryService.consultarResumenPorToken(
+                TOKEN_PLANO, new ConsultarResumenRequest("1111"), "10.0.0.3"))
+                .isInstanceOf(CredencialesInvalidasException.class)
+                .hasMessageContaining("PIN de seguridad proporcionado es incorrecto");
+        verify(accesoTemporalQrRepository).registrarPinFallido(3L);
+
+        // Intento 2: simula token con 1 fallo registrado
+        AccesoTemporalQr con1Fallo = new AccesoTemporalQr(
+                3L, "qr-3", 10L, TOKEN_HASH, "argon2id$hashedpin",
+                true, true, true, true,
+                3, 1, false, 1,
+                T0.plus(10, ChronoUnit.MINUTES),
+                T0.minus(5, ChronoUnit.MINUTES),
+                T0.minus(5, ChronoUnit.MINUTES)
+        );
+        when(accesoTemporalQrRepository.buscarPorTokenHash(TOKEN_HASH)).thenReturn(Optional.of(con1Fallo));
+        when(passwordEncoder.matches("2222", "argon2id$hashedpin")).thenReturn(false);
+
+        assertThatThrownBy(() -> emergencySummaryService.consultarResumenPorToken(
+                TOKEN_PLANO, new ConsultarResumenRequest("2222"), "10.0.0.3"))
+                .isInstanceOf(CredencialesInvalidasException.class);
+
+        // Intento 3: simula token con 2 fallos registrados -> alcanza 3er fallo y revoca
+        AccesoTemporalQr con2Fallos = new AccesoTemporalQr(
+                3L, "qr-3", 10L, TOKEN_HASH, "argon2id$hashedpin",
+                true, true, true, true,
+                3, 2, false, 2,
+                T0.plus(10, ChronoUnit.MINUTES),
+                T0.minus(5, ChronoUnit.MINUTES),
+                T0.minus(5, ChronoUnit.MINUTES)
+        );
+        when(accesoTemporalQrRepository.buscarPorTokenHash(TOKEN_HASH)).thenReturn(Optional.of(con2Fallos));
+        when(passwordEncoder.matches("3333", "argon2id$hashedpin")).thenReturn(false);
+
+        assertThatThrownBy(() -> emergencySummaryService.consultarResumenPorToken(
+                TOKEN_PLANO, new ConsultarResumenRequest("3333"), "10.0.0.3"))
+                .isInstanceOf(CredencialesInvalidasException.class)
+                .hasMessageContaining("revocado por superar el limite de intentos fallidos");
+
+        // Intento 4: el token ahora tiene 3 fallos (estado REVOCADO) y es rechazado directamente
+        AccesoTemporalQr bloqueado = new AccesoTemporalQr(
+                3L, "qr-3", 10L, TOKEN_HASH, "argon2id$hashedpin",
+                true, true, true, true,
+                3, 3, true, 3,
+                T0.plus(10, ChronoUnit.MINUTES),
+                T0.minus(5, ChronoUnit.MINUTES),
+                T0.minus(5, ChronoUnit.MINUTES)
+        );
+        when(accesoTemporalQrRepository.buscarPorTokenHash(TOKEN_HASH)).thenReturn(Optional.of(bloqueado));
+
+        assertThatThrownBy(() -> emergencySummaryService.consultarResumenPorToken(
+                TOKEN_PLANO, new ConsultarResumenRequest("9999"), "10.0.0.3"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("ha sido revocado");
+
+        // Ningún intento registró lectura exitosa
         verify(accesoTemporalQrRepository, never()).registrarAcceso(anyLong(), any());
     }
 

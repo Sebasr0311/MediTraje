@@ -19,6 +19,7 @@ public record AccesoTemporalQr(
         int maxAccesos,
         int accesosRealizados,
         boolean revocado,
+        int intentosPinFallidos,
         Instant expiraAt,
         Instant createdAt,
         Instant updatedAt
@@ -28,6 +29,46 @@ public record AccesoTemporalQr(
         Objects.requireNonNull(pacienteId, "pacienteId no puede ser nulo");
         Objects.requireNonNull(tokenHash, "tokenHash no puede ser nulo");
         Objects.requireNonNull(expiraAt, "expiraAt no puede ser nulo");
+    }
+
+    /**
+     * Constructor de compatibilidad para instancias previas sin contador de fallos de PIN.
+     */
+    public AccesoTemporalQr(
+            Long id,
+            String publicId,
+            Long pacienteId,
+            String tokenHash,
+            String pinHash,
+            boolean incluirAlergias,
+            boolean incluirMedicamentos,
+            boolean incluirAtenciones,
+            boolean incluirContacto,
+            int maxAccesos,
+            int accesosRealizados,
+            boolean revocado,
+            Instant expiraAt,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        this(
+                id,
+                publicId,
+                pacienteId,
+                tokenHash,
+                pinHash,
+                incluirAlergias,
+                incluirMedicamentos,
+                incluirAtenciones,
+                incluirContacto,
+                maxAccesos,
+                accesosRealizados,
+                revocado,
+                0,
+                expiraAt,
+                createdAt,
+                updatedAt
+        );
     }
 
     /**
@@ -48,7 +89,7 @@ public record AccesoTemporalQr(
      * Resuelve el estado actual del token temporal respecto a un instante de tiempo.
      */
     public EstadoAccesoQr resolverEstado(Instant now) {
-        if (revocado) {
+        if (revocado || intentosPinFallidos >= 3) {
             return EstadoAccesoQr.REVOCADO;
         }
         if (now.isAfter(expiraAt)) {

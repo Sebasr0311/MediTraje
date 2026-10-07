@@ -17,8 +17,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Repositorio JDBC para la entidad {@code ACCESO_TEMPORAL_QR} (ADR-010, F2.3).
- * Maneja persistencia de tokens hasheados, control atómico de lecturas y revocación.
+ * Repositorio JDBC para la entidad {@code ACCESO_TEMPORAL_QR} (ADR-010, F2.3, SEC-002).
+ * Maneja persistencia de tokens hasheados, control atómico de lecturas, intentos fallidos de PIN y revocación.
  */
 @Repository
 public class AccesoTemporalQrRepository {
@@ -29,6 +29,13 @@ public class AccesoTemporalQrRepository {
         Timestamp tsExpira = rs.getTimestamp("EXPIRA_AT");
         Timestamp tsCreated = rs.getTimestamp("CREATED_AT");
         Timestamp tsUpdated = rs.getTimestamp("UPDATED_AT");
+
+        int intentosPin = 0;
+        try {
+            intentosPin = rs.getInt("INTENTOS_PIN_FALLIDOS");
+        } catch (Exception ignored) {
+            // Retrocompatibilidad si la columna no está en proyecciones antiguas
+        }
 
         return new AccesoTemporalQr(
                 rs.getLong("ID"),
@@ -43,6 +50,7 @@ public class AccesoTemporalQrRepository {
                 rs.getInt("MAX_ACCESOS"),
                 rs.getInt("ACCESOS_REALIZADOS"),
                 rs.getInt("REVOCADO") == 1,
+                intentosPin,
                 tsExpira != null ? tsExpira.toInstant() : null,
                 tsCreated != null ? tsCreated.toInstant() : null,
                 tsUpdated != null ? tsUpdated.toInstant() : null
@@ -64,8 +72,8 @@ public class AccesoTemporalQrRepository {
                 INSERT INTO ACCESO_TEMPORAL_QR (
                     PUBLIC_ID, PACIENTE_ID, TOKEN_HASH, PIN_HASH,
                     INCLUIR_ALERGIAS, INCLUIR_MEDICAMENTOS, INCLUIR_ATENCIONES, INCLUIR_CONTACTO,
-                    MAX_ACCESOS, ACCESOS_REALIZADOS, REVOCADO, EXPIRA_AT
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    MAX_ACCESOS, ACCESOS_REALIZADOS, REVOCADO, INTENTOS_PIN_FALLIDOS, EXPIRA_AT
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -83,7 +91,8 @@ public class AccesoTemporalQrRepository {
             ps.setInt(9, acceso.maxAccesos());
             ps.setInt(10, acceso.accesosRealizados());
             ps.setInt(11, acceso.revocado() ? 1 : 0);
-            ps.setTimestamp(12, Timestamp.from(acceso.expiraAt()));
+            ps.setInt(12, acceso.intentosPinFallidos());
+            ps.setTimestamp(13, Timestamp.from(acceso.expiraAt()));
             return ps;
         }, keyHolder);
 
@@ -104,7 +113,7 @@ public class AccesoTemporalQrRepository {
         String sql = """
                 SELECT ID, PUBLIC_ID, PACIENTE_ID, TOKEN_HASH, PIN_HASH,
                        INCLUIR_ALERGIAS, INCLUIR_MEDICAMENTOS, INCLUIR_ATENCIONES, INCLUIR_CONTACTO,
-                       MAX_ACCESOS, ACCESOS_REALIZADOS, REVOCADO, EXPIRA_AT, CREATED_AT, UPDATED_AT
+                       MAX_ACCESOS, ACCESOS_REALIZADOS, REVOCADO, INTENTOS_PIN_FALLIDOS, EXPIRA_AT, CREATED_AT, UPDATED_AT
                 FROM ACCESO_TEMPORAL_QR
                 WHERE TOKEN_HASH = ?
                 """;
@@ -123,7 +132,7 @@ public class AccesoTemporalQrRepository {
         String sql = """
                 SELECT ID, PUBLIC_ID, PACIENTE_ID, TOKEN_HASH, PIN_HASH,
                        INCLUIR_ALERGIAS, INCLUIR_MEDICAMENTOS, INCLUIR_ATENCIONES, INCLUIR_CONTACTO,
-                       MAX_ACCESOS, ACCESOS_REALIZADOS, REVOCADO, EXPIRA_AT, CREATED_AT, UPDATED_AT
+                       MAX_ACCESOS, ACCESOS_REALIZADOS, REVOCADO, INTENTOS_PIN_FALLIDOS, EXPIRA_AT, CREATED_AT, UPDATED_AT
                 FROM ACCESO_TEMPORAL_QR
                 WHERE PUBLIC_ID = ?
                 """;
@@ -142,7 +151,7 @@ public class AccesoTemporalQrRepository {
         String sql = """
                 SELECT ID, PUBLIC_ID, PACIENTE_ID, TOKEN_HASH, PIN_HASH,
                        INCLUIR_ALERGIAS, INCLUIR_MEDICAMENTOS, INCLUIR_ATENCIONES, INCLUIR_CONTACTO,
-                       MAX_ACCESOS, ACCESOS_REALIZADOS, REVOCADO, EXPIRA_AT, CREATED_AT, UPDATED_AT
+                       MAX_ACCESOS, ACCESOS_REALIZADOS, REVOCADO, INTENTOS_PIN_FALLIDOS, EXPIRA_AT, CREATED_AT, UPDATED_AT
                 FROM ACCESO_TEMPORAL_QR
                 WHERE PACIENTE_ID = ?
                 ORDER BY CREATED_AT DESC
@@ -169,6 +178,33 @@ public class AccesoTemporalQrRepository {
                   AND EXPIRA_AT > ?
                 """;
         return jdbcTemplate.update(sql, id, Timestamp.from(now));
+    }
+
+    /**
+     * Registra un intento fallido de validación de PIN (SEC-002):
+     * - Incrementa INTENTOS_PIN_FALLIDOS.
+     * - Los intentos fallidos cuentan para el máximo de accesos (incrementa ACCESOS_REALIZADOS).
+     * - Si alcanza 3 intentos fallidos, revoca de inmediato el token (REVOCADO = 1).
+     *
+     * @param id Identificador numérico del acceso
+     * @return Filas actualizadas
+     */
+    public int registrarPinFallido(Long id) {
+        String sql = """
+                UPDATE ACCESO_TEMPORAL_QR
+                SET INTENTOS_PIN_FALLIDOS = INTENTOS_PIN_FALLIDOS + 1,
+                    ACCESOS_REALIZADOS = CASE
+                        WHEN ACCESOS_REALIZADOS < MAX_ACCESOS THEN ACCESOS_REALIZADOS + 1
+                        ELSE ACCESOS_REALIZADOS
+                    END,
+                    REVOCADO = CASE
+                        WHEN INTENTOS_PIN_FALLIDOS + 1 >= 3 THEN 1
+                        ELSE REVOCADO
+                    END,
+                    UPDATED_AT = CURRENT_TIMESTAMP
+                WHERE ID = ?
+                """;
+        return jdbcTemplate.update(sql, id);
     }
 
     /**

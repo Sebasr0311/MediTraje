@@ -253,8 +253,9 @@ class EmergencySummaryServiceTest {
                 new ConsultarResumenRequest("0000"),
                 "127.0.0.1"
         )).isInstanceOf(CredencialesInvalidasException.class)
-                .hasMessageContaining("El PIN de seguridad proporcionado es incorrecto.");
+                .hasMessageContaining("El PIN de seguridad proporcionado es incorrecto");
 
+        verify(accesoTemporalQrRepository).registrarPinFallido(2L);
         verify(accesoTemporalQrRepository, never()).registrarAcceso(anyLong(), any());
     }
 
