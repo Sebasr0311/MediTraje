@@ -281,6 +281,27 @@ Reservar en una transacción: `UPDATE slot SET estado='OCUPADO' WHERE id=? AND e
    - Recuperación de contraseña (`forgot-password`) audita internamente `EMAIL_FALLIDO` ante fallos de entrega pero mantiene la respuesta HTTP 200 genérica anti-enumeración.
    - Sanitización estricta: censura de API key, censura de etiquetas HTML y enmascaramiento de direcciones de correo PII en logs. Cero variables clínicas o terminología de salud en plantillas de correo.
 
+## ADR-021 Ruta de Actualización y Transición hacia Spring Boot 4.1 (Trabajo Futuro)
+**Estado:** PROPUESTO — Plan Estratégico de Evolución Técnica (Trabajo Futuro).
+**Contexto:**
+Con la ejecución de la tarea T12, MediTriaje 2.0 opera sobre **Spring Boot 3.5.16** (el último parche abierto y mantenido de la línea 3.x), resolviendo la obsolescencia de 3.3.4 (SEC-006) y alcanzando estabilidad completa con 948 pruebas verdes.
+No obstante, el ecosistema Spring avanza hacia su próxima generación mayor (**Spring Boot 4.x / 4.1**), la cual involucra tres evoluciones estructurales de ruptura (*breaking changes*):
+1. **Spring Framework 7.x:** Nuevo baseline centrado en Java 21/25, APIs reactivas refinadas, optimización exhaustiva para hilos virtuales (Project Loom) y compilación nativa AOT (GraalVM).
+2. **Spring Security 7.x:** Retiro definitivo de APIs y adaptadores declarados obsoletos en la serie 6.x, reestructuración de la jerarquía de `SecurityFilterChain` y actualización de políticas de autorización modular.
+3. **Jackson 3 (`tools.jackson`):** Cambio radical de coordenadas y paquetes desde `com.fasterxml.jackson` hacia `tools.jackson`, reescritura de deserializadores y optimización nativa para Java Records y sellado de tipos (`sealed classes`) sin configuración reflectiva adicional.
+
+**Decisión y Hoja de Ruta:**
+1. **Estabilidad Actual en 3.5.16 (Fase Vigente):**
+   - El entorno productivo y académico del MVP permanecerá en Spring Boot 3.5.16 para garantizar estabilidad operativa, compatibilidad garantizada con Oracle ATP (OJDBC 23.5) y cero riesgo de regresión en las 948 pruebas automatizadas.
+2. **Preparación Previa a la Migración:**
+   - Mantener el aislamiento estricto de DTOs y modelos de dominio basados en Java 21 Records inmutables, facilitando la futura transición a los deserializadores nativos de Jackson 3.
+   - Evitar el acoplamiento directo en controladores a clases internas de `com.fasterxml.jackson` más allá de la serialización estándar HTTP de Spring Web.
+   - Resolver oportunamente advertencias de compilación (`-Xlint:deprecation`) en controladores y configuraciones de seguridad.
+3. **Migración Experimental Controlada (Spike Futuro):**
+   - La transición a Spring Boot 4.1 se ejecutará como un hito formal independiente en una rama experimental (`spike/spring-boot-4`), una vez que Spring Boot 4.1 cuente con versiones de producción estables (GA).
+   - Validar compatibilidad de librerías criptográficas satélite: BouncyCastle, JJWT (soporte para Jackson 3) y el driver de Oracle JDBC.
+   - Ejecutar la suite integral de verificación: 948+ pruebas unitarias Surefire, integración en base de datos real con Testcontainers (Failsafe) y pruebas de extremo a extremo con Playwright.
+
 ---
 
 ## Pendientes reales
