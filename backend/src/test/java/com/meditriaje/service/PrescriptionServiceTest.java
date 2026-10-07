@@ -230,6 +230,49 @@ class PrescriptionServiceTest {
     }
 
     @Test
+    @DisplayName("emitirReceta - Si falla el guardado de detalles, propaga excepción para rollback transaccional sin auditar éxito")
+    void emitirReceta_falloEnDetalles_propagaExcepcionParaRollback() {
+        Usuario usuario = new Usuario(1L, USUARIO_PROF_UUID, "dr.carlos@test.com", "hash", "ACTIVO", 0, null, Instant.now());
+        Profesional profesional = new Profesional(PROFESIONAL_ID, 1L, "prof-uuid", 1L, "RM-12345", "Carlos", "Gomez", Instant.now(), null);
+        Atencion atencion = new Atencion(ATENCION_ID, "atencion-uuid", 100L, PACIENTE_ID, PROFESIONAL_ID, "CERRADA");
+
+        Medicamento med = new Medicamento(
+                50L,
+                "med-uuid-1",
+                "MED-ACE-500",
+                "Acetaminofén",
+                "Acetaminofén",
+                "Tableta",
+                "500 mg",
+                "ACTIVO"
+        );
+
+        CrearRecetaDetalleRequest detalleReq = new CrearRecetaDetalleRequest(
+                "med-uuid-1",
+                "500 mg",
+                "Cada 8 horas",
+                3,
+                9,
+                "Tomar con agua"
+        );
+        CrearRecetaRequest request = new CrearRecetaRequest("atencion-uuid", 30, List.of(detalleReq));
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PROF_UUID)).thenReturn(Optional.of(usuario));
+        when(profesionalRepository.buscarPorUsuarioId(1L)).thenReturn(Optional.of(profesional));
+        when(atencionRepository.buscarEntidadPorPublicId("atencion-uuid")).thenReturn(Optional.of(atencion));
+        when(medicamentoRepository.buscarPorPublicId("med-uuid-1")).thenReturn(Optional.of(med));
+        when(recetaRepository.crearReceta(any())).thenReturn(101L);
+        doThrow(new org.springframework.dao.DataIntegrityViolationException("Fallo en constraint de clave foránea"))
+                .when(recetaRepository).guardarDetalles(eq(101L), anyList());
+
+        assertThatThrownBy(() -> service.emitirReceta(request, USUARIO_PROF_UUID, "127.0.0.1"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class)
+                .hasMessageContaining("Fallo en constraint");
+
+        verify(auditoriaService, never()).auditar(any());
+    }
+
+    @Test
     @DisplayName("emitirReceta - Rechazo si usuario autenticado no está registrado como profesional")
     void emitirReceta_usuarioNoProfesional_lanza403() {
         Usuario usuario = new Usuario(2L, "usr-pac-1", "paciente@test.com", "hash", "ACTIVO", 0, null, Instant.now());
