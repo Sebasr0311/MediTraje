@@ -75,6 +75,7 @@ Configuradas explícitamente en `SecurityConfig.java`:
 
 ```http
 Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none';
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 X-Frame-Options: DENY
@@ -82,8 +83,19 @@ X-Content-Type-Options: nosniff
 ```
 
 * **Anti-Clickjacking:** `frame-ancestors 'none'` y `X-Frame-Options: DENY` impiden que la aplicación sea embebida dentro de un `<iframe>` malicioso.
+* **HSTS Explícito (SEC-004):** `Strict-Transport-Security` con tiempo de vida de 1 año (`max-age=31536000`), cobertura de subdominios (`includeSubDomains`) y directiva `preload` para prevenir ataques de degradación a texto plano (SSL-stripping). En despliegue tras proxy inverso (Render/Nginx), `server.forward-headers-strategy=framework` garantiza el procesamiento correcto de cabeceras `X-Forwarded-*`.
 * **Restricción de Recursos:** CSP restringe la carga de scripts y conexiones exclusivamente al propio origen (`'self'`). Sin dependencias de CDNs de terceros.
 * **Privacidad:** `Permissions-Policy` deshabilita sensores de hardware y geolocalización no requeridos.
+
+### Análisis y Riesgo Aceptado: `'unsafe-inline'` en Directiva `style-src` (SEC-005)
+
+* **Justificación de Arquitectura:** El frontend de MediTriaje 2.0 es una Single Page Application desarrollada en Vanilla JavaScript modular (ES modules nativos) sin herramientas de compilación pesada ni frameworks CSS-in-JS. Múltiples componentes dinámicos de UI (barras de progreso en tiempo real de disponibilidad de slots, anchos relativos de calendarios, cálculos de altura en grillas de agenda y gradientes de color calculados por nivel de urgencia) requieren establecer atributos `style="..."` dinámicos en el DOM.
+* **Evaluación del Vector de Amenaza:**
+  - El riesgo teórico de `'unsafe-inline'` en CSS reside en ataques de exfiltración de atributos (ej. selectores CSS maliciosos combinados con `background: url(...)`).
+  - En MediTriaje 2.0, esta posibilidad está fuertemente mitigada por `default-src 'self'` y la ausencia de URLs remotas en `style-src` o `img-src`.
+  - La directiva crítica `script-src 'self'` **NO** incluye `'unsafe-inline'` ni `'unsafe-eval'`, impidiendo totalmente la ejecución de scripts no autorizados.
+  - Toda interpolación de datos dinámicos provista por usuarios o base de datos se neutraliza rigurosamente con la función de escape HTML `esc()` (`frontend/js/ui.js`).
+* **Decisión Formal:** Riesgo aceptado de severidad baja para el MVP y fase actual. En futuras iteraciones arquitectónicas (Fase 3+), se evaluará la migración a clases utilitarias precompiladas o la adopción de nonces/hashes criptográficos para prescindir completamente de `'unsafe-inline'`.
 
 ---
 

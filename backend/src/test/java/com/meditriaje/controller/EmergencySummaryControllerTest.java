@@ -37,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = EmergencySummaryController.class)
-@Import({SecurityConfig.class, CorsConfig.class, GlobalExceptionHandler.class})
+@Import({SecurityConfig.class, CorsConfig.class, GlobalExceptionHandler.class, com.meditriaje.security.QrRateLimiter.class})
 @ActiveProfiles("test")
 class EmergencySummaryControllerTest {
 
@@ -132,5 +132,25 @@ class EmergencySummaryControllerTest {
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("DATOS_INVALIDOS"));
+    }
+
+    @Test
+    @DisplayName("Rate Limit: exceso de peticiones sobre endpoint QR retorna 429 Too Many Requests")
+    void qr_excesoDePeticionesPorIp_retorna429() throws Exception {
+        when(emergencyQrService.verificarTokenPublico("token-rate-limit"))
+                .thenReturn(new VerificarQrResponse(true, false, "ACTIVO", Instant.now().plusSeconds(600)));
+
+        String testIp = "192.168.100.99";
+        for (int i = 0; i < 15; i++) {
+            mockMvc.perform(get("/api/v1/emergency-summary/token-rate-limit/check")
+                            .with(req -> { req.setRemoteAddr(testIp); return req; }))
+                    .andExpect(status().isOk());
+        }
+
+        // Petición 16 supera el umbral de 15 por minuto
+        mockMvc.perform(get("/api/v1/emergency-summary/token-rate-limit/check")
+                        .with(req -> { req.setRemoteAddr(testIp); return req; }))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.codigo").value("LIMITE_PETICIONES_EXCEDIDO"));
     }
 }

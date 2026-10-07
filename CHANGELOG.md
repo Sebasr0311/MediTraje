@@ -7,6 +7,27 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Fixed
+- **Correcciones de Seguridad Post-Auditoría (T11, Plan Post-Auditoría)**:
+  - **SEC-002 (Alta) — Endurecimiento Integral de Resumen QR de Emergencia**:
+    - Migración Flyway `database/migrations/V017__acceso_qr_pin_fallidos.sql` agregando columna `INTENTOS_PIN_FALLIDOS NUMBER(2) DEFAULT 0 NOT NULL` con restricción de no negatividad.
+    - Revocación atómica (`REVOCADO = 1`) tras 3 intentos fallidos de PIN en `AccesoTemporalQrRepository.registrarPinFallido()`; cómputo de intentos fallidos en `ACCESOS_REALIZADOS` preservando el techo `MAX_ACCESOS`.
+    - Limitador de tasa en memoria `QrRateLimiter` por dirección IP (15 req/min) en endpoints de verificación y consulta de QR con respuesta `HTTP 429 Too Many Requests` (`LIMITE_PETICIONES_EXCEDIDO`).
+    - Comparación de PIN en tiempo constante mediante Argon2id para mitigar ataques de canal lateral (timing attacks).
+    - Auditoría inmutable de fallos y bloqueos bajo la acción `ACCESO_EMERGENCIA_QR` con resultado `FALLO` o `BLOQUEADO`.
+    - Respuesta de error genérica unificada (`CredencialesInvalidasException`) para neutralizar enumeración de estado.
+    - Corrección y aclaración técnica de la prueba de PIN de T6 y adición de prueba exhaustiva de fuerza bruta `qr_fuerzaBrutaPin_tresIntentosRevocanToken()`.
+  - **SEC-001 (Media) — Neutralización Completa de Inyección de Fórmulas CSV**:
+    - Neutralización al exportar en frontend (`admin-reports.js`) y backend (`AdminAppointmentService.java`) anteponiendo comilla simple `'` ante caracteres `=`, `+`, `-`, `@`, `\t` y `\r`.
+    - Pruebas unitarias dedicadas en backend (`AdminAppointmentServiceTest`) y frontend (`frontend/tests/csv-sanitizer.test.js`).
+  - **SEC-003 (Baja) — Restricción de Actuator**:
+    - Restricción estricta en `SecurityConfig.java` de endpoints públicos de Actuator exclusivamente a `/actuator/health` y `/actuator/info` exactos; demás endpoints protegidos bajo autenticación.
+  - **SEC-004 (Baja) — Cabecera HSTS Explícita y Headers de Proxy**:
+    - Configuración explícita de `Strict-Transport-Security` con `max-age=31536000` (1 año), `includeSubDomains` y `preload`.
+    - Configuración de `server.forward-headers-strategy=framework` en `application.yml` y `application-prod.yml` para soporte transparente tras proxies reversos.
+  - **SEC-005 (Baja) — Documentación de Riesgo Aceptado en Seguridad**:
+    - Formalización en `docs/security/SECURITY.md` del análisis de riesgo aceptado para `'unsafe-inline'` en la directiva CSP `style-src`.
+
 ### Added
 - **Revisión de Seguridad Final y Auditoría de Superficie Expandida (T10, Plan Post-Auditoría)**:
   - Ejecución de la auditoría de seguridad integral mediante la skill `meditriaje-security-review`, consolidando el informe formal en [`docs/security/REVISION_FINAL.md`](docs/security/REVISION_FINAL.md).
