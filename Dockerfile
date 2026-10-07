@@ -41,13 +41,15 @@ RUN mkdir -p /etc/secrets/wallet && \
 
 WORKDIR /app
 
-# Copiar artefacto compilado
+# Copiar artefacto compilado y script de preparacion de wallet
 COPY --from=builder /build/backend/target/meditriaje-api-*.jar app.jar
-RUN chown appuser:appgroup app.jar
+COPY scripts/prepare-wallet.sh /app/prepare-wallet.sh
+RUN chmod +x /app/prepare-wallet.sh && \
+    chown appuser:appgroup app.jar /app/prepare-wallet.sh
 
-# Configuración de zona horaria de Colombia
+# Configuración de zona horaria de Colombia y utilidades del sistema
 ENV TZ=America/Bogota
-RUN apk add --no-cache tzdata && \
+RUN apk add --no-cache tzdata unzip openssl && \
     cp /usr/share/zoneinfo/$TZ /etc/localtime && \
     echo $TZ > /etc/timezone
 
@@ -60,4 +62,4 @@ USER appuser
 EXPOSE 8080
 
 # Parámetros JVM optimizados para contenedores (cgroups v1/v2, memoria ergonómica y entropía segura)
-ENTRYPOINT ["sh", "-c", "exec java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom -Duser.timezone=America/Bogota -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "/app/prepare-wallet.sh && exec java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom -Duser.timezone=America/Bogota -jar app.jar"]

@@ -6,6 +6,7 @@
 # Oracle ATP Wallet & Conexiones seguras
 *wallet*
 *Wallet*
+!scripts/prepare-wallet.sh
 *.sso
 *.p12
 *.jks
