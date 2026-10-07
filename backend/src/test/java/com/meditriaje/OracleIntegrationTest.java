@@ -109,13 +109,13 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void flyway_schema_history_tieneAlMenosV15() {
+    void flyway_schema_history_tieneAlMenosV16() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         Integer count = ownerTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
                 Integer.class
         );
-        assertThat(count).isGreaterThanOrEqualTo(15);
+        assertThat(count).isGreaterThanOrEqualTo(16);
     }
 
     @Test
@@ -552,16 +552,19 @@ class OracleIntegrationTest {
     }
 
     @Test
-    void app_noPuedeHacerUpdateAuditoria() {
+    void app_noPuedeHacerUpdateNiDeleteAuditoria() {
         // AUDITORIA es insert-only para MEDITRIAJE_APP (sin GRANT UPDATE ni DELETE)
         JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
-        boolean tuvoError = false;
-        try {
-            appTemplate.execute("UPDATE " + OWNER_USER + ".AUDITORIA SET ACCION = 'MODIFICADA'");
-        } catch (Exception e) {
-            tuvoError = true;
-        }
-        assertThat(tuvoError).as("MEDITRIAJE_APP no debe poder hacer UPDATE sobre AUDITORIA").isTrue();
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> appTemplate.execute("UPDATE " + OWNER_USER + ".AUDITORIA SET ACCION = 'MODIFICADA'"),
+                "MEDITRIAJE_APP no debe poder hacer UPDATE sobre AUDITORIA"
+        );
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> appTemplate.execute("DELETE FROM " + OWNER_USER + ".AUDITORIA"),
+                "MEDITRIAJE_APP no debe poder hacer DELETE sobre AUDITORIA"
+        );
     }
 
     @Test
@@ -592,7 +595,7 @@ class OracleIntegrationTest {
     @Test
     void app_noTieneDeleteSobreTablasClinicas() {
         JdbcTemplate appTemplate = new JdbcTemplate(appDataSource());
-        for (String tabla : new String[] {"ATENCION", "SIGNO_VITAL", "ATENCION_ENMIENDA", "ALERGIA"}) {
+        for (String tabla : new String[] {"ATENCION", "SIGNO_VITAL", "ATENCION_ENMIENDA", "ALERGIA", "RECETA", "RECETA_DETALLE", "CONSENTIMIENTO"}) {
             org.junit.jupiter.api.Assertions.assertThrows(
                     org.springframework.dao.DataAccessException.class,
                     () -> appTemplate.update("DELETE FROM " + OWNER_USER + "." + tabla),
@@ -841,6 +844,74 @@ class OracleIntegrationTest {
     }
 
     @Test
+    void db_recetaRollback_siFallaDetalleNoQuedaCabecera() {
+        DataSource ds = ownerDataSource();
+        org.springframework.jdbc.datasource.DataSourceTransactionManager txManager =
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(ds);
+        org.springframework.transaction.support.TransactionTemplate txTemplate =
+                new org.springframework.transaction.support.TransactionTemplate(txManager);
+        JdbcTemplate ownerTemplate = new JdbcTemplate(ds);
+
+        String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
+
+        // Precondiciones mínimas
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO) VALUES (?, ?, 'hash', 'ACTIVO')",
+                "usr-rx-rb-p-" + uid, "rx-rb-p-" + uid + "@test.com");
+        Long usuarioPacId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "usr-rx-rb-p-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PACIENTE (PUBLIC_ID, USUARIO_ID, NUMERO_IDENTIFICACION, NOMBRES, APELLIDOS) "
+                + "VALUES (?, ?, ?, 'Paciente', 'Rollback')", "pac-rx-rb-" + uid, usuarioPacId, "CC-RX-RB-" + uid);
+        Long pacienteId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PACIENTE WHERE PUBLIC_ID = ?", Long.class, "pac-rx-rb-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO) VALUES (?, ?, 'hash', 'ACTIVO')",
+                "usr-rx-rb-d-" + uid, "rx-rb-d-" + uid + "@test.com");
+        Long usuarioProfId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "usr-rx-rb-d-" + uid);
+        Long espId = ownerTemplate.queryForObject("SELECT MIN(ID) FROM " + OWNER_USER + ".ESPECIALIDAD", Long.class);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PROFESIONAL (PUBLIC_ID, USUARIO_ID, ESPECIALIDAD_ID, REGISTRO_MEDICO, NOMBRES, APELLIDOS) "
+                + "VALUES (?, ?, ?, ?, 'Dr', 'Rollback')", "prof-rx-rb-" + uid, usuarioProfId, espId, "RM-RX-RB-" + uid);
+        Long profesionalId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PROFESIONAL WHERE PUBLIC_ID = ?", Long.class, "prof-rx-rb-" + uid);
+
+        Long instId = ownerTemplate.queryForObject("SELECT MIN(ID) FROM " + OWNER_USER + ".INSTITUCION", Long.class);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".SEDE (INSTITUCION_ID, PUBLIC_ID, NOMBRE, DIRECCION, CIUDAD) VALUES (?, ?, 'Sede RB', 'Dir', 'Bogota')",
+                instId, "sede-rx-rb-" + uid);
+        Long sedeId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".SEDE WHERE PUBLIC_ID = ?", Long.class, "sede-rx-rb-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".DISPONIBILIDAD_SLOT (PUBLIC_ID, PROFESIONAL_ID, SEDE_ID, ESPECIALIDAD_ID, FECHA_HORA_INICIO, FECHA_HORA_FIN, MODALIDAD, ESTADO) "
+                + "VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '20' MINUTE, 'PRESENCIAL', 'OCUPADO')",
+                "slot-rx-rb-" + uid, profesionalId, sedeId, espId);
+        Long slotId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".DISPONIBILIDAD_SLOT WHERE PUBLIC_ID = ?", Long.class, "slot-rx-rb-" + uid);
+
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".CITA (PUBLIC_ID, SLOT_ID, PACIENTE_ID, ESTADO) VALUES (?, ?, ?, 'ATENDIDA')",
+                "cita-rx-rb-" + uid, slotId, pacienteId);
+        Long citaId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".CITA WHERE PUBLIC_ID = ?", Long.class, "cita-rx-rb-" + uid);
+
+        Long cie10Id = ownerTemplate.queryForObject("SELECT MIN(ID) FROM " + OWNER_USER + ".DIAGNOSTICO_CIE10", Long.class);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".ATENCION (PUBLIC_ID, CITA_ID, PACIENTE_ID, PROFESIONAL_ID, DIAGNOSTICO_CIE10_ID, ESTADO, MOTIVO_CONSULTA) "
+                + "VALUES (?, ?, ?, ?, ?, 'CERRADA', 'Consulta para receta')",
+                "atn-rx-rb-" + uid, citaId, pacienteId, profesionalId, cie10Id);
+        Long atencionId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".ATENCION WHERE PUBLIC_ID = ?", Long.class, "atn-rx-rb-" + uid);
+
+        String recetaPubId = "rx-rb-" + uid;
+
+        // Ejecutar transacción que inserta cabecera pero falla en detalle (FK inválida)
+        org.junit.jupiter.api.Assertions.assertThrows(Exception.class, () -> {
+            txTemplate.execute(status -> {
+                ownerTemplate.update("INSERT INTO " + OWNER_USER + ".RECETA (PUBLIC_ID, ATENCION_ID, PACIENTE_ID, PROFESIONAL_ID, VIGENCIA_DIAS) "
+                        + "VALUES (?, ?, ?, ?, 30)", recetaPubId, atencionId, pacienteId, profesionalId);
+
+                ownerTemplate.update("INSERT INTO " + OWNER_USER + ".RECETA_DETALLE (RECETA_ID, MEDICAMENTO_ID, SNAPSHOT_NOMBRE, SNAPSHOT_PRINCIPIO_ACTIVO, "
+                        + "SNAPSHOT_PRESENTACION, SNAPSHOT_CONCENTRACION, DOSIS, FRECUENCIA, DURACION_DIAS, CANTIDAD, INDICACIONES) "
+                        + "VALUES ((SELECT ID FROM " + OWNER_USER + ".RECETA WHERE PUBLIC_ID = ?), 999999999, 'Nom', 'PA', 'Pres', 'Conc', 'Dosis', 'Freq', 1, 1, 'Ind')",
+                        recetaPubId);
+                return null;
+            });
+        });
+
+        // Demostrar que debido al rollback NO quedó cabecera
+        Integer conteoReceta = ownerTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + OWNER_USER + ".RECETA WHERE PUBLIC_ID = ?", Integer.class, recetaPubId);
+        assertThat(conteoReceta).as("La cabecera de la receta no debe persistir tras el rollback").isZero();
+    }
+
+    @Test
     void db_triggersInmutabilidadBreakGlass() {
         JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
         String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
@@ -879,6 +950,40 @@ class OracleIntegrationTest {
                 org.springframework.dao.DataAccessException.class,
                 () -> ownerTemplate.update("DELETE FROM " + OWNER_USER + ".ACCESO_BREAK_GLASS WHERE ID = ?", bgId),
                 "El trigger debe bloquear DELETE en ACCESO_BREAK_GLASS (ORA-20040)"
+        );
+    }
+
+    @Test
+    void db_triggerInmutabilidadAlergias() {
+        JdbcTemplate ownerTemplate = new JdbcTemplate(ownerDataSource());
+        String uid = java.util.UUID.randomUUID().toString().substring(0, 8);
+
+        // Precondición: Paciente
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".USUARIO (PUBLIC_ID, EMAIL, PASSWORD_HASH, ESTADO) VALUES (?, ?, 'hash', 'ACTIVO')",
+                "usr-al-pac-" + uid, "al-pac-" + uid + "@test.com");
+        Long usuarioPacId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".USUARIO WHERE PUBLIC_ID = ?", Long.class, "usr-al-pac-" + uid);
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".PACIENTE (PUBLIC_ID, USUARIO_ID, NUMERO_IDENTIFICACION, NOMBRES, APELLIDOS) "
+                + "VALUES (?, ?, ?, 'Paciente', 'Alergico')", "pac-al-" + uid, usuarioPacId, "DOC-AL-" + uid);
+        Long pacienteId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".PACIENTE WHERE PUBLIC_ID = ?", Long.class, "pac-al-" + uid);
+
+        // 1. Insertar ALERGIA activa
+        ownerTemplate.update("INSERT INTO " + OWNER_USER + ".ALERGIA (PUBLIC_ID, PACIENTE_ID, SUSTANCIA, SEVERIDAD, ESTADO, ORIGEN) "
+                + "VALUES (?, ?, 'Penicilina', 'GRAVE', 'ACTIVA', 'PROFESIONAL')",
+                "al-" + uid, pacienteId);
+        Long alergiaId = ownerTemplate.queryForObject("SELECT ID FROM " + OWNER_USER + ".ALERGIA WHERE PUBLIC_ID = ?", Long.class, "al-" + uid);
+
+        // 2. Demostrar que el trigger TR_ALERGIA_INMUTABILIDAD bloquea DELETE (ORA-20020)
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("DELETE FROM " + OWNER_USER + ".ALERGIA WHERE ID = ?", alergiaId),
+                "El trigger TR_ALERGIA_INMUTABILIDAD debe bloquear DELETE en ALERGIA (ORA-20020)"
+        );
+
+        // 3. Demostrar que el trigger bloquea modificar datos clínicos (ORA-20023)
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> ownerTemplate.update("UPDATE " + OWNER_USER + ".ALERGIA SET SUSTANCIA = 'Amoxicilina' WHERE ID = ?", alergiaId),
+                "El trigger debe bloquear modificar datos clínicos originales en ALERGIA (ORA-20023)"
         );
     }
 }
