@@ -53,5 +53,11 @@ public enum AccionAuditable {
     /** Consulta de reportes y métricas operativas por administradores (F2.6, RF-30, ADR-018). */
     CONSULTA_REPORTE_ADMINISTRATIVO,
     /** Fallo en el despacho de correo transaccional sin exponer datos sensibles (D1, T3). */
-    EMAIL_FALLIDO
+    EMAIL_FALLIDO,
+    /** Registro de alergia o hipersensibilidad clínica o autorreportada (D3, T4). */
+    ALERGIA_REGISTRADA,
+    /** Consulta de alergias e historial de hipersensibilidades (D3, T4). */
+    ALERGIA_CONSULTADA,
+    /** Inactivación de alergia por profesional o paciente con motivo obligatorio (D3, T4). */
+    ALERGIA_INACTIVADA
 }

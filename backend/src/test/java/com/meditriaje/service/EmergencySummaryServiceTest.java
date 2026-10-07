@@ -397,4 +397,36 @@ class EmergencySummaryServiceTest {
         )).isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessageContaining("Acceso de emergencia no valido o inexistente.");
     }
+
+    @Test
+    @DisplayName("consultarResumenPorToken: alergias activas retornan con su origen clínico y autorreportado (D3, T4)")
+    void consultarResumenPorToken_alergiasConOrigen_exitoso() {
+        AccesoTemporalQr acceso = new AccesoTemporalQr(
+                1L, "qr-pub-1", 10L, tokenHash, null,
+                true, false, false, false,
+                3, 0, false,
+                fixedInstant.plus(15, ChronoUnit.MINUTES), fixedInstant, fixedInstant
+        );
+
+        when(accesoTemporalQrRepository.buscarPorTokenHash(tokenHash)).thenReturn(Optional.of(acceso));
+        when(accesoTemporalQrRepository.registrarAcceso(1L, fixedInstant)).thenReturn(1);
+        when(pacienteRepository.buscarPorId(10L)).thenReturn(Optional.of(paciente));
+        when(usuarioRepository.buscarPorId(5L)).thenReturn(Optional.of(usuario));
+
+        Alergia a1 = new Alergia(101L, "ale-1", 10L, "Penicilina", "Shock", "GRAVE", "ACTIVA", "PROFESIONAL", 1L, null, null, null, null, fixedInstant, fixedInstant);
+        Alergia a2 = new Alergia(102L, "ale-2", 10L, "Mariscos", "Urticaria", "MODERADA", "ACTIVA", "PACIENTE", 5L, null, null, null, null, fixedInstant, fixedInstant);
+        when(alergiaRepository.listarPorPacienteId(10L)).thenReturn(List.of(a1, a2));
+
+        ResumenSaludResponse res = emergencySummaryService.consultarResumenPorToken(
+                tokenPlano,
+                new ConsultarResumenRequest(null),
+                "127.0.0.1"
+        );
+
+        assertThat(res.alergias()).hasSize(2);
+        assertThat(res.alergias().get(0).sustancia()).isEqualTo("Penicilina");
+        assertThat(res.alergias().get(0).origen()).isEqualTo("PROFESIONAL");
+        assertThat(res.alergias().get(1).sustancia()).isEqualTo("Mariscos");
+        assertThat(res.alergias().get(1).origen()).isEqualTo("PACIENTE");
+    }
 }

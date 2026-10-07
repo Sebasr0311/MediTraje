@@ -187,7 +187,7 @@ public class EmergencySummaryService {
         if (acceso.incluirAlergias()) {
             List<Alergia> alergias = alergiaRepository.listarPorPacienteId(paciente.id());
             for (Alergia a : alergias) {
-                alergiasList.add(new AlergiaEmergenciaDto(a.sustancia(), a.reaccion(), a.severidad()));
+                alergiasList.add(new AlergiaEmergenciaDto(a.sustancia(), a.reaccion(), a.severidad(), a.origen()));
             }
         }
 
