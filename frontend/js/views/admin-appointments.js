@@ -1072,6 +1072,15 @@ export async function renderAdminAppointments(container) {
         <div class="text-xs text-muted text-right">
           Fecha de registro: ${c.createdAt ? new Date(c.createdAt).toLocaleString('es-CO') : '—'}
         </div>
+
+        ${(c.estado === 'PROGRAMADA' && c.fechaHoraInicio && new Date(c.fechaHoraInicio).getTime() <= Date.now()) ? `
+          <div class="mt-4 pt-3 border-t flex justify-end">
+            <button type="button" id="btnAdminNoShow" class="btn btn-secondary btn--sm" style="color: var(--danger); border-color: var(--danger-bg);" title="Registrar que el paciente no se presentó a su cita médica">
+              ${ui.icon('alert-circle', 'icon icon--sm')}
+              <span>Marcar no asistió</span>
+            </button>
+          </div>
+        ` : ''}
       </div>
     `;
 
@@ -1082,6 +1091,39 @@ export async function renderAdminAppointments(container) {
       cancelText: '',
       onConfirm: () => {}
     });
+
+    const noShowBtn = document.getElementById('btnAdminNoShow');
+    if (noShowBtn) {
+      noShowBtn.addEventListener('click', () => {
+        ui.closeModal();
+        ui.showModal({
+          title: 'Registrar Inasistencia del Paciente',
+          message: `
+            <div class="alert alert--warning mb-3">
+              ${ui.icon('alert-triangle', 'icon alert-icon text-warning')}
+              <div class="alert-content">
+                <strong class="block text-sm">¿Confirmar que el paciente no asistió?</strong>
+                <p class="text-xs m-0">Esta acción cambiará de forma definitiva el estado de la cita a <strong>NO ASISTIÓ</strong>.</p>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-0">
+              El turno asignado no será liberado dado que la hora de inicio ya transcurrió. Esta acción queda registrada en la bitácora inmutable de auditoría.
+            </p>
+          `,
+          confirmText: 'Confirmar No Asistió',
+          cancelText: 'Cancelar',
+          onConfirm: async () => {
+            try {
+              await api.patch(`/appointments/${c.publicId}/no-show`);
+              ui.showToast('Inasistencia registrada exitosamente.', 'success');
+              await loadAppointments();
+            } catch (err) {
+              ui.showToast(err.message || 'No fue posible registrar la inasistencia.', 'danger');
+            }
+          }
+        });
+      });
+    }
   }
 
   // Modal para Exportar Citas a Plantilla Excel (.csv con UTF-8 BOM)

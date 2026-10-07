@@ -1045,4 +1045,244 @@ class AppointmentServiceTest {
                 .isInstanceOf(DatosInvalidosException.class)
                 .hasMessage("El tamaño de página debe estar entre 1 y 100.");
     }
+
+    // =========================================================================
+    // Pruebas T5: Inasistencia (marcarNoAsistio - D4, T5)
+    // =========================================================================
+
+    @Test
+    void marcarNoAsistio_exitoso_porProfesionalAsignado_conHoraExactaInicio() {
+        String citaPubId = "cita-no-show-1";
+        Cita cita = new Cita(10L, citaPubId, 50L, 10L, null, null, "PROGRAMADA", null, NOW.minusSeconds(7200), null);
+        DisponibilidadSlot slotIniciado = new DisponibilidadSlot(
+                50L, "slot-1", 100L, 200L, 300L, NOW, NOW.plusSeconds(1800), "PRESENCIAL", "OCUPADO"
+        );
+        Usuario profUsuario = new Usuario(2L, "prof-usr-1", "medico@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+        CitaResponse expectedResponse = new CitaResponse(
+                citaPubId, "slot-1", "pac-1", "Pepito Perez", "prof-1", "Dr. House",
+                "esp-1", "Medicina", "sede-1", "Sede Central", "Dir 1",
+                NOW, NOW.plusSeconds(1800), "PRESENCIAL", "NO_ASISTIO", null, null, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-1")).thenReturn(Optional.of(profUsuario));
+        when(citaRepository.buscarEntidadPorPublicId(citaPubId)).thenReturn(Optional.of(cita));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotIniciado));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(profesionalMock));
+        when(atencionRepository.existePorCitaId(10L)).thenReturn(false);
+        when(citaRepository.buscarPorPublicId(citaPubId)).thenReturn(Optional.of(expectedResponse));
+
+        CitaResponse result = appointmentService.marcarNoAsistio(
+                citaPubId,
+                "prof-usr-1",
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL")),
+                IP_CLIENTE
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.estado()).isEqualTo("NO_ASISTIO");
+        verify(citaRepository).actualizarEstado(10L, "NO_ASISTIO", null);
+        verify(disponibilidadSlotRepository, never()).liberarSlot(anyLong());
+
+        ArgumentCaptor<EventoAuditoria> auditCaptor = ArgumentCaptor.forClass(EventoAuditoria.class);
+        verify(auditoriaService).auditar(auditCaptor.capture());
+        EventoAuditoria evento = auditCaptor.getValue();
+        assertThat(evento.accion()).isEqualTo(AccionAuditable.CITA_NO_ASISTIO);
+        assertThat(evento.recursoPublicId()).isEqualTo(citaPubId);
+    }
+
+    @Test
+    void marcarNoAsistio_exitoso_porProfesionalAsignado_trasInicio() {
+        String citaPubId = "cita-no-show-2";
+        Cita cita = new Cita(10L, citaPubId, 50L, 10L, null, null, "PROGRAMADA", null, NOW.minusSeconds(7200), null);
+        DisponibilidadSlot slotPasado = new DisponibilidadSlot(
+                50L, "slot-1", 100L, 200L, 300L, NOW.minusSeconds(900), NOW.plusSeconds(900), "PRESENCIAL", "OCUPADO"
+        );
+        Usuario profUsuario = new Usuario(2L, "prof-usr-1", "medico@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+        CitaResponse expectedResponse = new CitaResponse(
+                citaPubId, "slot-1", "pac-1", "Pepito Perez", "prof-1", "Dr. House",
+                "esp-1", "Medicina", "sede-1", "Sede Central", "Dir 1",
+                NOW.minusSeconds(900), NOW.plusSeconds(900), "PRESENCIAL", "NO_ASISTIO", null, null, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-1")).thenReturn(Optional.of(profUsuario));
+        when(citaRepository.buscarEntidadPorPublicId(citaPubId)).thenReturn(Optional.of(cita));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotPasado));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(profesionalMock));
+        when(atencionRepository.existePorCitaId(10L)).thenReturn(false);
+        when(citaRepository.buscarPorPublicId(citaPubId)).thenReturn(Optional.of(expectedResponse));
+
+        CitaResponse result = appointmentService.marcarNoAsistio(
+                citaPubId,
+                "prof-usr-1",
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL")),
+                IP_CLIENTE
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.estado()).isEqualTo("NO_ASISTIO");
+        verify(citaRepository).actualizarEstado(10L, "NO_ASISTIO", null);
+        verify(disponibilidadSlotRepository, never()).liberarSlot(anyLong());
+    }
+
+    @Test
+    void marcarNoAsistio_exitoso_porAdministrador() {
+        String citaPubId = "cita-admin-no-show";
+        Cita cita = new Cita(10L, citaPubId, 50L, 10L, null, null, "PROGRAMADA", null, NOW.minusSeconds(7200), null);
+        DisponibilidadSlot slotIniciado = new DisponibilidadSlot(
+                50L, "slot-1", 100L, 200L, 300L, NOW.minusSeconds(300), NOW.plusSeconds(1500), "PRESENCIAL", "OCUPADO"
+        );
+        Usuario adminUsuario = new Usuario(99L, "admin-usr-1", "admin@hospital.com", "hash", "ACTIVO", 0, null, NOW, false);
+        CitaResponse expectedResponse = new CitaResponse(
+                citaPubId, "slot-1", "pac-1", "Pepito Perez", "prof-1", "Dr. House",
+                "esp-1", "Medicina", "sede-1", "Sede Central", "Dir 1",
+                NOW.minusSeconds(300), NOW.plusSeconds(1500), "PRESENCIAL", "NO_ASISTIO", null, null, NOW
+        );
+
+        when(usuarioRepository.buscarPorPublicId("admin-usr-1")).thenReturn(Optional.of(adminUsuario));
+        when(citaRepository.buscarEntidadPorPublicId(citaPubId)).thenReturn(Optional.of(cita));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotIniciado));
+        when(atencionRepository.existePorCitaId(10L)).thenReturn(false);
+        when(citaRepository.buscarPorPublicId(citaPubId)).thenReturn(Optional.of(expectedResponse));
+
+        CitaResponse result = appointmentService.marcarNoAsistio(
+                citaPubId,
+                "admin-usr-1",
+                List.of(new SimpleGrantedAuthority("ROLE_ADMINISTRADOR")),
+                IP_CLIENTE
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.estado()).isEqualTo("NO_ASISTIO");
+        verify(profesionalRepository, never()).buscarPorUsuarioId(anyLong());
+    }
+
+    @Test
+    void marcarNoAsistio_falla_antesDeHoraInicio_lanzaDatosInvalidos() {
+        String citaPubId = "cita-futura";
+        Cita cita = new Cita(10L, citaPubId, 50L, 10L, null, null, "PROGRAMADA", null, NOW.minusSeconds(3600), null);
+        DisponibilidadSlot slotFuturo = new DisponibilidadSlot(
+                50L, "slot-1", 100L, 200L, 300L, NOW.plusSeconds(600), NOW.plusSeconds(2400), "PRESENCIAL", "OCUPADO"
+        );
+        Usuario profUsuario = new Usuario(2L, "prof-usr-1", "medico@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-1")).thenReturn(Optional.of(profUsuario));
+        when(citaRepository.buscarEntidadPorPublicId(citaPubId)).thenReturn(Optional.of(cita));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotFuturo));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(profesionalMock));
+        when(atencionRepository.existePorCitaId(10L)).thenReturn(false);
+
+        assertThatThrownBy(() -> appointmentService.marcarNoAsistio(
+                citaPubId,
+                "prof-usr-1",
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL")),
+                IP_CLIENTE
+        )).isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("No es posible marcar inasistencia antes de la hora de inicio");
+    }
+
+    @Test
+    void marcarNoAsistio_falla_conAtencionVinculada_lanzaConflictoOperacion() {
+        String citaPubId = "cita-con-atencion";
+        Cita cita = new Cita(10L, citaPubId, 50L, 10L, null, null, "PROGRAMADA", null, NOW.minusSeconds(7200), null);
+        DisponibilidadSlot slotIniciado = new DisponibilidadSlot(
+                50L, "slot-1", 100L, 200L, 300L, NOW.minusSeconds(600), NOW.plusSeconds(1200), "PRESENCIAL", "OCUPADO"
+        );
+        Usuario profUsuario = new Usuario(2L, "prof-usr-1", "medico@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-1")).thenReturn(Optional.of(profUsuario));
+        when(citaRepository.buscarEntidadPorPublicId(citaPubId)).thenReturn(Optional.of(cita));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotIniciado));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(profesionalMock));
+        when(atencionRepository.existePorCitaId(10L)).thenReturn(true);
+
+        assertThatThrownBy(() -> appointmentService.marcarNoAsistio(
+                citaPubId,
+                "prof-usr-1",
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL")),
+                IP_CLIENTE
+        )).isInstanceOf(ConflictoOperacionException.class)
+                .hasMessageContaining("No es posible marcar inasistencia para una cita que ya cuenta con una atencion clinica vinculada");
+    }
+
+    @Test
+    void marcarNoAsistio_falla_estadoDistintoDeProgramada_lanzaConflictoOperacion() {
+        String citaPubId = "cita-ya-atendida";
+        Cita cita = new Cita(10L, citaPubId, 50L, 10L, null, null, "ATENDIDA", null, NOW.minusSeconds(7200), null);
+        DisponibilidadSlot slotIniciado = new DisponibilidadSlot(
+                50L, "slot-1", 100L, 200L, 300L, NOW.minusSeconds(600), NOW.plusSeconds(1200), "PRESENCIAL", "OCUPADO"
+        );
+        Usuario profUsuario = new Usuario(2L, "prof-usr-1", "medico@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-1")).thenReturn(Optional.of(profUsuario));
+        when(citaRepository.buscarEntidadPorPublicId(citaPubId)).thenReturn(Optional.of(cita));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotIniciado));
+        when(profesionalRepository.buscarPorUsuarioId(2L)).thenReturn(Optional.of(profesionalMock));
+
+        assertThatThrownBy(() -> appointmentService.marcarNoAsistio(
+                citaPubId,
+                "prof-usr-1",
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL")),
+                IP_CLIENTE
+        )).isInstanceOf(ConflictoOperacionException.class)
+                .hasMessageContaining("Solo es posible marcar inasistencia para citas en estado PROGRAMADA");
+    }
+
+    @Test
+    void marcarNoAsistio_falla_otroProfesionalNoDuenio_lanzaAccesoNoAutorizado() {
+        String citaPubId = "cita-otro-medico";
+        Cita cita = new Cita(10L, citaPubId, 50L, 10L, null, null, "PROGRAMADA", null, NOW.minusSeconds(7200), null);
+        DisponibilidadSlot slotMedicoA = new DisponibilidadSlot(
+                50L, "slot-1", 100L, 200L, 300L, NOW.minusSeconds(600), NOW.plusSeconds(1200), "PRESENCIAL", "OCUPADO"
+        );
+        Usuario profBUsuario = new Usuario(3L, "prof-usr-b", "otromedico@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+        Profesional profB = new Profesional(
+                101L, 3L, "prof-uuid-b", 300L, "RM-99999", "Gregory", "House Jr", NOW, null
+        );
+
+        when(usuarioRepository.buscarPorPublicId("prof-usr-b")).thenReturn(Optional.of(profBUsuario));
+        when(citaRepository.buscarEntidadPorPublicId(citaPubId)).thenReturn(Optional.of(cita));
+        when(disponibilidadSlotRepository.buscarPorId(50L)).thenReturn(Optional.of(slotMedicoA));
+        when(profesionalRepository.buscarPorUsuarioId(3L)).thenReturn(Optional.of(profB));
+
+        assertThatThrownBy(() -> appointmentService.marcarNoAsistio(
+                citaPubId,
+                "prof-usr-b",
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL")),
+                IP_CLIENTE
+        )).isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("El profesional no tiene autorizacion para marcar inasistencia de citas de otro colega");
+    }
+
+    @Test
+    void marcarNoAsistio_falla_rolPaciente_lanzaAccesoNoAutorizado() {
+        String citaPubId = "cita-pac-intento";
+        Cita cita = new Cita(10L, citaPubId, 50L, 10L, null, null, "PROGRAMADA", null, NOW.minusSeconds(7200), null);
+        Usuario pacUsuario = new Usuario(1L, "pac-usr-1", "paciente@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+
+        when(usuarioRepository.buscarPorPublicId("pac-usr-1")).thenReturn(Optional.of(pacUsuario));
+        when(citaRepository.buscarEntidadPorPublicId(citaPubId)).thenReturn(Optional.of(cita));
+
+        assertThatThrownBy(() -> appointmentService.marcarNoAsistio(
+                citaPubId,
+                "pac-usr-1",
+                List.of(new SimpleGrantedAuthority("ROLE_PACIENTE")),
+                IP_CLIENTE
+        )).isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("No tiene autorizacion para marcar inasistencia de citas");
+    }
+
+    @Test
+    void marcarNoAsistio_falla_citaNoExiste_lanzaRecursoNoEncontrado() {
+        Usuario profUsuario = new Usuario(2L, "prof-usr-1", "medico@test.com", "hash", "ACTIVO", 0, null, NOW, false);
+        when(usuarioRepository.buscarPorPublicId("prof-usr-1")).thenReturn(Optional.of(profUsuario));
+        when(citaRepository.buscarEntidadPorPublicId("cita-inexistente")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> appointmentService.marcarNoAsistio(
+                "cita-inexistente",
+                "prof-usr-1",
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL")),
+                IP_CLIENTE
+        )).isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessageContaining("Cita no encontrada.");
+    }
 }

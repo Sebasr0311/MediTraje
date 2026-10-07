@@ -160,6 +160,8 @@ export async function professionalAgendaView(container) {
       <div class="flex flex-col gap-3">
         ${citas.map(c => {
           const canStart = c.estado === 'PROGRAMADA' || c.estado === 'CONFIRMADA';
+          const yaIniciada = c.fechaHoraInicio ? (new Date(c.fechaHoraInicio).getTime() <= Date.now()) : false;
+          const canNoShow = c.estado === 'PROGRAMADA' && yaIniciada && !c.tieneAtencion;
           const fechaCita = c.fechaHoraInicio ? formatLongDate(new Date(c.fechaHoraInicio).toISOString().slice(0, 10)) : '';
           const horaInicio = formatTime(c.fechaHoraInicio);
           const horaFin = c.fechaHoraFin ? formatTime(c.fechaHoraFin) : '';
@@ -216,6 +218,10 @@ export async function professionalAgendaView(container) {
                   <a href="#/professional/patient-history/${esc(c.pacientePublicId)}" class="btn btn-secondary btn--sm" title="Consultar historia clínica del paciente">
                     ${ui.icon('file-text', 'icon icon--sm')}<span>Historial</span>
                   </a>
+                  ${canNoShow ? `
+                    <button type="button" class="btn btn-secondary btn--sm btn-no-show" data-cita="${esc(c.publicId)}" style="color: var(--danger); border-color: var(--danger-bg);" title="Registrar que el paciente no se presentó a su cita médica">
+                      ${ui.icon('alert-circle', 'icon icon--sm')}<span>No asistió</span>
+                    </button>` : ''}
                   ${canStart ? `
                     <button type="button" class="btn btn-primary btn-start" data-cita="${esc(c.publicId)}">
                       ${ui.icon('activity')}<span>Iniciar atención</span>
@@ -226,6 +232,40 @@ export async function professionalAgendaView(container) {
         }).join('')}
       </div>
     `;
+
+    listEl.querySelectorAll('.btn-no-show').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const citaId = btn.dataset.cita;
+        ui.showModal({
+          title: 'Registrar Inasistencia del Paciente',
+          message: `
+            <div class="alert alert--warning mb-3">
+              ${ui.icon('alert-triangle', 'icon alert-icon text-warning')}
+              <div class="alert-content">
+                <strong class="block text-sm">¿Confirmar que el paciente no asistió?</strong>
+                <p class="text-xs m-0">Esta acción cambiará de forma definitiva el estado de la cita a <strong>NO ASISTIÓ</strong>.</p>
+              </div>
+            </div>
+            <p class="text-sm text-muted mb-0">
+              El turno asignado no será liberado dado que la hora de inicio ya transcurrió. Esta acción queda registrada en la bitácora inmutable de auditoría.
+            </p>
+          `,
+          confirmText: 'Confirmar No Asistió',
+          cancelText: 'Cancelar',
+          onConfirm: async () => {
+            ui.setButtonLoading(btn, true);
+            try {
+              await api.patch(`/appointments/${citaId}/no-show`);
+              ui.showToast('Inasistencia registrada exitosamente.', 'success');
+              await load();
+            } catch (err) {
+              ui.setButtonLoading(btn, false);
+              ui.showToast(err.message || 'No fue posible registrar la inasistencia.', 'danger');
+            }
+          }
+        });
+      });
+    });
 
     listEl.querySelectorAll('.btn-start').forEach(btn => {
       btn.addEventListener('click', async () => {

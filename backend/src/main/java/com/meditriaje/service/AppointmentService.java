@@ -405,6 +405,105 @@ public class AppointmentService {
     }
 
     /**
+     * Registra la inasistencia (no-show) de un paciente a una cita médica programada (D4, T5).
+     *
+     * Reglas de negocio estrictas:
+     * - Quién: Profesional asignado a la cita o ADMINISTRADOR.
+     *          Paciente -> 403; otro profesional -> 403.
+     * - Cuándo: now >= inicio del slot (zona America/Bogota).
+     *           Si la cita aún no ha iniciado -> 400 DatosInvalidosException.
+     * - Desde: Solo citas en estado PROGRAMADA.
+     *          Si el estado no lo permite -> 409 ConflictoOperacionException.
+     * - Condición: No debe existir atención médica vinculada (abierta o cerrada).
+     *              Si existe atención vinculada -> 409 ConflictoOperacionException.
+     * - Efecto: Estado de la cita pasa a NO_ASISTIO; el slot NO se libera (permanece OCUPADO).
+     * - Auditoría: Registro inmutable con acción CITA_NO_ASISTIO.
+     *
+     * @param citaPublicId               UUID público de la cita a marcar como no asistida.
+     * @param usuarioAutenticadoPublicId UUID público del usuario en sesión.
+     * @param authorities                Colección de roles/autoridades del usuario autenticado.
+     * @param ipOrigen                   Dirección IP cliente para la bitácora de auditoría.
+     * @return {@link CitaResponse} con los datos consolidados de la cita actualizada.
+     */
+    @Transactional
+    public CitaResponse marcarNoAsistio(
+            String citaPublicId,
+            String usuarioAutenticadoPublicId,
+            Collection<? extends GrantedAuthority> authorities,
+            String ipOrigen
+    ) {
+        Objects.requireNonNull(citaPublicId, "El identificador de la cita no puede ser nulo");
+        Objects.requireNonNull(usuarioAutenticadoPublicId, "El usuario público no puede ser nulo");
+
+        // 1. Obtener usuario autenticado
+        Usuario usuario = usuarioRepository.buscarPorPublicId(usuarioAutenticadoPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado."));
+
+        // 2. Obtener cita por citaPublicId
+        Cita cita = citaRepository.buscarEntidadPorPublicId(citaPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada."));
+
+        // 3. Reglas de Autorización (D4, T5)
+        Set<String> roles = authorities != null
+                ? authorities.stream().map(GrantedAuthority::getAuthority).collect(Collectors.toSet())
+                : Set.of();
+
+        boolean esAdmin = roles.contains("ROLE_ADMINISTRADOR");
+        boolean esProf = roles.contains("ROLE_PROFESIONAL");
+
+        if (!esAdmin && !esProf) {
+            throw new AccesoNoAutorizadoException("No tiene autorizacion para marcar inasistencia de citas.");
+        }
+
+        // 4. Obtener slot de disponibilidad
+        DisponibilidadSlot slot = disponibilidadSlotRepository.buscarPorId(cita.slotId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Slot de disponibilidad no encontrado."));
+
+        // Si es profesional y no es admin, validar que sea el profesional dueño de la cita
+        if (!esAdmin) {
+            Profesional profesional = profesionalRepository.buscarPorUsuarioId(usuario.id())
+                    .orElseThrow(() -> new AccesoNoAutorizadoException("El profesional no tiene autorizacion para marcar inasistencia de citas de otro colega."));
+
+            if (!Objects.equals(slot.profesionalId(), profesional.id())) {
+                throw new AccesoNoAutorizadoException("El profesional no tiene autorizacion para marcar inasistencia de citas de otro colega.");
+            }
+        }
+
+        // 5. Validar estado de la cita: solo desde PROGRAMADA (D4, T5)
+        if (!EstadoCita.PROGRAMADA.name().equals(cita.estado())) {
+            throw new ConflictoOperacionException("Solo es posible marcar inasistencia para citas en estado PROGRAMADA (estado actual: " + cita.estado() + ").");
+        }
+
+        // 6. Validar que no exista atención clínica ligada (D2, D4, T5)
+        if (atencionRepository != null && atencionRepository.existePorCitaId(cita.id())) {
+            throw new ConflictoOperacionException("No es posible marcar inasistencia para una cita que ya cuenta con una atencion clinica vinculada.");
+        }
+
+        // 7. Validar temporalidad: now >= inicio del slot (D4, T5)
+        Instant now = Instant.now(clock);
+        if (now.isBefore(slot.fechaHoraInicio())) {
+            throw new DatosInvalidosException("No es posible marcar inasistencia antes de la hora de inicio programada de la cita.");
+        }
+
+        // 8. Actualizar la cita a NO_ASISTIO (el slot NO se libera, ya que el horario ya transcurrió)
+        citaRepository.actualizarEstado(cita.id(), EstadoCita.NO_ASISTIO.name(), null);
+
+        // 9. Auditar evento inmutable
+        auditoriaService.auditar(new EventoAuditoria(
+                usuario.id(),
+                AccionAuditable.CITA_NO_ASISTIO,
+                "CITA",
+                cita.publicId(),
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        ));
+
+        // 10. Retornar CitaResponse actualizado
+        return citaRepository.buscarPorPublicId(cita.publicId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada tras actualizar inasistencia."));
+    }
+
+    /**
      * Consulta la agenda asistencial del profesional autenticado con filtros opcionales de fecha y estado (HU-06, ADR-007).
      *
      * @param usuarioAutenticadoPublicId UUID público del usuario profesional en sesión.
