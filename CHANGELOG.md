@@ -29,6 +29,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
     - Formalización en `docs/security/SECURITY.md` del análisis de riesgo aceptado para `'unsafe-inline'` en la directiva CSP `style-src`.
 
 ### Added
+- **Actualización de Dependencias y Escaneo de Seguridad (T12, Plan Post-Auditoría)**:
+  - **Actualización a Spring Boot 3.5.16**: corrección de SEC-006 migrando el parent pom desde la versión 3.3.4 (fuera del ciclo de soporte comunitario abierto) hacia Spring Boot 3.5.16 (último parche abierto y mantenido de la línea 3.x), junto con Spring Security 6.5.11, Spring Framework 6.2.19, Tomcat 10.1.55 y Jackson 2.21.4.
+  - **Suite de Pruebas Intacta**: conservación del 100% de la suite de pruebas unitarias y de integración en verde (948 pruebas pasando sin debilitar aserciones ni omitir casos de borde).
+  - **Escaneo de Vulnerabilidades y Dependencias**:
+    - Incorporación de job automatizado `dependency-review` con `actions/dependency-review-action@v4` en la tubería de Integración Continua (`.github/workflows/ci.yml`).
+    - Configuración de `.github/dependabot.yml` para revisiones y alertas semanales de seguridad en dependencias Maven y GitHub Actions.
+    - Ejecución de escaneo directo sobre OSV Vulnerability Database reportando 0 vulnerabilidades en el core de Spring Boot 3.5.16, Spring Security 6.5.11 y JJWT 0.12.6; análisis de mitigación contextual para avisos de BouncyCastle 1.78.1 (restringido a Argon2id, sin exposición de GOST ni LDAP), Jackson y Tomcat.
+  - **ADR-021 en `docs/DECISIONES.md`**: especificación de la hoja de ruta estratégica y plan de transición futura hacia Spring Boot 4.1 (Java 21+, Jackson 3, Spring Security 7 y Spring Framework 7).
 - **Revisión de Seguridad Final y Auditoría de Superficie Expandida (T10, Plan Post-Auditoría)**:
   - Ejecución de la auditoría de seguridad integral mediante la skill `meditriaje-security-review`, consolidando el informe formal en [`docs/security/REVISION_FINAL.md`](docs/security/REVISION_FINAL.md).
   - Inspección exhaustiva de la superficie de ataque expandida en Fase 2:

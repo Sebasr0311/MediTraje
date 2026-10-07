@@ -191,14 +191,18 @@ A continuación se detallan los hallazgos identificados durante la revisión. Co
 
 ---
 
-#### [SEC-006] Vigilancia y Escaneo Periódico de Dependencias Criptográficas
-* **Severidad:** **Informativo** (CWE-1104: Use of Unmaintained Third Party Components)
+#### [SEC-006] Ciclo de Vida de Dependencias: Spring Boot 3.3.4 Fuera de Soporte Abierto
+* **Severidad:** **Medio** (CWE-1104: Use of Unmaintained Third Party Components)
 * **Archivo:** `backend/pom.xml`
-* **Líneas:** 54–57, 61–76
+* **Líneas:** 22–26 (parent), 54–57, 61–76
 * **Descripción Técnica:**
-  El proyecto utiliza versiones modernas y soportadas de librerías criptográficas: `BouncyCastle: 1.78.1`, `JJWT: 0.12.6`, `Spring Boot: 3.3.4` y `OJDBC: 23.5.0.24.07`. No existen vulnerabilidades conocidas ni avisos de seguridad críticos abiertos en estas versiones.
-* **Propuesta de Mitigación:**
-  Mantener activos los flujos automáticos de escaneo en GitHub Actions (Dependabot o escaneos periódicos con OWASP Dependency-Check) para alertar sobre parches de seguridad en cuanto se liberen nuevas versiones de Spring Framework o BouncyCastle.
+  El proyecto utilizaba originalmente `Spring Boot 3.3.4`. La línea Spring Boot 3.3.x finalizó su ciclo de soporte comunitario abierto (OSS End of Life), lo que implica que no recibe parches públicos de seguridad ante futuros CVEs sin suscripción de soporte comercial. Las librerías complementarias se encuentran en versiones vigentes: `BouncyCastle: 1.78.1`, `JJWT: 0.12.6` y `OJDBC: 23.5.0.24.07`.
+* **Impacto:**
+  Riesgo de exposición a vulnerabilidades no corregidas en el runtime de Spring Framework / Spring Security si la versión base permanece en una rama sin soporte activo.
+* **Corrección y Mitigación Aplicada (T12):**
+  1. Actualización inmediata de `spring-boot-starter-parent` a **3.5.16** (el último parche abierto y mantenido de la línea 3.x), alineando automáticamente las dependencias gestionadas de Spring Security, Spring Framework, Tomcat y Jackson.
+  2. Incorporación de escaneo automatizado de dependencias en el flujo de Integración Continua (`.github/workflows/ci.yml`) y ejecución periódica de auditoría de CVEs.
+  3. Registro en `docs/DECISIONES.md` de la hoja de ruta técnica hacia Spring Boot 4.1 (Java 21+, Jackson 3, Spring Security 7, Spring Framework 7) como trabajo futuro estructurado.
 
 ---
 
