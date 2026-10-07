@@ -316,7 +316,10 @@ function renderResumenClinico(container, data) {
                 <div class="card p-4" style="background-color: var(--danger-bg); border-color: var(--danger-border, #FECACA);">
                   <div class="flex items-center justify-between mb-2">
                     <strong class="text-base font-bold text-danger">${esc(a.sustancia)}</strong>
-                    <span class="badge badge--danger">${esc(a.severidad || 'NO ESPECIFICADA')}</span>
+                    <div class="flex items-center gap-1">
+                      ${a.origen === 'PACIENTE' ? '<span class="badge badge--scheduled text-xs">Autorreportada</span>' : '<span class="badge badge--confirmed text-xs">Diagnóstico</span>'}
+                      <span class="badge badge--danger">${esc(a.severidad || 'NO ESPECIFICADA')}</span>
+                    </div>
                   </div>
                   <div class="text-xs text-muted">
                     <strong>Reacción adversa:</strong> ${esc(a.reaccion || 'Sin descripción')}

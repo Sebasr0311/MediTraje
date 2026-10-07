@@ -1,15 +1,30 @@
 /**
  * MediTriaje 2.0 — Emisión de Receta Médica (professional-prescription.js)
  * Búsqueda en catálogo de medicamentos, armado de ítems y emisión atómica
- * sobre una atención cerrada (M8.3, HU-08, ADR-008). El sistema no receta por su cuenta.
+ * sobre una atención cerrada con visualización de alergias (M8.3, HU-08, ADR-008, D3, T4).
  */
 
 import { api } from '../api.js';
 import { ui, esc } from '../ui.js';
+import { renderProfessionalAllergiesPanel } from '../components/professional-allergies-panel.js';
 
 export async function professionalPrescriptionView(container, { params }) {
   const atencionId = params.atencionId;
   const items = []; // { med, dosis, frecuencia, duracionDias, cantidad, indicaciones }
+
+  ui.renderLoading(container, 'Cargando información médica...');
+
+  let atencion;
+  try {
+    atencion = await api.get(`/attentions/${atencionId}`);
+  } catch (err) {
+    ui.renderError(container, {
+      title: 'No fue posible abrir la receta médica',
+      message: err.message,
+      onRetry: () => professionalPrescriptionView(container, { params })
+    });
+    return;
+  }
 
   container.innerHTML = `
     <div style="max-width: 56rem; margin: 0 auto; padding-bottom: var(--space-12);">
@@ -17,7 +32,12 @@ export async function professionalPrescriptionView(container, { params }) {
         <a href="#/professional/attention/${esc(atencionId)}" class="btn btn-ghost btn--sm btn--icon-only" aria-label="Volver a la atención">${ui.icon('arrow-left')}</a>
         <h1 class="text-2xl font-bold m-0">Nueva receta médica</h1>
       </div>
-      <p class="text-sm text-muted mb-6">La prescripción es decisión exclusiva del profesional. Una vez emitida, la receta es inmutable.</p>
+      <p class="text-sm text-muted mb-4">
+        Paciente: <strong>${esc(atencion.pacienteNombre)}</strong> · La prescripción es decisión exclusiva del profesional. Una vez emitida, la receta es inmutable.
+      </p>
+
+      <!-- Panel de Alergias del Paciente (D3, T4) -->
+      <div id="rxAllergiesContainer"></div>
 
       <div id="rxBody">
         <div class="card mb-4">
@@ -55,6 +75,13 @@ export async function professionalPrescriptionView(container, { params }) {
   `;
 
   const $ = (s) => container.querySelector(s);
+
+  // Inicializar panel de alergias junto a la prescripción
+  renderProfessionalAllergiesPanel($('#rxAllergiesContainer'), {
+    patientPublicId: atencion.pacientePublicId,
+    atencionPublicId: atencion.publicId
+  });
+
   let timer;
 
   $('#medSearch').addEventListener('input', (e) => {

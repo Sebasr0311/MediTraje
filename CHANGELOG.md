@@ -8,6 +8,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Gestión e Inmutabilidad de Alergias Clínicas y Autorreportadas (T4, Decisión D3, Plan Post-Auditoría)**:
+  - Migración Flyway `V016__alergias_clinicas.sql`: ampliación de tabla `ALERGIA` con `PUBLIC_ID`, `ESTADO` (`ACTIVA`, `INACTIVA`), `ORIGEN` (`PROFESIONAL`, `PACIENTE`), campos de inactivación (`INACTIVADA_AT`, `MOTIVO_INACTIVACION`, `INACTIVADA_POR_USUARIO_ID`), índice único funcional `uq_alergia_activa_paciente_sustancia` para prevenir duplicados activos por paciente y sustancia (case-insensitive), y trigger `tr_alergia_inmutabilidad` que prohíbe `DELETE` y solo admite transición `ACTIVA → INACTIVA` con motivo obligatorio.
+  - Backend: `AllergyService`, `AlergiaRepository` JDBC 100% parametrizado, `ClinicalAllergyController` (`/api/v1/clinical/patients/{patientPublicId}/allergies`) y `PatientAllergyController` (`/api/v1/patients/me/allergies`).
+  - Control de acceso asistencial reforzado en `AccesoClinicoService`: validación de relación ordinaria para registro médico de alergias y regla explícita que bloquea escritura clínica a accesos de emergencia break-glass (solo lectura). Bloqueo total de acceso administrativo (403 Forbidden).
+  - Auditoría inmutable sin datos clínicos (PHI) para `ALERGIA_REGISTRADA`, `ALERGIA_CONSULTADA` y `ALERGIA_INACTIVADA`.
+  - Resumen de Emergencia QR (`EmergencySummaryService`): filtro exclusivo de alergias activas exponiendo trazabilidad del origen (`PROFESIONAL` vs `PACIENTE`).
+  - Frontend: componente reutilizable `professional-allergies-panel.js` con advertencia de seguridad clínica ("Sin alergias registradas (esto no confirma que no tenga)"), integrado en atención médica (`professional-attention.js`) y prescripción de recetas (`professional-prescription.js`). Nueva vista paciente `patient-allergies.js` con acceso desde dashboard (`patient-dashboard.js`) y badges de origen en `emergency-summary-view.js`.
+  - Pruebas automatizadas: 42 pruebas en `AlergiaRepositoryTest`, `AllergyServiceTest`, `ClinicalAllergyControllerTest`, `PatientAllergyControllerTest` y `EmergencySummaryServiceTest` (totalizando 884 pruebas al 100% de éxito).
 - **Transporte de Correo por API HTTP de Brevo y Visibilidad Operativa de Fallos (T3, Decisión D1, Plan Post-Auditoría)**:
   - Implementación de `BrevoApiEmailTransport` con `HttpClient` nativo de Java 21 comunicándose vía HTTPS (puerto 443 estándar a `https://api.brevo.com/v3/smtp/email`) para resolver el bloqueo de puertos SMTP salientes (25, 465, 587) de la capa gratuita de Render.
   - Timeouts seguros (conexión 5s, petición 10s), política de máximo 1 reintento exclusivo ante errores transitorios de red o 5xx (sin reintentos ante 4xx).
