@@ -57,6 +57,10 @@ meditriaje:
       api-key: ${BREVO_API_KEY:}
     from: ${MAIL_FROM:${SMTP_FROM:no-reply@meditriaje.com}}
     from-name: ${MAIL_FROM_NAME:${SMTP_FROM_NAME:MediTriaje 2.0}}
+  demo:
+    seed: ${DEMO_SEED:false}
+    password: ${DEMO_PASSWORD:}
+    reset: ${DEMO_RESET:false}
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5500}

@@ -8,6 +8,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Despliegue, Guion de Demostración y Backups (T8, Plan Post-Auditoría)**:
+  - `DemoDataSeeder` (`com.meditriaje.demo`): componente Spring programático desactivado por defecto (`DEMO_SEED=true`), idempotente y protegido con validación de dominio exclusivo (`@demo.meditriaje.test`) y contraseña segura (`DEMO_PASSWORD` >= 12 caracteres). Siembra clínica íntegra a través de servicios de aplicación respetando inmutabilidad relacional y auditoría (1 institución, 2 sedes, 4 especialidades, 5 médicos con 14 días de agenda, 10 pacientes con consentimientos, atenciones cerradas con CIE-10 y signos vitales, enmiendas, recetas emitidas y dispensadas, alergias y triajes).
+  - Manejo preventivo de `DEMO_RESET=true`: advertencia explícita en logs y documentación sobre inmutabilidad relacional en Oracle ATP (traspaso a `flyway clean` o reprovisionamiento con `MEDITRIAJE_OWNER`).
+  - `docs/DEPLOYMENT.md`: especificación técnica de despliegue en Render y Oracle ATP, segregación estricta de esquemas `MEDITRIAJE_OWNER` vs `MEDITRIAJE_APP`, inyección de Oracle Wallet vía Base64 (`WALLET_BASE64`) o Secret Files (`/etc/secrets/wallet`), cookies `Secure`, CORS de origen exacto, advertencias de capa gratuita (cold starts, suspensión ATP tras 7 días) y checklist de copias de seguridad manuales/automáticas en OCI Console.
+  - `scripts/prepare-wallet.sh` y `Dockerfile`: utilitario POSIX para decodificación y permisos restrictivos (600/700) del wallet de conexión en el inicio del contenedor Docker.
+  - `docs/DEMO.md`: guion en vivo cronometrado de 10 minutos con 8 momentos clave (registro con consentimiento, triaje leve con agendamiento, corte de emergencia 123, atención médica y receta, auditoría e IDOR 403, QR de salud de emergencia, dispensación y trazabilidad inmutable), tabla de usuarios demo y plan B de contingencia.
+  - Pruebas unitarias en `DemoDataSeederTest` (4 pruebas) verificando el aborto preventivo ante usuarios no demo, validación de contraseña e idempotencia. Total de pruebas backend: 944 tests en verde.
 - **Reconciliación Documental y Avisos de Prototipo (T7, Plan Post-Auditoría)**:
   - Documentación de arquitectura (`docs/DECISIONES.md`): estado fijado como `PROPUESTO — pendiente de aprobación de Juan` para todos los ADRs de Fase 2 (ADR-011 a ADR-020) sin auto-aprobación y preservando notas de verificación normativa ("verificar con la norma vigente").
   - Incorporación de ADR-020 para F2.8 describiendo la validación colombiana en memoria (formato regex de documentos CC/TI/RC/CE/PA, coherencia etaria y prefijos de celular) y transporte Brevo API HTTP sin citas no verificadas a resoluciones externas.
