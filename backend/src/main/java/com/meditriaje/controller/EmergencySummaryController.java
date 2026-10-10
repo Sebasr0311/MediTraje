@@ -8,6 +8,7 @@ import com.meditriaje.service.EmergencyQrService;
 import com.meditriaje.service.EmergencySummaryService;
 import com.meditriaje.util.IpUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,7 +39,7 @@ public class EmergencySummaryController {
         this(emergencyQrService, emergencySummaryService, new QrRateLimiter(15, 60));
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public EmergencySummaryController(
             EmergencyQrService emergencyQrService,
             EmergencySummaryService emergencySummaryService,

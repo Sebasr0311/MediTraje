@@ -32,6 +32,7 @@ import com.meditriaje.repository.ProfesionalRepository;
 import com.meditriaje.repository.SedeRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import com.meditriaje.repository.ValoracionTriajeRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,6 +101,7 @@ public class EmergencyService {
         );
     }
 
+    @Autowired
     public EmergencyService(
             EpisodioAtencionRepository episodioRepository,
             IngresoUrgenciaRepository ingresoRepository,

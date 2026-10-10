@@ -1,6 +1,7 @@
 package com.meditriaje.security;
 
 import com.meditriaje.exception.LimitePeticionesExcedidoException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -27,7 +28,7 @@ public class QrRateLimiter {
         this(15, 60, Clock.systemUTC());
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public QrRateLimiter(
             @Value("${meditriaje.security.qr.rate-limit-per-window:15}") int maxPeticionesPorVentana,
             @Value("${meditriaje.security.qr.rate-limit-window-seconds:60}") long ventanaSegundos

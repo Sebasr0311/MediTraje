@@ -22,6 +22,7 @@ import com.meditriaje.triage.MotorTriaje;
 import com.meditriaje.triage.ResultadoTriaje;
 import com.meditriaje.triage.SintomaReportado;
 import com.meditriaje.triage.TriajeMotorFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +60,7 @@ public class TriajeService {
         this(triajeRepository, usuarioRepository, pacienteRepository, triajeMotorFactory, auditoriaService, null);
     }
 
+    @Autowired
     public TriajeService(
             TriajeRepository triajeRepository,
             UsuarioRepository usuarioRepository,
