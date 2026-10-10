@@ -75,6 +75,11 @@ public class SecurityConfig {
                     .policy("camera=(), microphone=(), geolocation=()")
                 );
                 headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::deny);
+                headers.httpStrictTransportSecurity(hsts -> hsts
+                    .maxAgeInSeconds(31536000)
+                    .includeSubDomains(true)
+                    .preload(true)
+                );
             })
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
@@ -95,8 +100,10 @@ public class SecurityConfig {
                     "/api/v1/auth/reset-password",
                     "/api/v1/auth/mfa/authenticate",
                     "/api/v1/emergency-summary/**",
+                    "/api/v1/operational/tracking-qr/**",
                     "/api/v1/assistant/**",
-                    "/actuator/**"
+                    "/actuator/health",
+                    "/actuator/info"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

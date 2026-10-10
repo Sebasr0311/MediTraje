@@ -47,6 +47,7 @@ public class TriajeService {
     private final PacienteRepository pacienteRepository;
     private final TriajeMotorFactory triajeMotorFactory;
     private final AuditoriaService auditoriaService;
+    private final AccesoClinicoService accesoClinicoService;
 
     public TriajeService(
             TriajeRepository triajeRepository,
@@ -55,11 +56,23 @@ public class TriajeService {
             TriajeMotorFactory triajeMotorFactory,
             AuditoriaService auditoriaService
     ) {
+        this(triajeRepository, usuarioRepository, pacienteRepository, triajeMotorFactory, auditoriaService, null);
+    }
+
+    public TriajeService(
+            TriajeRepository triajeRepository,
+            UsuarioRepository usuarioRepository,
+            PacienteRepository pacienteRepository,
+            TriajeMotorFactory triajeMotorFactory,
+            AuditoriaService auditoriaService,
+            AccesoClinicoService accesoClinicoService
+    ) {
         this.triajeRepository = Objects.requireNonNull(triajeRepository, "TriajeRepository no puede ser nulo");
         this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "UsuarioRepository no puede ser nulo");
         this.pacienteRepository = Objects.requireNonNull(pacienteRepository, "PacienteRepository no puede ser nulo");
         this.triajeMotorFactory = Objects.requireNonNull(triajeMotorFactory, "TriajeMotorFactory no puede ser nulo");
         this.auditoriaService = Objects.requireNonNull(auditoriaService, "AuditoriaService no puede ser nulo");
+        this.accesoClinicoService = accesoClinicoService;
     }
 
     /**
@@ -179,21 +192,25 @@ public class TriajeService {
                 ? authorities.stream().map(GrantedAuthority::getAuthority).collect(Collectors.toSet())
                 : Set.of();
 
-        // Regla no negociable: El Administrador NO accede a contenido clínico (ADR-007, AGENTS.md)
-        if (roles.contains("ROLE_ADMINISTRADOR")) {
-            throw new AccesoNoAutorizadoException("El personal administrativo no tiene acceso a informacion clinica.");
-        }
-
-        // Aislamiento de paciente: un paciente solo puede ver su propio triaje
-        if (roles.contains("ROLE_PACIENTE")) {
-            Paciente paciente = pacienteRepository.buscarPorUsuarioId(usuario.id())
-                    .orElseThrow(() -> new AccesoNoAutorizadoException("Solo pacientes registrados pueden consultar su triaje."));
-
-            if (!Objects.equals(triajeResponse.pacientePublicId(), paciente.publicId())) {
-                throw new AccesoNoAutorizadoException("No tiene autorizacion para acceder al triaje de otro paciente.");
+        if (accesoClinicoService != null && triajeResponse.pacientePublicId() != null) {
+            accesoClinicoService.validarAccesoHistorialClinico(usuario.publicId(), triajeResponse.pacientePublicId(), authorities);
+        } else {
+            // Regla no negociable: El Administrador NO accede a contenido clínico (ADR-007, AGENTS.md)
+            if (roles.contains("ROLE_ADMINISTRADOR")) {
+                throw new AccesoNoAutorizadoException("El personal administrativo no tiene acceso a informacion clinica.");
             }
-        } else if (!roles.contains("ROLE_PROFESIONAL")) {
-            throw new AccesoNoAutorizadoException("No tiene autorizacion para acceder al triaje.");
+
+            // Aislamiento de paciente: un paciente solo puede ver su propio triaje
+            if (roles.contains("ROLE_PACIENTE")) {
+                Paciente paciente = pacienteRepository.buscarPorUsuarioId(usuario.id())
+                        .orElseThrow(() -> new AccesoNoAutorizadoException("Solo pacientes registrados pueden consultar su triaje."));
+
+                if (!Objects.equals(triajeResponse.pacientePublicId(), paciente.publicId())) {
+                    throw new AccesoNoAutorizadoException("No tiene autorizacion para acceder al triaje de otro paciente.");
+                }
+            } else if (!roles.contains("ROLE_PROFESIONAL")) {
+                throw new AccesoNoAutorizadoException("No tiene autorizacion para acceder al triaje.");
+            }
         }
 
         return triajeResponse;

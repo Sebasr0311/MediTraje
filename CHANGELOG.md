@@ -7,6 +7,178 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Added
+- **Implementación Integral del Plan Maestro Codex (Fases 1 a 6 / Lotes B, U, H, A, C, O, Q)**:
+  - **Fase 1 (Lote B: B01–B04) — Estabilización y Línea Base de Calidad**:
+    - Mitigación de seguridad S01 en `TriajeService`: control estricto de autorización (ACL) sobre lectura de triajes por ID para evitar brechas IDOR entre pacientes.
+    - Mitigación S02 en `EmergencySummaryService`: control transaccional robusto `@Transactional(noRollbackFor = {CredencialesInvalidasException.class})` para persistir conteos de intentos fallidos de PIN sin abortar la transacción de auditoría.
+    - Documentación de ADR-022 a ADR-028 en `docs/DECISIONES.md` formalizando roles, inmutabilidad, aislamiento clínico y compatibilidad.
+    - Diagnóstico de brechas y línea base en `docs/ESTADO_VERIFICADO.md` y `docs/MATRIZ_BRECHAS_PLAN_MAESTRO.md`.
+    - Integración de Mockito JVM agent en `pom.xml` para Java 21 LTS sin advertencias dinámicas.
+  - **Fase 2 (Lote U: U01–U07) — Enfermería y Gestión Asistencial de Urgencias**:
+    - Migración Flyway `V018__enfermeria_urgencias_episodios.sql` creando `EPISODIO_ATENCION`, `INGRESO_URGENCIA`, `VALORACION_TRIAJE`, `ASIGNACION_ASISTENCIAL` e `IDENTIDAD_PROVISIONAL`.
+    - Módulo de admisión de urgencias sin requerir documento previo ni cuenta de usuario (`EmergencyService.admitirUrgencia`).
+    - Soporte completo a pacientes sin identificación / indocumentados (NN) con generación de identidades provisionales opacas `NN-XXXXXX`, rasgos físicos referenciales y posterior vinculación a expedientes reales sin pérdida de historial (`PATCH /api/v1/emergency/provisional-identities/{id}/link-patient`).
+    - Motor de triaje presencial humano (Niveles I–V) con signos vitales, escala de coma de Glasgow y aval clínico obligatorio.
+    - Soporte de múltiples reevaluaciones dinámicas append-only en el tiempo.
+    - Cola priorizada de urgencias ordenada en tiempo real por severidad de triaje y sede asistencial.
+    - Vistas frontend para enfermería: `nursing-dashboard.js`, `nursing-admission.js`, `nursing-assessment.js`, `nursing-identity.js`.
+  - **Fase 3 (Lote H: H01–H06) — Gestión Hospitalaria, Camas y Traslados**:
+    - Migración Flyway `V019__gestion_hospitalaria_camas_movimientos.sql` creando `SALA_CONSULTORIO`, `CAMA_HOSPITALARIA` y `MOVIMIENTO_PACIENTE`.
+    - Inventario dinámico de salas, consultorios y camas con estados controlados (`DISPONIBLE`, `OCUPADA`, `EN_LIMPIEZA`, `EN_MANTENIMIENTO`).
+    - Asignación atómica de camas con prevención de doble ocupación concurrente.
+    - Registro inmutable de traslados intrahospitalarios, pase a quirófano y recuperación posquirúrgica.
+    - Proceso de egreso hospitalario médico (`HospitalService.registrarEgreso`) que concluye el episodio de atención y libera la cama a estado de desinfección/limpieza.
+    - Vistas frontend: `hospital-census.js`, `hospital-bed-management.js`, `hospital-discharge.js`.
+  - **Fase 4 (Lotes A y C: A01–A06, C01–C04) — Afiliaciones EPS y Citas Avanzadas**:
+    - Integración de Apache POI OOXML 5.3.0 en `backend/pom.xml` con protección contra bombas de descompresión (Zip Bomb) mediante `ZipSecureFile.setMinInflateRatio(0.01)` y desinfección preventiva de inyección de fórmulas de hoja de cálculo.
+    - Migración Flyway `V020__afiliaciones_eps_citas_avanzadas.sql` creando `ENTIDAD_EPS`, `AFILIACION_PACIENTE`, `LOTE_IMPORTACION_EPS`, `DETALLE_IMPORTACION_EPS`, `AUSENCIA_MEDICA` y `REPRESENTACION_LEGAL`.
+    - Proceso de importación masiva de afiliados mediante Excel con fases de previsualización (preview) y confirmación (commit) atómica (`ATOMIC_ALL`) o resiliente (`VALID_ROWS`).
+    - Conciliación de expedientes sin generación de credenciales ni usuarios ficticios en el sistema.
+    - Consulta de afiliación a EPS no bloqueante respetando el principio de atención inicial obligatoria de urgencias (Ley Estatutaria 1751 de 2015).
+    - Registro y bloqueo de agenda por ausencias médicas (`AUSENCIA_MEDICA`) y soporte para tutores y representación legal de menores (`REPRESENTACION_LEGAL`).
+    - Vistas frontend: `affiliation-import.js`, `affiliation-search.js`.
+  - **Fase 5 (Lote O: O01–O05) — Centro de Mando, Analítica Hospitalaria y QR Seguro**:
+    - Migración Flyway `V021__analitica_alertas_operativas_qr.sql` creando `ALERTA_OPERATIVA` y `SEGUIMIENTO_INTRAHOSPITALARIO_QR`.
+    - Tablero centralizado de mando con métricas de ocupación, tiempos de espera de urgencias, distribución de triaje y procedimientos quirúrgicos activos.
+    - Motor de detección de alertas operativas con reconocimiento auditable por personal facultado.
+    - Identificación y seguimiento intrahospitalario mediante código QR seguro con tokens aleatorios SHA-256 (cero PHI ni diagnósticos expuestos en el escaneo).
+    - Vista frontend: `operational-dashboard.js`.
+    - Especificación exhaustiva de interoperabilidad para el sistema de salud colombiano (`docs/INTEROPERABILIDAD_HOSPITALARIA_COLOMBIA.md`: RIPS JSON Resolución 2275 de 2023, CIE-10, CUPS, BDUA/ADRES y FHIR R4).
+  - **Fase 6 (Lote Q: Q01–Q06) — Cierre de Calidad, Auditoría y Verificación Integral**:
+    - Suite de 1002 pruebas unitarias y de integración backend ejecutadas satisfactoriamente (0 fallos, 0 errores).
+    - Suite de 13 pruebas automatizadas frontend ejecutadas satisfactoriamente (0 fallos).
+    - Matriz de trazabilidad consolidada (`docs/MATRIZ_TRAZABILIDAD_PLAN_MAESTRO.md`) demostrando cobertura verificada para los 27 requisitos funcionales (RF-001 a RF-027).
+
+### Fixed
+- **Correcciones de Seguridad Post-Auditoría (T11, Plan Post-Auditoría)**:
+  - **SEC-002 (Alta) — Endurecimiento Integral de Resumen QR de Emergencia**:
+    - Migración Flyway `database/migrations/V017__acceso_qr_pin_fallidos.sql` agregando columna `INTENTOS_PIN_FALLIDOS NUMBER(2) DEFAULT 0 NOT NULL` con restricción de no negatividad.
+    - Revocación atómica (`REVOCADO = 1`) tras 3 intentos fallidos de PIN en `AccesoTemporalQrRepository.registrarPinFallido()`; cómputo de intentos fallidos en `ACCESOS_REALIZADOS` preservando el techo `MAX_ACCESOS`.
+    - Limitador de tasa en memoria `QrRateLimiter` por dirección IP (15 req/min) en endpoints de verificación y consulta de QR con respuesta `HTTP 429 Too Many Requests` (`LIMITE_PETICIONES_EXCEDIDO`).
+    - Comparación de PIN en tiempo constante mediante Argon2id para mitigar ataques de canal lateral (timing attacks).
+    - Auditoría inmutable de fallos y bloqueos bajo la acción `ACCESO_EMERGENCIA_QR` con resultado `FALLO` o `BLOQUEADO`.
+    - Respuesta de error genérica unificada (`CredencialesInvalidasException`) para neutralizar enumeración de estado.
+    - Corrección y aclaración técnica de la prueba de PIN de T6 y adición de prueba exhaustiva de fuerza bruta `qr_fuerzaBrutaPin_tresIntentosRevocanToken()`.
+  - **SEC-001 (Media) — Neutralización Completa de Inyección de Fórmulas CSV**:
+    - Neutralización al exportar en frontend (`admin-reports.js`) y backend (`AdminAppointmentService.java`) anteponiendo comilla simple `'` ante caracteres `=`, `+`, `-`, `@`, `\t` y `\r`.
+    - Pruebas unitarias dedicadas en backend (`AdminAppointmentServiceTest`) y frontend (`frontend/tests/csv-sanitizer.test.js`).
+  - **SEC-003 (Baja) — Restricción de Actuator**:
+    - Restricción estricta en `SecurityConfig.java` de endpoints públicos de Actuator exclusivamente a `/actuator/health` y `/actuator/info` exactos; demás endpoints protegidos bajo autenticación.
+  - **SEC-004 (Baja) — Cabecera HSTS Explícita y Headers de Proxy**:
+    - Configuración explícita de `Strict-Transport-Security` con `max-age=31536000` (1 año), `includeSubDomains` y `preload`.
+    - Configuración de `server.forward-headers-strategy=framework` en `application.yml` y `application-prod.yml` para soporte transparente tras proxies reversos.
+  - **SEC-005 (Baja) — Documentación de Riesgo Aceptado en Seguridad**:
+    - Formalización en `docs/security/SECURITY.md` del análisis de riesgo aceptado para `'unsafe-inline'` en la directiva CSP `style-src`.
+
+### Added
+- **Actualización de Dependencias y Escaneo de Seguridad (T12, Plan Post-Auditoría)**:
+  - **Actualización a Spring Boot 3.5.16**: corrección de SEC-006 migrando el parent pom desde la versión 3.3.4 (fuera del ciclo de soporte comunitario abierto) hacia Spring Boot 3.5.16 (último parche abierto y mantenido de la línea 3.x), junto con Spring Security 6.5.11, Spring Framework 6.2.19, Tomcat 10.1.55 y Jackson 2.21.4.
+  - **Suite de Pruebas Intacta**: conservación del 100% de la suite de pruebas unitarias y de integración en verde (948 pruebas pasando sin debilitar aserciones ni omitir casos de borde).
+  - **Escaneo de Vulnerabilidades y Dependencias**:
+    - Incorporación de job automatizado `dependency-review` con `actions/dependency-review-action@v4` en la tubería de Integración Continua (`.github/workflows/ci.yml`).
+    - Configuración de `.github/dependabot.yml` para revisiones y alertas semanales de seguridad en dependencias Maven y GitHub Actions.
+    - Ejecución de escaneo directo sobre OSV Vulnerability Database reportando 0 vulnerabilidades en el core de Spring Boot 3.5.16, Spring Security 6.5.11 y JJWT 0.12.6; análisis de mitigación contextual para avisos de BouncyCastle 1.78.1 (restringido a Argon2id, sin exposición de GOST ni LDAP), Jackson y Tomcat.
+  - **ADR-021 en `docs/DECISIONES.md`**: especificación de la hoja de ruta estratégica y plan de transición futura hacia Spring Boot 4.1 (Java 21+, Jackson 3, Spring Security 7 y Spring Framework 7).
+- **Revisión de Seguridad Final y Auditoría de Superficie Expandida (T10, Plan Post-Auditoría)**:
+  - Ejecución de la auditoría de seguridad integral mediante la skill `meditriaje-security-review`, consolidando el informe formal en [`docs/security/REVISION_FINAL.md`](docs/security/REVISION_FINAL.md).
+  - Inspección exhaustiva de la superficie de ataque expandida en Fase 2:
+    - MFA/TOTP (RFC 6238) y 8 códigos de respaldo uniuso hasheados en base de datos.
+    - Recuperación de contraseña por OTP numérico de 6 dígitos con expiración (15 min), máximo 3 intentos, respuesta neutra anti-enumeración y revocación masiva de sesiones.
+    - Resumen QR de salud para emergencias: tokens de 256 bits, hash SHA-256 en reposo, PIN con Argon2id, límite de 3 lecturas, expiración a 15 min y revocación activa.
+    - Acceso excepcional Break-Glass: justificación $\ge 20$ caracteres, caducidad a 24h, aislamiento estricto (denegado a admin y pacientes), modalidad exclusiva de solo lectura (imposibilidad de iniciar atenciones sin cita) y auditoría inmutable.
+    - Farmacia y dispensación: autorización exclusiva `ROLE_FARMACEUTICO`, verificación de vigencia de receta y control matemático de saldos acumulados por ítem previniendo sobre-dispensación.
+    - Asistente virtual determinista: corte infalible ante palabras clave de riesgo vital remitiendo a la línea 123/urgencias, cero diagnósticos/medicamentos y cero acceso a expedientes individuales de pacientes.
+    - Notificaciones y correo transaccional: transporte HTTPS seguro vía Brevo API, sanitización de credenciales en logs (`[REDACTED_API_KEY]`), enmascaramiento de PII (`u***@domain.com`) y cero información clínica en plantillas.
+    - Base de datos: coherencia de grants mínimos para `MEDITRIAJE_APP` (cero privilegios `DELETE` en tablas clínicas y cero `UPDATE/DELETE` en `AUDITORIA`) y triggers PL/SQL de inmutabilidad.
+  - Matriz priorizada de 6 hallazgos técnicos (SEC-001 a SEC-006) detallando archivo exacto, línea, vector de ataque y propuesta de mitigación para evaluación y aprobación de Juan (cero modificaciones unilaterales en código).
+  - Suite de pruebas de regresión verificada al 100% verde: 944 pruebas unitarias y de integración pasando satisfactoriamente.
+- **Tuberías de CI/CD, Gitleaks y Pruebas E2E con Playwright (T9, Plan Post-Auditoría)**:
+  - Tubería de Integración Continua (`.github/workflows/ci.yml`): escaneo profundo de secretos con Gitleaks v8 sobre la totalidad del historial Git (`fetch-depth: 0`) con fallo inmediato ante hallazgos, compilación Java 21 Temurin con caché Maven, ejecución de 944 pruebas unitarias Surefire y pruebas de integración Failsafe con Testcontainers (`OracleIntegrationTest` con Oracle Free `gvenzl/oracle-free:23-slim-faststart`) y persistencia de reportes como artefactos por 7 días.
+  - Tubería End-to-End (`.github/workflows/e2e.yml`): servicio de contenedor efímero Oracle Free en GitHub Actions, script de aprovisionamiento de esquemas `MEDITRIAJE_OWNER` y `MEDITRIAJE_APP` ([`scripts/init-oracle-users.sql`](scripts/init-oracle-users.sql)), arranque de backend Spring Boot con datos demo sembrados (`DEMO_SEED=true`), servicio frontend estático y ejecución automatizada de Playwright en modo headless para los 3 flujos críticos de la plataforma:
+    1. Paciente: triaje asistencial leve con aviso legal, obtención de ruta sugerida y agendamiento transaccional de cita vinculada.
+    2. Profesional: agenda del día, apertura de atención médica, inspección de alergias clínicas, registro de signos vitales y diagnóstico CIE-10, cierre irreversible inmutable y emisión de receta médica desde catálogo.
+    3. Administrador: aislamiento estricto de seguridad verificando ausencia de enlaces clínicos en la UI y respuesta unificada `403 Forbidden` ante intentos de acceso directo a historias, recetas y contenido de salud (ADR-007).
+  - Configuración y suites de prueba Playwright (`e2e/`): `package.json`, `playwright.config.js`, captura de trazas (`trace.zip`), capturas de pantalla y videos en caso de fallo, con reglas de exclusión en `.gitignore` (`node_modules/`, `playwright-report/`, `test-results/`).
+  - Documentación técnica operativa en [`docs/CI_CD.md`](docs/CI_CD.md) y enlace en [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): instrucciones paso a paso para ejecución local de suites y matriz de variables/secretos en GitHub Actions (solo nombres y propósitos).
+- **Despliegue, Guion de Demostración y Backups (T8, Plan Post-Auditoría)**:
+  - `DemoDataSeeder` (`com.meditriaje.demo`): componente Spring programático desactivado por defecto (`DEMO_SEED=true`), idempotente y protegido con validación de dominio exclusivo (`@demo.meditriaje.test`) y contraseña segura (`DEMO_PASSWORD` >= 12 caracteres). Siembra clínica íntegra a través de servicios de aplicación respetando inmutabilidad relacional y auditoría (1 institución, 2 sedes, 4 especialidades, 5 médicos con 14 días de agenda, 10 pacientes con consentimientos, atenciones cerradas con CIE-10 y signos vitales, enmiendas, recetas emitidas y dispensadas, alergias y triajes).
+  - Manejo preventivo de `DEMO_RESET=true`: advertencia explícita en logs y documentación sobre inmutabilidad relacional en Oracle ATP (traspaso a `flyway clean` o reprovisionamiento con `MEDITRIAJE_OWNER`).
+  - `docs/DEPLOYMENT.md`: especificación técnica de despliegue en Render y Oracle ATP, segregación estricta de esquemas `MEDITRIAJE_OWNER` vs `MEDITRIAJE_APP`, inyección de Oracle Wallet vía Base64 (`WALLET_BASE64`) o Secret Files (`/etc/secrets/wallet`), cookies `Secure`, CORS de origen exacto, advertencias de capa gratuita (cold starts, suspensión ATP tras 7 días) y checklist de copias de seguridad manuales/automáticas en OCI Console.
+  - `scripts/prepare-wallet.sh` y `Dockerfile`: utilitario POSIX para decodificación y permisos restrictivos (600/700) del wallet de conexión en el inicio del contenedor Docker.
+  - `docs/DEMO.md`: guion en vivo cronometrado de 10 minutos con 8 momentos clave (registro con consentimiento, triaje leve con agendamiento, corte de emergencia 123, atención médica y receta, auditoría e IDOR 403, QR de salud de emergencia, dispensación y trazabilidad inmutable), tabla de usuarios demo y plan B de contingencia.
+  - Pruebas unitarias en `DemoDataSeederTest` (4 pruebas) verificando el aborto preventivo ante usuarios no demo, validación de contraseña e idempotencia. Total de pruebas backend: 944 tests en verde.
+- **Reconciliación Documental y Avisos de Prototipo (T7, Plan Post-Auditoría)**:
+  - Documentación de arquitectura (`docs/DECISIONES.md`): estado fijado como `PROPUESTO — pendiente de aprobación de Juan` para todos los ADRs de Fase 2 (ADR-011 a ADR-020) sin auto-aprobación y preservando notas de verificación normativa ("verificar con la norma vigente").
+  - Incorporación de ADR-020 para F2.8 describiendo la validación colombiana en memoria (formato regex de documentos CC/TI/RC/CE/PA, coherencia etaria y prefijos de celular) y transporte Brevo API HTTP sin citas no verificadas a resoluciones externas.
+  - Actualización de `docs/MVP.md` con especificaciones de inasistencia (`no-show`), alergias clínicas V016 y consulta asistencial previa.
+  - Actualización de `docs/PLAN_DE_TRABAJO.md` integrando F2.8 y el plan post-auditoría completo (T0 a T10).
+  - Actualización de `README.md` con badges oficiales (940 pruebas Surefire, 16 migraciones Flyway) y sección destacada §7 de limitaciones conocidas (estados reservados D2/D5, reglas v1-prototipo sin validación clínica formal, datos demo ficticios, despliegue gratuito no apto para producción).
+  - Avisos visibles de prototipo en UI en `frontend/index.html` (footer global), `frontend/js/views/patient-triage.js` (asistente y pantallas de resultado) y `frontend/js/views/emergency-summary-view.js` (resumen QR de emergencia) con la leyenda unificada: *"Prototipo académico. Orienta, no diagnostica ni reemplaza la valoración de un profesional de la salud."*
+- **Cierre de Brechas de Pruebas y Trazabilidad (T6, Plan Post-Auditoría, MVP.md §7)**:
+  - Implementación de 9 suites y casos de borde críticos para mitigación de riesgos de auditoría:
+    1. `CrossPatientIdAccessSecurityTest` (8 tests): mitigación IDOR en triaje (`/triage/{id}`), citas (`/appointments/{id}`), cancelación ajena (`/appointments/{id}/cancel`), historia clínica (`/patients/me/history`), recetas (`/prescriptions/{id}`), alergias (`/clinical/patients/{id}/allergies`, `/patients/me/allergies`) y QR de emergencia.
+    2. Rollback transaccional de recetas en `PrescriptionServiceTest` y `OracleIntegrationTest`: ante fallo en validación o inserción de ítems de la receta se garantiza rollback atómico completo sin cabecera huérfana en `RECETA` ni detalles parciales en `RECETA_DETALLE`, y sin registro espurio de auditoría.
+    3. `AdminClinicalAccessMetaSecurityTest` (8 tests): meta-test exhaustivo verificando 403 Forbidden para `ROLE_ADMINISTRADOR` en todos los endpoints clínicos (`/api/v1/clinical/**`, `/attentions/**`, `/prescriptions/**`, `/patients/me/history`, `/patients/me/prescriptions`, `/patients/me/allergies`, `/pharmacy/**`, `/follow-ups/**`, `/break-glass/**`).
+    4. Triggers de inmutabilidad en `OracleIntegrationTest`: verificación con usuario `MEDITRIAJE_APP` de triggers ORA en atenciones cerradas (`TR_ATENCION_INMUTABILIDAD`), signos vitales cerrados (`TR_SIGNO_VITAL_INMUTABILIDAD`), enmiendas (`TR_ENMIENDA_INMUTABILIDAD`), recetas (`TR_RECETA_INMUTABILIDAD`), dispensaciones (`TR_DISPENSACION_INMUTABILIDAD`) y alergias (`TR_ALERGIA_INMUTABILIDAD` según V016).
+    5. Grants mínimos en `OracleIntegrationTest`: verificación de que `MEDITRIAJE_APP` carece de permisos `DELETE` en tablas clínicas (`ATENCION`, `RECETA`, `ALERGIA`, `CONSENTIMIENTO`) y `UPDATE/DELETE` en `AUDITORIA`, con al menos 16 migraciones Flyway aplicadas.
+    6. Triaje puro y corte de emergencia en `MotorTriajeBasadoEnReglasTest` y `CorteEmergenciaTest`: default Nivel III cuando ninguna regla coincide (garantía de que nunca asigna Nivel V) y corte infalible a Nivel I Urgencias (123) para cada uno de los 6 síntomas de alarma tipificados en `V007__triaje.sql`.
+    7. `TokenLifecycleSecurityTest` (9 tests): ciclo de vida de tokens, rechazo de JWT expirados, tokens con firma manipulada, payload alterado, clave secreta ajena, tokens de desafío MFA usados indebidamente para acceso ordinario, refresh tokens expirados, revocados y detección activa de reuso de tokens revocando todas las sesiones del usuario (RFC 6749).
+    8. `SecurityLogSanitizationTest` (4 tests): captura de eventos de log con `ListAppender<ILoggingEvent>` garantizando cero PHI (evoluciones médicas, diagnósticos CIE-10, documentos nacionales de identidad) ni secretos (contraseñas, tokens JWT, correos en claro) durante login, atención médica, prescripción y QR.
+    9. `EmergencyQrAndBreakGlassSecurityTest` (9 tests): casos de borde en QR (expiración a 15 min, bloqueo tras superar 3 lecturas, bloqueo tras PIN erróneo, revocación por titular, rechazo de consulta de tokens ajenos) y Break-Glass (rechazo por justificación menor a 20 caracteres, expiración de vigencia tras 24 horas, rechazo a no profesionales y consulta de accesos de otros médicos).
+  - Actualización íntegra y honesta de `docs/TRAZABILIDAD.md` con estados `Cubierto`, `Parcial` y `Sin test`, y conteo oficial de Surefire: 940 pruebas ejecutadas en verde (0 fallos, 0 errores, 0 omitidas).
+- **Registro de Inasistencia (No-Show) y Blindaje Asistencial (T5, Decisión D4, Plan Post-Auditoría)**:
+  - Backend: endpoint `PATCH /api/v1/appointments/{publicId}/no-show` (`AppointmentController`) con `@PreAuthorize("hasAnyAuthority('ROLE_PROFESIONAL', 'ROLE_ADMINISTRADOR')")`.
+  - Reglas de dominio estrictas en `AppointmentService.marcarNoAsistio`:
+    - Autorización: profesional dueño del slot asignado o administrador. Pacientes u otros colegas reciben 403 `AccesoNoAutorizadoException`.
+    - Estado de origen: solo permitido desde citas en estado `PROGRAMADA`. Cualquier otro estado arroja 409 `ConflictoOperacionException`.
+    - Integridad clínica: prohibido marcar inasistencia si la cita cuenta con una atención médica vinculada (`atencionRepository.existePorCitaId`), arrojando 409 `ConflictoOperacionException`.
+    - Validación temporal estricta: solo aplicable una vez transcurrida o alcanzada la hora de inicio de la cita (`now >= slot.fechaHoraInicio()`). Intentos previos arrojan 400 `DatosInvalidosException`.
+    - Conservación del slot: el slot de disponibilidad no se libera (permanece `OCUPADO` reflejando el tiempo médico reservado).
+    - Auditoría inmutable obligatoria bajo `AccionAuditable.CITA_NO_ASISTIO` con usuario, ID público e IP.
+  - Modelo y DTO: `CitaResponse` enriquecido con `tieneAtencion`, `atencionPublicId` y `atencionEstado` con mapeo relacional en `CitaRepository` (`LEFT JOIN ATENCION`).
+  - Frontend: acción "No asistió" en agenda del profesional (`professional-agenda.js`) y panel administrativo (`admin-appointments.js`), visible únicamente cuando la cita está `PROGRAMADA`, ya ha comenzado y carece de atención clínica, acompañada de diálogo modal accesible con confirmación y advertencia.
+  - Pruebas automatizadas: 17 pruebas en `AppointmentServiceTest` y `AppointmentControllerTest` (llegando a 901 pruebas al 100% de éxito).
+- **Gestión e Inmutabilidad de Alergias Clínicas y Autorreportadas (T4, Decisión D3, Plan Post-Auditoría)**:
+  - Migración Flyway `V016__alergias_clinicas.sql`: ampliación de tabla `ALERGIA` con `PUBLIC_ID`, `ESTADO` (`ACTIVA`, `INACTIVA`), `ORIGEN` (`PROFESIONAL`, `PACIENTE`), campos de inactivación (`INACTIVADA_AT`, `MOTIVO_INACTIVACION`, `INACTIVADA_POR_USUARIO_ID`), índice único funcional `uq_alergia_activa_paciente_sustancia` para prevenir duplicados activos por paciente y sustancia (case-insensitive), y trigger `tr_alergia_inmutabilidad` que prohíbe `DELETE` y solo admite transición `ACTIVA → INACTIVA` con motivo obligatorio.
+  - Backend: `AllergyService`, `AlergiaRepository` JDBC 100% parametrizado, `ClinicalAllergyController` (`/api/v1/clinical/patients/{patientPublicId}/allergies`) y `PatientAllergyController` (`/api/v1/patients/me/allergies`).
+  - Control de acceso asistencial reforzado en `AccesoClinicoService`: validación de relación ordinaria para registro médico de alergias y regla explícita que bloquea escritura clínica a accesos de emergencia break-glass (solo lectura). Bloqueo total de acceso administrativo (403 Forbidden).
+  - Auditoría inmutable sin datos clínicos (PHI) para `ALERGIA_REGISTRADA`, `ALERGIA_CONSULTADA` y `ALERGIA_INACTIVADA`.
+  - Resumen de Emergencia QR (`EmergencySummaryService`): filtro exclusivo de alergias activas exponiendo trazabilidad del origen (`PROFESIONAL` vs `PACIENTE`).
+  - Frontend: componente reutilizable `professional-allergies-panel.js` con advertencia de seguridad clínica ("Sin alergias registradas (esto no confirma que no tenga)"), integrado en atención médica (`professional-attention.js`) y prescripción de recetas (`professional-prescription.js`). Nueva vista paciente `patient-allergies.js` con acceso desde dashboard (`patient-dashboard.js`) y badges de origen en `emergency-summary-view.js`.
+  - Pruebas automatizadas: 42 pruebas en `AlergiaRepositoryTest`, `AllergyServiceTest`, `ClinicalAllergyControllerTest`, `PatientAllergyControllerTest` y `EmergencySummaryServiceTest` (totalizando 884 pruebas al 100% de éxito).
+- **Transporte de Correo por API HTTP de Brevo y Visibilidad Operativa de Fallos (T3, Decisión D1, Plan Post-Auditoría)**:
+  - Implementación de `BrevoApiEmailTransport` con `HttpClient` nativo de Java 21 comunicándose vía HTTPS (puerto 443 estándar a `https://api.brevo.com/v3/smtp/email`) para resolver el bloqueo de puertos SMTP salientes (25, 465, 587) de la capa gratuita de Render.
+  - Timeouts seguros (conexión 5s, petición 10s), política de máximo 1 reintento exclusivo ante errores transitorios de red o 5xx (sin reintentos ante 4xx).
+  - Sanitización estricta de mensajes en `EmailUtil`: censura de API key por `[REDACTED_API_KEY]`, remoción de etiquetas HTML, truncamiento a ≤ 500 caracteres y enmascaramiento de correos electrónicos PII (`u***@domain.com`) en logs.
+  - Desacoplamiento de transportes con la interfaz `EmailTransport` y fábrica dinámica `EmailConfig`: soporte para `brevo-api` (producción), `smtp` (relevo local) y `log` (pruebas y desarrollo local con `LogEmailTransport`).
+  - `EmailService` y `DefaultEmailService` actualizados para devolver el record explícito inmutable `ResultadoEnvio(boolean exito, String codigo, String mensaje)` eliminando el silenciamiento de excepciones.
+  - Integración en `AppointmentNotificationService`: registro de `ESTADO_ENVIO = 'FALLIDO'` con mensaje de error en la tabla `RECORDATORIO_CITA` ante fallos de despacho, garantizando visibilidad operativa.
+  - Integración en `AuthService.solicitarRecuperacionPassword`: auditoría interna inmutable bajo la nueva acción `AccionAuditable.EMAIL_FALLIDO` ante fallos de entrega, manteniendo respuesta HTTP 200 genérica para mitigar ataques de enumeración de usuarios.
+  - Refuerzo de validación fail-fast en producción con `ProdEnvironmentValidator` y `ProdSecretsFailFastTest` (8 variables requeridas: incluye `BREVO_API_KEY`, `MAIL_FROM` y `MAIL_FROM_NAME`).
+  - Suite de pruebas automatizadas: 8 pruebas en `BrevoApiEmailTransportTest` (con mock server `HttpServer`), actualización de `EmailServiceTest` verificando `ResultadoEnvio.fallido` y ausencia de terminología clínica en las 5 plantillas HTML, pruebas en `AuthServiceTest` y `AppointmentNotificationServiceTest` (totalizando 854 pruebas al 100% de éxito).
+
+### Changed
+- **Máquina de Estados de Citas y Protección Operacional (T2, Decisión D2, Plan Post-Auditoría)**:
+  - Simplificación del flujo activo del ciclo de vida de citas médicas: `PROGRAMADA → ATENDIDA | CANCELADA | NO_ASISTIO`.
+  - Los estados `CONFIRMADA` y `REPROGRAMADA` quedan reservados (sin migraciones destructivas sobre enum, CHECK o índice único funcional `uq_cita_slot_activa`).
+  - `ClinicalAttentionService.iniciarAtencion` ya no altera el estado de la cita a `CONFIRMADA`; la cita permanece en `PROGRAMADA` mientras la atención clínica está en curso.
+  - Al cerrar la atención médica (`cerrarAtencion`), la cita transiciona de forma inmutable a `ATENDIDA`.
+  - Protección de integridad asistencial en `AppointmentService.cancelarCita`: rechazo con `409 ConflictoOperacionException` si la cita ya cuenta con una atención médica vinculada (abierta o cerrada).
+  - Compatibilidad histórica legacy en `CitaStateMachine`: transiciones salientes válidas desde `CONFIRMADA` hacia `ATENDIDA`, `CANCELADA` o `NO_ASISTIO` para registros previos.
+  - Actualización de documentación: ADR-006 en `docs/DECISIONES.md` (marcado como PROPUESTO), `docs/MVP.md` (HU-05 y HU-07) y colecciones `docs/api/API.md` y `docs/api/M6.http`.
+  - Pruebas unitarias y de integración exhaustivas en `CitaStateMachineTest`, `ClinicalAttentionServiceTest`, `AppointmentServiceTest` y `AppointmentControllerTest` (840 pruebas pasando al 100%).
+
+### Security
+- **Configuración Segura, Eliminación de Defaults en Producción y Fail-Fast (T1, Plan Post-Auditoría)**:
+  - Sanitización de contraseñas de ejemplo en documentación (`docs/database/DATABASE.md`) sustituidas por marcadores seguros `<password_owner>` y `<password_app>`.
+  - Escaneo completo de secretos en el árbol y la totalidad del historial Git con Gitleaks v8.30.1 y reglas regex específicas (`xkeysib-`, `xsmtpsib-`, `eyJ...`), documentado en `docs/security/ESCANEO_SECRETOS.md` con 0 hallazgos activos.
+  - Aislamiento de valores de conveniencia y secretos por defecto exclusivamente en `application-dev.yml` y `application-test.yml`.
+  - Eliminación de defaults en perfil base (`application.yml`) y de producción (`application-prod.yml`), configurando `spring.profiles.default: dev` para no contaminar arranques de producción.
+  - Implementación de `ProdEnvironmentValidator` con verificación inmediata `@PostConstruct` que aborta el arranque en producción ante la ausencia de `JWT_SECRET`, `DB_URL`, `DB_USER`, `DB_PASSWORD` o `CORS_ORIGINS`.
+  - Prueba automatizada de fail-fast en producción `ProdSecretsFailFastTest` con 5 casos parametrizados verificando el rechazo temprano ante la ausencia de cada secreto.
+  - Endurecimiento de `.gitignore` para bloquear llaves privadas y certificados (`*.jks`, `*.pem`, `*.key`).
+
 ### Fixed
 - **Refinamiento de UX/UI y Proporción Temporal en Calendario Médico Time-Grid (`admin-appointments.js`, `components.css`)**:
   - Escala temporal balanceada con `PX_PER_HOUR = 96` (1 hora = 96px, 30 min = 48px, 1 min = 1.6px) eliminando vacíos desproporcionados y logrando lectura cómoda.

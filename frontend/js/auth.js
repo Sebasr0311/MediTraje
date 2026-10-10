@@ -13,9 +13,11 @@ class AuthService extends EventTarget {
     this.isInitialized = false;
 
     // Escuchar expiración global de sesión desde el cliente API
-    window.addEventListener('auth:session-expired', () => {
-      this.handleSessionExpired();
-    });
+    if (typeof window !== 'undefined') {
+      window.addEventListener('auth:session-expired', () => {
+        this.handleSessionExpired();
+      });
+    }
   }
 
   get isAuthenticated() {
@@ -48,6 +50,10 @@ class AuthService extends EventTarget {
 
   get isFarmaceutico() {
     return this.hasRole('ROLE_FARMACEUTICO');
+  }
+
+  get isEnfermeria() {
+    return this.hasRole('ROLE_ENFERMERIA');
   }
 
   /**
@@ -176,11 +182,13 @@ class AuthService extends EventTarget {
   }
 
   setUserFromSession(session) {
+    if (!session) return;
+    const userObj = session.usuario || session;
     this.currentUser = {
-      publicId: session.publicId,
-      email: session.email,
-      roles: session.roles || [],
-      debeCambiarPassword: Boolean(session.debeCambiarPassword)
+      publicId: userObj.publicId,
+      email: userObj.email,
+      roles: userObj.roles || [],
+      debeCambiarPassword: Boolean(userObj.debeCambiarPassword)
     };
   }
 

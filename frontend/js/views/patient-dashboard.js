@@ -161,6 +161,32 @@ export async function patientDashboardView(container) {
           </div>
         </div>
       </div>
+
+      <!-- Mis Alergias e Hipersensibilidades (D3, T4) -->
+      <div class="card mb-8" id="cardPatientAllergies" style="border-left: 4px solid var(--warning);">
+        <div class="card-body flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div style="background-color: var(--warning-bg); color: var(--warning-text, #854D0E); width: 44px; height: 44px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              ${ui.icon('alert-circle', 'icon icon--md')}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <h3 class="text-lg font-bold" style="color: var(--text);">Mis Alergias e Hipersensibilidades</h3>
+                <span class="badge badge--warning text-xs font-semibold">Trazabilidad Clínica</span>
+              </div>
+              <p class="text-sm text-muted" style="margin: 0; max-width: 60ch;">
+                Declara y gestiona tus hipersensibilidades a fármacos o alimentos para que el personal de salud las consulte antes de prescribir.
+              </p>
+            </div>
+          </div>
+          <div>
+            <a href="#/patient/allergies" class="btn btn-secondary btn--md">
+              ${ui.icon('alert-circle', 'icon icon--sm')}
+              <span>Ver mis alergias</span>
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 

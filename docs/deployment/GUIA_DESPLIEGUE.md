@@ -103,12 +103,14 @@ En la pestaña **Environment** de tu servicio en Render, agrega las siguientes v
 | `JWT_SECRET` | *(string aleatorio de al menos 256 bits, ej. `openssl rand -base64 48`)* |
 | `CORS_ORIGINS` | `https://tu-proyecto.vercel.app` |
 | `FRONTEND_URL` | `https://tu-proyecto.vercel.app` |
-| `SMTP_HOST` | `smtp-relay.brevo.com` |
-| `SMTP_PORT` | `587` |
-| `SMTP_USERNAME` | *(usuario/correo de tu cuenta en Brevo)* |
-| `SMTP_PASSWORD` | *(clave maestra SMTP generada en Brevo)* |
-| `SMTP_FROM` | `notificaciones@tudominio.com` *(remitente validado en Brevo)* |
-| `SMTP_FROM_NAME` | `MediTriaje 2.0` |
+| `MAIL_TRANSPORT` | `brevo-api` *(transporte por defecto en prod vía HTTPS 443; Render bloquea SMTP en capa gratuita)* |
+| `BREVO_API_KEY` | *(clave de API de Brevo con prefijo `xkeysib-...` requerida en prod)* |
+| `MAIL_FROM` | `notificaciones@tudominio.com` *(remitente validado en Brevo)* |
+| `MAIL_FROM_NAME` | `MediTriaje 2.0` |
+| `SMTP_HOST` | `smtp-relay.brevo.com` *(opcional, solo si MAIL_TRANSPORT=smtp en entornos locales)* |
+| `SMTP_PORT` | `587` *(opcional)* |
+| `SMTP_USERNAME` | *(opcional)* |
+| `SMTP_PASSWORD` | *(opcional)* |
 
 ### D. Iniciar Despliegue y Verificar
 1. Haz clic en **Deploy Web Service**.
@@ -157,12 +159,13 @@ Para que las cookies seguras `HttpOnly` (`access_token`, `refresh_token`) funcio
 
 ---
 
-## 5. Paso 4: Configurar y Probar Brevo (SMTP Relay)
+## 5. Paso 4: Configurar y Probar Brevo (API HTTP Oficial)
 
-1. En el panel de [Brevo](https://app.brevo.com), accede a **Transactional** → **Settings** → **Configuration**.
-2. Verifica que el remitente configurado en `SMTP_FROM` esté validado en **Senders & IPs**.
-3. Copia tu clave API SMTP y asígnala a la variable `SMTP_PASSWORD` en Render.
-4. Con esto, tanto la entrega de credenciales iniciales para profesionales como el envío de códigos OTP de recuperación funcionarán inmediatamente.
+1. **Restricción de infraestructura en Render:** En la capa gratuita de Render, todo el tráfico saliente por puertos SMTP estándar (25, 465, 587) se encuentra bloqueado por políticas de la plataforma. MediTriaje 2.0 resuelve esto utilizando la **API HTTP de Brevo** sobre HTTPS (puerto 443 estándar a `https://api.brevo.com/v3/smtp/email`).
+2. En el panel de [Brevo](https://app.brevo.com), accede a **Senders, Domains & Dedicated IPs** y verifica que la dirección o dominio configurado en `MAIL_FROM` esté validado. Si no está verificado, Brevo rechazará los envíos con código 400.
+3. En la sección **SMTP & API** de Brevo, genera una clave de API v3 (prefijo `xkeysib-...`) y asígnala a la variable de entorno `BREVO_API_KEY` en Render.
+4. En producción, la aplicación ejecuta validación fail-fast (`ProdEnvironmentValidator`): si `BREVO_API_KEY`, `MAIL_FROM` o `MAIL_FROM_NAME` faltan, el despliegue abortará de inmediato para evitar que el servicio opere sin notificaciones ni recuperación de contraseñas.
+5. **Observabilidad y resiliencia:** Ante cualquier fallo en Brevo (p. ej. cuota excedida 429 o remitente no validado 400), el error queda registrado explícitamente en base de datos (`RECORDATORIO_CITA.ESTADO_ENVIO = 'FALLIDO'`) y en auditoría inmutable (`EMAIL_FALLIDO`), enmascarando correos (PII) y omitiendo por completo las API keys en logs.
 
 ---
 

@@ -262,6 +262,43 @@ public class AccesoClinicoService {
         }
     }
 
+    /**
+     * Determina si existe una relación asistencial ordinaria (cita futura o atención previa en ventana),
+     * excluyendo el acceso excepcional Break-Glass (ADR-007, ADR-017, T4).
+     */
+    public boolean tieneRelacionAsistencialOrdinaria(Long profesionalId, Long pacienteId) {
+        Objects.requireNonNull(profesionalId, "profesionalId no puede ser nulo");
+        Objects.requireNonNull(pacienteId, "pacienteId no puede ser nulo");
+
+        Instant ahora = clock.instant();
+
+        // 1. Cita activa futura
+        boolean tieneCitaFutura = citaRepository.existeCitaActivaFutura(profesionalId, pacienteId, ahora);
+        if (tieneCitaFutura) {
+            return true;
+        }
+
+        // 2. Atención previa propia en los últimos N meses (default 12 meses)
+        Instant fechaLimite = ZonedDateTime.ofInstant(ahora, ZONE_BOGOTA)
+                .minusMonths(ventanaMeses)
+                .toInstant();
+
+        return atencionRepository.existeAtencionPreviaEnVentana(profesionalId, pacienteId, fechaLimite);
+    }
+
+    /**
+     * Valida que el profesional cuente con autorización de escritura clínica sobre el paciente (ADR-007, ADR-017, T4).
+     * El acceso Break-Glass es estrictamente de solo lectura; cualquier registro o modificación exige relación asistencial ordinaria.
+     */
+    public void validarEscrituraClinica(Long profesionalId, Long pacienteId) {
+        if (!tieneRelacionAsistencialOrdinaria(profesionalId, pacienteId)) {
+            if (breakGlassRepository != null && breakGlassRepository.existeAccesoActivo(profesionalId, pacienteId, clock.instant())) {
+                throw new AccesoNoAutorizadoException("El acceso Break-Glass es de solo lectura; no permite registrar ni modificar informacion clinica.");
+            }
+            throw new AccesoNoAutorizadoException("El profesional no cuenta con una relacion asistencial activa con el paciente.");
+        }
+    }
+
     public int getVentanaMeses() {
         return ventanaMeses;
     }

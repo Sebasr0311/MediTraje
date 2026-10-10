@@ -162,6 +162,8 @@ class Router {
       this.navigate('/admin/dashboard');
     } else if (auth.isFarmaceutico) {
       this.navigate('/pharmacy/dispensation');
+    } else if (auth.isEnfermeria) {
+      this.navigate('/nursing/dashboard');
     } else {
       this.navigate('/');
     }

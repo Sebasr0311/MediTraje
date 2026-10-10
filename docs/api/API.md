@@ -108,7 +108,7 @@ Todas las respuestas de error utilizan la estructura canónica sin trazas de dep
 
 | Método | Endpoint | Roles Permitidos | Descripción |
 |---|---|---|---|
-| `POST` | `/api/v1/attentions` | `ROLE_PROFESIONAL` | Inicia una atención médica vinculada a una cita programada. La cita pasa atómicamente a `CONFIRMADA`. |
+| `POST` | `/api/v1/attentions` | `ROLE_PROFESIONAL` | Inicia una atención médica vinculada a una cita programada. La cita permanece en `PROGRAMADA` mientras la atención está abierta (Decisión D2). |
 | `POST` | `/api/v1/attentions/{publicId}/close` | `ROLE_PROFESIONAL` (autor) | Cierra irreversiblemente la atención registrando signos vitales y diagnóstico CIE-10. Cita pasa a `ATENDIDA`. |
 | `GET` | `/api/v1/attentions/{publicId}` | Autenticado (con relación) | Consulta el detalle clínico de la atención. Requiere relación asistencial activa (ADR-007). Admin bloqueado (`403`). |
 | `POST` | `/api/v1/attentions/{publicId}/amendments` | `ROLE_PROFESIONAL` | Registra una enmienda append-only sobre una atención ya cerrada. Inmutable y auditada. |

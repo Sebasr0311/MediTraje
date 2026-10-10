@@ -357,4 +357,37 @@ class TriajeServiceTest {
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).codigo()).isEqualTo("FIEBRE");
     }
+
+    @Test
+    void obtenerPorPublicId_conAccesoClinico_profesionalSinRelacionLanza403() {
+        AccesoClinicoService accesoClinicoMock = org.mockito.Mockito.mock(AccesoClinicoService.class);
+        TriajeService servicioConAcl = new TriajeService(
+                triajeRepository,
+                usuarioRepository,
+                pacienteRepository,
+                triajeMotorFactory,
+                auditoriaService,
+                accesoClinicoMock
+        );
+
+        String triajePublicId = "triaje-uuid-acl";
+        TriajeResponse responseMock = new TriajeResponse(
+                triajePublicId, "pac-uuid-1", "III", "CITA_PRESENCIAL", false, "v1-prototipo",
+                "Mensaje", "Aviso", List.of(), List.of(), null, AHORA
+        );
+
+        when(usuarioRepository.buscarPorPublicId(USUARIO_PUBLIC_ID)).thenReturn(Optional.of(usuarioMock));
+        when(triajeRepository.buscarPorPublicId(triajePublicId)).thenReturn(Optional.of(responseMock));
+        org.mockito.Mockito.doThrow(new AccesoNoAutorizadoException("No existe una relacion asistencial activa con el paciente."))
+                .when(accesoClinicoMock).validarAccesoHistorialClinico(eq(usuarioMock.publicId()), eq("pac-uuid-1"), any());
+
+        assertThatThrownBy(() -> servicioConAcl.obtenerPorPublicId(
+                triajePublicId,
+                USUARIO_PUBLIC_ID,
+                List.of(new SimpleGrantedAuthority("ROLE_PROFESIONAL"))
+        ))
+                .isInstanceOf(AccesoNoAutorizadoException.class)
+                .hasMessageContaining("No existe una relacion asistencial activa");
+    }
 }
+

@@ -12,12 +12,15 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
   flyway:
-    enabled: true
-    user: ${FLYWAY_USER}
-    password: ${FLYWAY_PASSWORD}
+    enabled: ${FLYWAY_ENABLED:false}
+    user: ${FLYWAY_USER:${DB_USER}}
+    password: ${FLYWAY_PASSWORD:${DB_PASSWORD}}
 
 cors:
   origins: ${CORS_ORIGINS}
+
+server:
+  forward-headers-strategy: framework
 
 management:
   endpoint:
@@ -36,6 +39,20 @@ security:
     refresh-expiration-days: 7
 
 app:
-  frontend-url: ${FRONTEND_URL}
+  frontend-url: ${FRONTEND_URL:https://meditriaje.com}
+
+meditriaje:
+  mail:
+    transport: ${MAIL_TRANSPORT:brevo-api}
+    brevo:
+      api-url: ${BREVO_API_URL:https://api.brevo.com/v3/smtp/email}
+      api-key: ${BREVO_API_KEY}
+    from: ${MAIL_FROM}
+    from-name: ${MAIL_FROM_NAME}
+  demo:
+    seed: ${DEMO_SEED:false}
+    password: ${DEMO_PASSWORD:}
+    reset: ${DEMO_RESET:false}
+
 
 

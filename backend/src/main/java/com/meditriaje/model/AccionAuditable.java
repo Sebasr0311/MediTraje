@@ -51,5 +51,59 @@ public enum AccionAuditable {
     /** Activación de acceso clínico excepcional de emergencia Break-Glass (F2.5, ADR-017). */
     ACCESO_BREAK_GLASS,
     /** Consulta de reportes y métricas operativas por administradores (F2.6, RF-30, ADR-018). */
-    CONSULTA_REPORTE_ADMINISTRATIVO
+    CONSULTA_REPORTE_ADMINISTRATIVO,
+    /** Fallo en el despacho de correo transaccional sin exponer datos sensibles (D1, T3). */
+    EMAIL_FALLIDO,
+    /** Registro de alergia o hipersensibilidad clínica o autorreportada (D3, T4). */
+    ALERGIA_REGISTRADA,
+    /** Consulta de alergias e historial de hipersensibilidades (D3, T4). */
+    ALERGIA_CONSULTADA,
+    /** Inactivación de alergia por profesional o paciente con motivo obligatorio (D3, T4). */
+    ALERGIA_INACTIVADA,
+    /** Registro de inasistencia (no-show) del paciente a la cita médica por profesional o admin (D4, T5). */
+    CITA_NO_ASISTIO,
+    /** Registro de ingreso a urgencias y creación de episodio (Fase U, ADR-022). */
+    INGRESO_URGENCIA_REGISTRADO,
+    /** Registro de identidad provisional para paciente no identificado NN (Fase U, ADR-023). */
+    IDENTIDAD_PROVISIONAL_REGISTRADA,
+    /** Reconciliación de identidad provisional hacia paciente civil confirmado (Fase U, ADR-023). */
+    IDENTIDAD_PROVISIONAL_RECONCILIADA,
+    /** Registro o reevaluación de valoración de triaje presencial (Fase U, ADR-027). */
+    VALORACION_TRIAJE_REGISTRADA,
+    /** Asignación de equipo asistencial a episodio de urgencias (Fase U, ADR-022). */
+    ASIGNACION_ASISTENCIAL_REGISTRADA,
+    /** Cierre o egreso de episodio de urgencias (Fase U, ADR-022). */
+    EPISODIO_CERRADO,
+    /** Asignación u ocupación de cama hospitalaria (Fase H, ADR-024). */
+    ASIGNACION_CAMA_REGISTRADA,
+    /** Liberación y cambio a limpieza de cama hospitalaria (Fase H, ADR-024). */
+    LIBERACION_CAMA_REGISTRADA,
+    /** Traslado o movimiento intrahospitalario del paciente (Fase H, ADR-024). */
+    MOVIMIENTO_PACIENTE_REGISTRADO,
+    /** Solicitud o registro de procedimiento/cirugía hospitalaria (Fase H, ADR-024). */
+    PROCEDIMIENTO_HOSPITALARIO_REGISTRADO,
+    /** Transición de estado en procedimiento quirúrgico/recuperación (Fase H, ADR-024). */
+    PROCEDIMIENTO_ESTADO_ACTUALIZADO,
+    /** Egreso hospitalario con epicrisis y destino de alta (Fase H, ADR-024). */
+    EGRESO_HOSPITALARIO_REGISTRADO,
+    /** Actualización de estado operativo o mantenimiento de cama (Fase H, ADR-024). */
+    ESTADO_CAMA_ACTUALIZADO,
+    /** Previsualización y validación de lote de afiliados EPS en Excel (Fase A, ADR-025). */
+    IMPORTACION_EPS_PREVIEW,
+    /** Confirmación e importación atómica de lote de afiliados EPS (Fase A, ADR-025). */
+    IMPORTACION_EPS_COMMIT,
+    /** Consulta de aseguramiento y estado de afiliación EPS (Fase A, ADR-025). */
+    AFILIACION_CONSULTADA,
+    /** Registro de ausencia médica o bloqueo de agenda (Fase C, ADR-026). */
+    AUSENCIA_MEDICA_REGISTRADA,
+    /** Reprogramación atómica de cita médica (Fase C, ADR-026). */
+    CITA_REPROGRAMADA,
+    /** Registro de representación legal o tutor para menor de edad (Fase C, ADR-026). */
+    REPRESENTACION_LEGAL_REGISTRADA,
+    /** Reconocimiento/atención de alerta operativa de saturación hospitalaria (Fase O, ADR-027). */
+    ALERTA_OPERATIVA_RECONOCIDA,
+    /** Generación de código QR seguro para seguimiento intrahospitalario del paciente (Fase O, ADR-028). */
+    QR_SEGUIMIENTO_GENERADO,
+    /** Lectura o escaneo de código QR de seguimiento de paciente (Fase O, ADR-028). */
+    QR_SEGUIMIENTO_ESCANEADO
 }

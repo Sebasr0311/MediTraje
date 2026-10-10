@@ -9,6 +9,7 @@ import com.meditriaje.repository.RecordatorioCitaRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import com.meditriaje.service.email.EmailService;
 import com.meditriaje.service.email.EmailTemplateService;
+import com.meditriaje.service.email.ResultadoEnvio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -91,6 +92,7 @@ class AppointmentNotificationServiceTest {
     @DisplayName("enviarConfirmacionReserva exitoso despacha correo y registra ENVIADO en BD")
     void enviarConfirmacionReserva_exitoso() {
         when(templateService.renderizar(anyString(), anyMap())).thenReturn("<html>Confirmacion</html>");
+        when(emailService.enviarCorreoHtml(anyString(), anyString(), anyString())).thenReturn(ResultadoEnvio.exitoso());
 
         notificationService.enviarConfirmacionReserva(10L, 20L, "carlos@example.com", dummyCita);
 
@@ -113,7 +115,24 @@ class AppointmentNotificationServiceTest {
     }
 
     @Test
-    @DisplayName("enviarConfirmacionReserva ante fallo SMTP no lanza excepción y registra FALLIDO")
+    @DisplayName("enviarConfirmacionReserva ante fallo visible de transporte registra FALLIDO y mensaje de error")
+    void enviarConfirmacionReserva_falloTransporte_registraFallido() {
+        when(templateService.renderizar(anyString(), anyMap())).thenReturn("<html>Confirmacion</html>");
+        when(emailService.enviarCorreoHtml(anyString(), anyString(), anyString()))
+                .thenReturn(ResultadoEnvio.fallido("BREVO_400", "Sender domain not verified in Brevo"));
+
+        notificationService.enviarConfirmacionReserva(10L, 20L, "carlos@example.com", dummyCita);
+
+        ArgumentCaptor<RecordatorioCita> captor = ArgumentCaptor.forClass(RecordatorioCita.class);
+        verify(recordatorioCitaRepository).guardar(captor.capture());
+
+        RecordatorioCita guardado = captor.getValue();
+        assertThat(guardado.estadoEnvio()).isEqualTo("FALLIDO");
+        assertThat(guardado.errorMensaje()).contains("Sender domain not verified in Brevo");
+    }
+
+    @Test
+    @DisplayName("enviarConfirmacionReserva ante excepción de transporte no lanza excepción y registra FALLIDO")
     void enviarConfirmacionReserva_falloSmtp_tolerante() {
         when(templateService.renderizar(anyString(), anyMap())).thenReturn("<html>Confirmacion</html>");
         doThrow(new RuntimeException("Connection refused to mail.server.com:25"))
@@ -134,6 +153,7 @@ class AppointmentNotificationServiceTest {
     @DisplayName("enviarNotificacionCancelacion exitoso despacha correo y registra CANCELACION")
     void enviarNotificacionCancelacion_exitoso() {
         when(templateService.renderizar(anyString(), anyMap())).thenReturn("<html>Cancelacion</html>");
+        when(emailService.enviarCorreoHtml(anyString(), anyString(), anyString())).thenReturn(ResultadoEnvio.exitoso());
 
         notificationService.enviarNotificacionCancelacion(10L, 20L, "carlos@example.com", dummyCita, "Calamidad doméstica");
 

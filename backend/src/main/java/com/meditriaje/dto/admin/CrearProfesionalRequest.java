@@ -32,12 +32,40 @@ public record CrearProfesionalRequest(
         String telefono,
 
         @NotBlank(message = "La especialidad es obligatoria.")
-        String especialidadPublicId
+        String especialidadPublicId,
+
+        String rol
 ) {
     public CrearProfesionalRequest {
         if (tipoDocumento == null || tipoDocumento.isBlank()) {
             tipoDocumento = "CC";
         }
+        if (rol == null || rol.isBlank()) {
+            rol = "ROLE_PROFESIONAL";
+        }
+    }
+
+    public CrearProfesionalRequest(
+            String tipoDocumento,
+            String numeroDocumento,
+            String registroMedico,
+            String nombres,
+            String apellidos,
+            String email,
+            String telefono,
+            String especialidadPublicId
+    ) {
+        this(
+                tipoDocumento,
+                numeroDocumento,
+                registroMedico,
+                nombres,
+                apellidos,
+                email,
+                telefono,
+                especialidadPublicId,
+                "ROLE_PROFESIONAL"
+        );
     }
 
     public CrearProfesionalRequest(
@@ -55,7 +83,8 @@ public record CrearProfesionalRequest(
                 apellidos,
                 email,
                 null,
-                especialidadPublicId
+                especialidadPublicId,
+                "ROLE_PROFESIONAL"
         );
     }
 }

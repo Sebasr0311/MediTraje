@@ -169,9 +169,9 @@ public class AdminAppointmentService {
 
     private String limpiarCsv(String valor) {
         if (valor == null) return "";
-        String s = valor.trim().replace("\"", "\"\"");
-        // Prevención de inyección CSV si inicia con fórmulas
-        if (s.startsWith("=") || s.startsWith("+") || s.startsWith("-") || s.startsWith("@")) {
+        String s = valor.replace("\"", "\"\"");
+        // Prevención de inyección CSV si inicia con fórmulas (=, +, -, @, \t, \r) (SEC-001)
+        if (s.startsWith("=") || s.startsWith("+") || s.startsWith("-") || s.startsWith("@") || s.startsWith("\t") || s.startsWith("\r")) {
             s = "'" + s;
         }
         return "\"" + s + "\"";

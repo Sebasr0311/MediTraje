@@ -194,6 +194,50 @@ export const pharmacyApi = {
   listarSedes: () => api.get('/pharmacy/sites')
 };
 
+export const emergencyApi = {
+  registrarAdmision: (data) => api.post('/emergency/admissions', data),
+  obtenerDetalleEpisodio: (episodePublicId) => api.get(`/emergency/episodes/${episodePublicId}`),
+  reconciliarIdentidad: (episodePublicId, data) => api.post(`/emergency/episodes/${episodePublicId}/reconcile-identity`, data),
+  registrarValoracionTriaje: (episodePublicId, data) => api.post(`/emergency/episodes/${episodePublicId}/triage-assessments`, data),
+  listarHistorialTriaje: (episodePublicId) => api.get(`/emergency/episodes/${episodePublicId}/triage-assessments`),
+  asignarEquipo: (episodePublicId, data) => api.post(`/emergency/episodes/${episodePublicId}/assignments`, data),
+  listarColaUrgencias: (sedePublicId, estado = null) => api.get(`/emergency/queue/${sedePublicId}`, estado ? { estado } : {}),
+  cerrarEpisodio: (episodePublicId) => api.post(`/emergency/episodes/${episodePublicId}/close`, {}),
+  listarSedes: () => api.get('/admin/sites')
+};
+
 export const patientApi = {
   consultarDispensacionReceta: (publicId) => api.get(`/patients/me/prescriptions/${publicId}/dispensation`)
+};
+
+export const hospitalApi = {
+  asignarCama: (episodeId, data) => api.post(`/hospital/episodes/${episodeId}/beds/assign`, data),
+  trasladarPaciente: (episodeId, data) => api.post(`/hospital/episodes/${episodeId}/beds/transfer`, data),
+  cambiarEstadoCama: (camaId, nuevoEstado) => api.patch(`/hospital/beds/${camaId}/status`, null, { nuevoEstado }),
+  registrarProcedimiento: (episodeId, data) => api.post(`/hospital/episodes/${episodeId}/procedures`, data),
+  actualizarEstadoProcedimiento: (procedimientoId, data) => api.patch(`/hospital/procedures/${procedimientoId}/status`, data),
+  registrarEgreso: (episodeId, data) => api.post(`/hospital/episodes/${episodeId}/discharge`, data),
+  obtenerCenso: (sedeId) => api.get(`/hospital/census/${sedeId}`),
+  listarCamas: (sedeId) => api.get(`/hospital/beds/${sedeId}`),
+  listarMovimientos: (episodeId) => api.get(`/hospital/episodes/${episodeId}/movements`),
+  listarProcedimientos: (episodeId) => api.get(`/hospital/episodes/${episodeId}/procedures`)
+};
+
+export const affiliationApi = {
+  listarEps: () => api.get('/affiliations/eps'),
+  cargarPreviewExcel: (formData) => api.post('/affiliations/upload-preview', formData),
+  confirmarLote: (loteId, modoCommit = 'VALID_ROWS') => api.post(`/affiliations/batches/${loteId}/commit`, { modoCommit }),
+  consultarAfiliacion: (tipoDoc, numDoc) => api.get(`/affiliations/patients/${tipoDoc}/${numDoc}`),
+  registrarAusencia: (data) => api.post('/affiliations/absences', data),
+  listarAusencias: (profId) => api.get(`/affiliations/professionals/${profId}/absences`),
+  registrarTutor: (data) => api.post('/affiliations/guardians', data),
+  listarMenoresTutor: (tutorId) => api.get(`/affiliations/guardians/${tutorId}/minors`)
+};
+
+export const operationalApi = {
+  obtenerDashboard: (sedePublicId = null) => api.get('/operational/dashboard', sedePublicId ? { sedePublicId } : {}),
+  listarAlertas: (sedePublicId = null, estado = null) => api.get('/operational/alerts', { ...(sedePublicId && { sedePublicId }), ...(estado && { estado }) }),
+  reconocerAlerta: (alertaId, motivo) => api.post(`/operational/alerts/${alertaId}/acknowledge`, { motivo }),
+  generarTrackingQr: (episodioId) => api.post(`/operational/episodes/${episodioId}/tracking-qr`, {}),
+  consultarTrackingQr: (token) => api.get(`/operational/tracking-qr/${token}`)
 };

@@ -151,12 +151,7 @@ public class ClinicalAttentionService {
             throw new DatosInvalidosException("Ya existe una atencion clinica registrada para esta cita medica.");
         }
 
-        // Si la cita estaba PROGRAMADA, se confirma al iniciar la atención
-        if ("PROGRAMADA".equalsIgnoreCase(cita.estado())) {
-            CitaStateMachine.validarTransicion(EstadoCita.PROGRAMADA, EstadoCita.CONFIRMADA);
-            citaRepository.actualizarEstado(cita.id(), "CONFIRMADA", null);
-        }
-
+        // En el flujo D2, la cita permanece en su estado actual (PROGRAMADA) mientras la atención esté en curso.
         String atencionPublicId = UUID.randomUUID().toString();
         Atencion atencion = new Atencion(
                 null,

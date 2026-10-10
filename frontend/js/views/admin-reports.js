@@ -394,6 +394,19 @@ function renderDistributionList(items, emptyMsg = 'No hay datos registrados en e
 }
 
 /**
+ * Sanitiza el contenido de una celda CSV neutralizando fórmulas de hoja de cálculo (SEC-001 / DDE).
+ * Si la cadena inicia con '=', '+', '-', '@', '\t' o '\r', antepone una comilla simple.
+ */
+export function sanitizeCsvCell(val) {
+  if (val === null || val === undefined) return '';
+  const s = String(val).replace(/"/g, '""');
+  if (/^[=+\-@\t\r]/.test(s)) {
+    return `'${s}`;
+  }
+  return s;
+}
+
+/**
  * Exporta las métricas operativas agregadas a un archivo plano CSV (RF-30, ADR-019).
  * Incluye BOM UTF-8 para compatibilidad nativa con Microsoft Excel.
  */
@@ -460,7 +473,8 @@ function exportarReporteCsv(data, fechaDesde, fechaHasta) {
     rows.push(['BREAK_GLASS POR ESPECIALIDAD', it.etiqueta, it.cantidad, `${it.porcentaje}%`]);
   });
 
-  const csvContent = '\uFEFF' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+
+  const csvContent = '\uFEFF' + rows.map(r => r.map(c => `"${sanitizeCsvCell(c)}"`).join(',')).join('\r\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

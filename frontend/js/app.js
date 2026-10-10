@@ -15,6 +15,7 @@ import { patientHistoryView } from './views/patient-history.js';
 import { patientPrescriptionsView } from './views/patient-prescriptions.js';
 import { patientFollowUpsView } from './views/patient-follow-ups.js';
 import { patientEmergencyQrView } from './views/patient-emergency-qr.js';
+import { patientAllergiesView } from './views/patient-allergies.js';
 import { emergencySummaryView } from './views/emergency-summary-view.js';
 import { professionalAgendaView } from './views/professional-agenda.js';
 import { professionalAttentionView } from './views/professional-attention.js';
@@ -23,6 +24,16 @@ import { professionalPatientHistoryView } from './views/professional-patient-his
 import { adminDashboardView } from './views/admin-views.js';
 import { pharmacyDispensationView } from './views/pharmacy-dispensation.js';
 import { landingView } from './views/landing-view.js';
+import { nursingDashboardView } from './views/nursing-dashboard.js';
+import { nursingAdmissionView } from './views/nursing-admission.js';
+import { nursingAssessmentView } from './views/nursing-assessment.js';
+import { nursingIdentityView } from './views/nursing-identity.js';
+import { hospitalCensusView } from './views/hospital-census.js';
+import { hospitalBedManagementView } from './views/hospital-bed-management.js';
+import { hospitalDischargeView } from './views/hospital-discharge.js';
+import { renderAffiliationImport } from './views/affiliation-import.js';
+import { renderAffiliationSearch } from './views/affiliation-search.js';
+import { renderOperationalDashboard } from './views/operational-dashboard.js';
 import { initSystemAssistantWidget } from './views/system-assistant-widget.js';
 
 // Inicialización de Tema Claro / Oscuro
@@ -77,6 +88,10 @@ function updateNavbar() {
       roleName = 'Farmacia';
       roleBadgeClass = 'badge--confirmed';
       dashboardLink = '#/pharmacy/dispensation';
+    } else if (auth.isEnfermeria) {
+      roleName = 'Enfermería';
+      roleBadgeClass = 'badge--in-progress';
+      dashboardLink = '#/nursing/dashboard';
     }
 
     if (brandLink) {
@@ -166,6 +181,7 @@ function setupRoutes() {
   router.addRoute('/patient/prescriptions', patientPrescriptionsView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
   router.addRoute('/patient/follow-ups', patientFollowUpsView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
   router.addRoute('/patient/emergency-qr', patientEmergencyQrView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
+  router.addRoute('/patient/allergies', patientAllergiesView, { requiresAuth: true, requiredRole: 'ROLE_PACIENTE' });
 
   // Ruta pública: Resumen de Emergencia por Token QR (ADR-010, F2.3.5)
   router.addRoute('/emergency-summary/:token', emergencySummaryView);
@@ -192,6 +208,27 @@ function setupRoutes() {
   // Rutas F2.4: Ventanilla de Dispensación Farmacéutica (ADR-016)
   router.addRoute('/pharmacy/dispensation', pharmacyDispensationView, { requiresAuth: true, requiredRole: 'ROLE_FARMACEUTICO' });
   router.addRoute('/pharmacy', pharmacyDispensationView, { requiresAuth: true, requiredRole: 'ROLE_FARMACEUTICO' });
+
+  // Rutas Fase U: Circuito de Enfermería, Urgencias Presenciales y Triaje I-V (U01-U07)
+  router.addRoute('/nursing/dashboard', nursingDashboardView, { requiresAuth: true, requiredRole: 'ROLE_ENFERMERIA' });
+  router.addRoute('/nursing', nursingDashboardView, { requiresAuth: true, requiredRole: 'ROLE_ENFERMERIA' });
+  router.addRoute('/nursing/admission', nursingAdmissionView, { requiresAuth: true, requiredRole: 'ROLE_ENFERMERIA' });
+  router.addRoute('/nursing/assessment/:id', nursingAssessmentView, { requiresAuth: true });
+  router.addRoute('/nursing/identity/:id', nursingIdentityView, { requiresAuth: true, requiredRole: 'ROLE_ENFERMERIA' });
+
+  // Rutas Fase H: Gestión Hospitalaria, Camas, Movimientos y Egresos (H01-H06)
+  router.addRoute('/hospital/census', hospitalCensusView, { requiresAuth: true });
+  router.addRoute('/hospital', hospitalCensusView, { requiresAuth: true });
+  router.addRoute('/hospital/beds/:id', hospitalBedManagementView, { requiresAuth: true });
+  router.addRoute('/hospital/discharge/:id', hospitalDischargeView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
+
+  // Rutas Fase A/C: Aseguramiento EPS, Importación Masiva y Verificación (A01-A06, C01-C04)
+  router.addRoute('/admin/affiliations/import', renderAffiliationImport, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/affiliations/search', renderAffiliationSearch, { requiresAuth: true });
+
+  // Rutas Fase O: Centro de Mando, Analítica Hospitalaria, Alertas y QR (O01-O05)
+  router.addRoute('/operational/dashboard', renderOperationalDashboard, { requiresAuth: true });
+  router.addRoute('/operational', renderOperationalDashboard, { requiresAuth: true });
 
   // Manejador 404 No Encontrado
   router.notFound(async (container, { path }) => {

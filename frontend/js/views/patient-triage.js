@@ -84,8 +84,7 @@ function renderWizard(container) {
           <div class="alert-content">
             <div class="alert-title">Responde con calma</div>
             <p class="m-0 text-sm">
-              Esta herramienta orienta tu nivel de prioridad asistencial y te guía hacia la atención oportuna.
-              <strong>No constituye un diagnóstico médico</strong> ni reemplaza la valoración directa de un profesional de la salud.
+              <strong>Prototipo académico.</strong> Orienta, no diagnostica ni reemplaza la valoración de un profesional de la salud.
             </p>
           </div>
         </div>
@@ -659,7 +658,7 @@ export function renderEmergencyView(container, resultado) {
           <!-- Aviso legal obligatorio inmutable -->
           <div class="p-4" style="background-color: var(--surface-2); border-radius: var(--radius-md); font-size: var(--text-xs); color: var(--text-muted); line-height: var(--leading-normal);">
             <strong class="text-text block mb-1">Aviso de Orientación Asistencial:</strong>
-            <p class="m-0 mb-1">${resultado.aviso || 'Esta orientación es un prototipo, no sustituye la valoración de un profesional de la salud.'}</p>
+            <p class="m-0 mb-1">Prototipo académico. Orienta, no diagnostica ni reemplaza la valoración de un profesional de la salud.</p>
             <span class="font-mono text-muted" style="font-size: 11px;">Versión de reglas clínicas: ${resultado.versionReglas || 'v1-prototipo'}</span>
           </div>
         </div>
@@ -748,7 +747,7 @@ export function renderTriageResultView(container, resultado) {
           <!-- Aviso Legal Inmutable -->
           <div class="p-4" style="background-color: var(--surface-2); border-radius: var(--radius-md); font-size: var(--text-xs); color: var(--text-muted); line-height: var(--leading-normal);">
             <strong class="text-text block mb-1">Aviso de Orientación Asistencial:</strong>
-            ${resultado.aviso || 'Esta orientación es un prototipo, no sustituye la valoración de un profesional de la salud.'}
+            <p class="m-0">Prototipo académico. Orienta, no diagnostica ni reemplaza la valoración de un profesional de la salud.</p>
           </div>
         </div>
 

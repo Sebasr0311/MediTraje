@@ -40,9 +40,11 @@ Demostrar, de forma segura y auditada, el flujo mínimo completo:
 - Una cita ocupa un slot; opcionalmente se vincula al triaje.
 - Dos solicitudes simultáneas al mismo slot: una gana, la otra recibe error `CitaNoDisponible` (con prueba concurrente).
 
-**HU-05 Cancelar cita**
-- El paciente cancela hasta 2 horas antes. El slot se libera. Queda auditado.
-- Solo transiciones de estado permitidas (ver DECISIONES, ADR-006).
+**HU-05 Cancelar cita y registrar inasistencia**
+- El paciente cancela hasta 2 horas antes de la hora fijada. El slot se libera a `LIBRE`. Queda auditado.
+- El profesional asignado a la cita o el administrador pueden registrar inasistencia (`NO_ASISTIO`) una vez transcurrida o alcanzada la hora de inicio de la cita. El slot permanece `OCUPADO`.
+- Solo transiciones de estado activas permitidas (ADR-006, Decisión D2: `PROGRAMADA → CANCELADA | NO_ASISTIO | ATENDIDA`). Los estados `CONFIRMADA` y `REPROGRAMADA` quedan reservados fuera de alcance.
+- Si existe una atención clínica vinculada a la cita (abierta o cerrada), no se puede cancelar ni marcar inasistencia (409 Conflicto).
 
 **HU-06 Agenda del profesional**
 - El profesional ve únicamente sus citas.
@@ -50,23 +52,26 @@ Demostrar, de forma segura y auditada, el flujo mínimo completo:
 **HU-07 Registrar atención**
 - Solo el profesional con relación asistencial vigente con el paciente (ADR-007).
 - Campos: motivo, evolución, signos vitales, diagnóstico CIE-10, indicaciones.
+- Registro y consulta de alergias clínicas del paciente (y consulta de autorreportadas por el paciente). Inactivables con motivo obligatorio, sin borrado físico (`TR_ALERGIA_INMUTABILIDAD`, V016).
+- Iniciar la atención mantiene la cita en estado PROGRAMADA.
 - Al cerrar, la atención es inmutable; las correcciones se hacen con enmienda (ADR-008).
-- La cita pasa a ATENDIDA. El acceso queda auditado.
+- La cita pasa a ATENDIDA al cerrar la atención (Decisión D2). El acceso queda auditado.
 
 **HU-08 Crear receta**
-- Solo el profesional responsable de la atención.
-- Receta y detalles en una sola transacción (todo o nada).
+- Solo el profesional responsable de la atención o con relación asistencial activa.
+- Consulta previa de alergias activas del paciente en el panel de prescripción ("Sin alergias registradas (esto no confirma que no tenga)").
+- Receta y detalles en una sola transacción atómica (todo o nada, rollback si falla un detalle).
 - El detalle guarda copia (snapshot) del nombre y presentación del medicamento.
 
 **HU-09 Paciente consulta su información**
-- Ve sus citas, historia y recetas. Intentar ver las de otro paciente → 403/404 (con prueba).
+- Ve sus citas, historia, recetas y alergias propias. Intentar ver las de otro paciente → 403/404 (con prueba).
 
 **HU-10 Administración**
 - Gestiona instituciones, sedes, especialidades, profesionales y generación de slots.
 - Intentar leer contenido clínico → 403 (con prueba).
 
 **HU-11 Auditoría**
-- Se registran: login (éxito/fallo), acceso a historia, creación/cierre de atención, creación de receta, cancelación de cita, cambios administrativos.
+- Se registran: login (éxito/fallo), acceso a historia, creación/cierre de atención, creación de receta, cancelación de cita, inasistencia, cambios administrativos.
 - Sin datos clínicos en el registro, solo usuario, acción, recurso, id y resultado.
 
 ## 4. Tablas mínimas (propuesta)
@@ -78,13 +83,15 @@ Se omiten por ahora: PERMISO/ROL_PERMISO (roles simples), SERVICIO (se fusiona c
 ```
 POST  /api/v1/auth/register | login | refresh | logout
 GET   /api/v1/patients/me
-GET   /api/v1/patients/me/appointments | history | prescriptions
+GET   /api/v1/patients/me/appointments | history | prescriptions | allergies
+POST  /api/v1/patients/me/allergies | PATCH /api/v1/patients/me/allergies/{id}/deactivate
 POST  /api/v1/triage            GET /api/v1/triage/{id}
 GET   /api/v1/availability
-POST  /api/v1/appointments      PATCH /api/v1/appointments/{id}/cancel
+POST  /api/v1/appointments      PATCH /api/v1/appointments/{id}/cancel | /no-show
 GET   /api/v1/professionals/me/agenda
 POST  /api/v1/attentions        POST /api/v1/attentions/{id}/close
 POST  /api/v1/attentions/{id}/amendments
+GET/POST /api/v1/clinical/patients/{id}/allergies | PATCH /api/v1/clinical/allergies/{id}/deactivate
 POST  /api/v1/prescriptions
 GET   /api/v1/medications       GET /api/v1/catalogs/icd10
 CRUD  /api/v1/admin/{institutions|sites|specialties|professionals|slots}
