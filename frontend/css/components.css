@@ -3320,3 +3320,41 @@ body.has-sidebar.sidebar-is-pinned .app-footer {
   background-color: var(--slate-800);
   color: var(--teal-300);
 }
+
+/* ==========================================================================
+   26. PIE DE PÁGINA INSTITUCIONAL (.app-footer)
+   ========================================================================== */
+.app-footer {
+  flex-shrink: 0;
+  background-color: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: var(--space-6) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
+  margin-top: auto;
+  text-align: center;
+}
+
+.app-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.app-footer-disclaimer {
+  max-width: 650px;
+  margin: 0 auto;
+  line-height: 1.5;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 768px) {
+  .app-footer {
+    padding-bottom: calc(var(--space-16) + env(safe-area-inset-bottom));
+  }
+}

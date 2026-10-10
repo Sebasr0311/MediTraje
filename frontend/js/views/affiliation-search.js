@@ -54,31 +54,31 @@ export async function renderAffiliationSearch(container) {
 
       <div style="display: flex; flex-direction: column; gap: 0.75rem;">
         <div>
-          <span style="color: var(--color-text-secondary); font-size: 0.85rem; display: block;">Paciente</span>
+          <span style="color: var(--text-muted); font-size: 0.85rem; display: block;">Paciente</span>
           <strong id="res-paciente-nombre" style="font-size: 1.05rem;">-</strong>
-          <span id="res-paciente-doc" style="color: var(--color-text-secondary); font-size: 0.9rem;">-</span>
+          <span id="res-paciente-doc" style="color: var(--text-muted); font-size: 0.9rem;">-</span>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; border-top: 1px solid var(--color-border); padding-top: 0.75rem;">
+        <div class="grid grid-cols-1 grid-cols-2-md gap-3 pt-3 border-t">
           <div>
-            <span style="color: var(--color-text-secondary); font-size: 0.85rem; display: block;">Aseguradora (EPS)</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; display: block;">Aseguradora (EPS)</span>
             <strong id="res-eps-nombre">-</strong>
-            <div id="res-eps-codigo" style="font-size: 0.8rem; color: var(--color-text-secondary);">-</div>
+            <div id="res-eps-codigo" style="font-size: 0.8rem; color: var(--text-muted);">-</div>
           </div>
           <div>
-            <span style="color: var(--color-text-secondary); font-size: 0.85rem; display: block;">Régimen</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; display: block;">Régimen</span>
             <strong id="res-regimen">-</strong>
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; border-top: 1px solid var(--color-border); padding-top: 0.75rem;">
+        <div class="grid grid-cols-1 grid-cols-2-md gap-3 pt-3 border-t">
           <div>
-            <span style="color: var(--color-text-secondary); font-size: 0.85rem; display: block;">Tipo Afiliado</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; display: block;">Tipo Afiliado</span>
             <span id="res-tipo-afiliado">-</span>
           </div>
           <div>
-            <span style="color: var(--color-text-secondary); font-size: 0.85rem; display: block;">Fuente Verificación</span>
-            <span id="res-fuente-verif" style="font-size: 0.85rem; color: var(--color-text-secondary);">-</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; display: block;">Fuente Verificación</span>
+            <span id="res-fuente-verif" style="font-size: 0.85rem; color: var(--text-muted);">-</span>
           </div>
         </div>
       </div>

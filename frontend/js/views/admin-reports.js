@@ -180,7 +180,7 @@ function renderMetricas(target, data) {
 
   target.innerHTML = `
     <!-- 1. Tarjetas KPI de Resumen Global -->
-    <div class="grid grid-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 grid-cols-2-md grid-cols-4-lg gap-4 mb-6">
       <!-- KPI Citas -->
       <div class="card p-4">
         <div class="flex justify-between items-start mb-2">
@@ -243,7 +243,7 @@ function renderMetricas(target, data) {
     </div>
 
     <!-- 2. Sección Detallada: Citas Médicas y Triaje Clínico -->
-    <div class="grid grid-2 gap-6 mb-6">
+    <div class="grid grid-cols-1 grid-cols-2-md gap-6 mb-6">
       <!-- Desglose de Citas por Estado -->
       <div class="card">
         <div class="card-header pb-3 border-b mb-4 flex justify-between items-center">
@@ -283,7 +283,7 @@ function renderMetricas(target, data) {
     </div>
 
     <!-- 3. Sección: Demanda por Especialidad y Sedes Hospitalarias -->
-    <div class="grid grid-2 gap-6 mb-6">
+    <div class="grid grid-cols-1 grid-cols-2-md gap-6 mb-6">
       <!-- Citas por Especialidad -->
       <div class="card">
         <div class="card-header pb-3 border-b mb-4 flex justify-between items-center">
@@ -310,7 +310,7 @@ function renderMetricas(target, data) {
     </div>
 
     <!-- 4. Sección: Farmacia y Auditoría Break-Glass -->
-    <div class="grid grid-2 gap-6">
+    <div class="grid grid-cols-1 grid-cols-2-md gap-6">
       <!-- Estados de Dispensación -->
       <div class="card">
         <div class="card-header pb-3 border-b mb-4 flex justify-between items-center">

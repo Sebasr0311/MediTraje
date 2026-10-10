@@ -64,7 +64,7 @@ export async function hospitalCensusView(container) {
       </div>
 
       <!-- Tarjetas de Métricas de Capacidad (KPIs) -->
-      <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6" id="censusKpiGrid">
+      <div class="grid grid-cols-2 grid-cols-3-md grid-cols-6-lg gap-3 mb-6" id="censusKpiGrid">
         <div class="card p-3 text-center">
           <div class="text-xs text-muted font-bold uppercase">Total Camas</div>
           <div class="text-2xl font-bold mt-1" id="kpiTotalCamas">0</div>
@@ -102,7 +102,7 @@ export async function hospitalCensusView(container) {
           <h2 class="text-base font-bold m-0">Ocupación por Áreas y Pabellones</h2>
           <span class="text-xs text-muted">Capacidad por servicio asistencial</span>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3" id="areaSummaryGrid">
+        <div class="grid grid-cols-1 grid-cols-2-md grid-cols-4-lg gap-3" id="areaSummaryGrid">
           <p class="text-sm text-muted">Consultando áreas...</p>
         </div>
       </div>
@@ -135,7 +135,7 @@ export async function hospitalCensusView(container) {
       </div>
 
       <!-- Grid Visual de Camas -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" id="bedCardsGrid">
+      <div class="grid grid-cols-1 grid-cols-2-md grid-cols-4-lg gap-4" id="bedCardsGrid">
         <div class="p-8 text-center text-muted col-span-full">Cargando inventario de camas...</div>
       </div>
 

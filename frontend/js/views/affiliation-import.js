@@ -31,7 +31,7 @@ export async function renderAffiliationImport(container) {
       </div>
     </div>
 
-    <div class="grid grid-2" style="gap: 1.5rem; margin-top: 1rem;">
+    <div class="grid grid-cols-1 grid-cols-2-md gap-6 mt-4">
       <!-- Tarjeta de Carga -->
       <div class="card">
         <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">1. Selección y Carga de Archivo</h2>
@@ -46,7 +46,7 @@ export async function renderAffiliationImport(container) {
           <div>
             <label for="file-excel" class="label-required">Archivo Excel (.xlsx, máx. 10 MB)</label>
             <input type="file" id="file-excel" class="form-control" accept=".xlsx" required />
-            <small style="color: var(--color-text-secondary); display: block; margin-top: 0.25rem;">
+            <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
               Columnas requeridas: TIPO_DOCUMENTO, NUMERO_DOCUMENTO, NOMBRES, APELLIDOS, REGIMEN, TIPO_AFILIADO.
             </small>
           </div>
@@ -60,22 +60,22 @@ export async function renderAffiliationImport(container) {
       <!-- Tarjeta de Métricas de Validación -->
       <div class="card" id="card-metricas" style="display: none;">
         <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">2. Resultados del Pre-análisis</h2>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center; margin-bottom: 1.5rem;">
-          <div style="background: var(--color-bg-secondary); padding: 1rem; border-radius: var(--radius-md);">
-            <div style="font-size: 0.85rem; color: var(--color-text-secondary);">Total Filas</div>
+        <div class="grid grid-cols-1 grid-cols-3-md gap-3 text-center mb-6">
+          <div style="background: var(--surface-2); padding: 1rem; border-radius: var(--radius-md);">
+            <div style="font-size: 0.85rem; color: var(--text-muted);">Total Filas</div>
             <div id="stat-total" style="font-size: 1.75rem; font-weight: 700;">0</div>
           </div>
-          <div style="background: #e8f5e9; color: #2e7d32; padding: 1rem; border-radius: var(--radius-md);">
+          <div style="background: var(--success-bg, #DCFCE7); color: var(--on-success-bg, #14532D); padding: 1rem; border-radius: var(--radius-md);">
             <div style="font-size: 0.85rem;">Válidas</div>
             <div id="stat-validas" style="font-size: 1.75rem; font-weight: 700;">0</div>
           </div>
-          <div style="background: #ffebee; color: #c62828; padding: 1rem; border-radius: var(--radius-md);">
+          <div style="background: var(--danger-bg, #FEE2E2); color: var(--on-danger-bg, #7F1D1D); padding: 1rem; border-radius: var(--radius-md);">
             <div style="font-size: 0.85rem;">Con Errores</div>
             <div id="stat-fallidas" style="font-size: 1.75rem; font-weight: 700;">0</div>
           </div>
         </div>
 
-        <div style="border-top: 1px solid var(--color-border); padding-top: 1rem;">
+        <div style="border-top: 1px solid var(--border); padding-top: 1rem;">
           <label for="select-modo-commit" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Modo de Aplicación:</label>
           <select id="select-modo-commit" class="form-control" style="margin-bottom: 1rem;">
             <option value="VALID_ROWS">Importar solo filas válidas (ignorar filas con error)</option>
