@@ -196,6 +196,7 @@ function setupRoutes() {
   router.addRoute('/professional/attention/:id', professionalAttentionView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
   router.addRoute('/professional/prescription/:atencionId', professionalPrescriptionView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
   router.addRoute('/professional/patient-history/:patientPublicId', professionalPatientHistoryView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
+  router.addRoute('/professional/patient-history', professionalPatientHistoryView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
 
   // Rutas M8.4: Administración del Sistema (Oferta Asistencial, Infraestructura y Slots)
   router.addRoute('/admin', adminDashboardView, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
@@ -224,9 +225,11 @@ function setupRoutes() {
   router.addRoute('/hospital/census', hospitalCensusView, { requiresAuth: true });
   router.addRoute('/hospital', hospitalCensusView, { requiresAuth: true });
   router.addRoute('/hospital/beds/:id', hospitalBedManagementView, { requiresAuth: true });
+  router.addRoute('/hospital/beds', (c) => router.navigate('/hospital/census'), { requiresAuth: true });
   router.addRoute('/hospital/discharge/:id', hospitalDischargeView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
 
   // Rutas Fase A/C: Aseguramiento EPS, Importación Masiva y Verificación (A01-A06, C01-C04)
+  router.addRoute('/affiliations/import', renderAffiliationImport, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/admin/affiliations/import', renderAffiliationImport, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/affiliations/search', renderAffiliationSearch, { requiresAuth: true });
 

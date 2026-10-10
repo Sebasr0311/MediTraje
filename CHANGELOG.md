@@ -13,7 +13,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - Corrección de inyección de dependencias en `EmergencyService`, `TriajeService`, `EmergencySummaryController` y `QrRateLimiter`: declaración explícita de `@Autowired` en constructores sobrecargados para evitar `UnsatisfiedDependencyException` / `No default constructor found` en el contenedor IoC de Spring Boot.
   - Corrección integral de CORS (`Invalid CORS request`): migración de `setAllowedOrigins` a `setAllowedOriginPatterns` en `CorsConfig.java` admitiendo orígenes dinámicos (`localhost:*`, `127.0.0.1:*`, `*.github.io`, `*.vercel.app`, `*.onrender.com`), sanitización con `.trim()` de `CORS_ORIGINS` y registro global en `/**`.
   - Soporte de cookies de sesión cross-origin en `AuthController.java`: aplicación de `SameSite=None; Secure=true` en producción para permitir la navegación de SPAs alojadas en dominios distintos al backend.
-  - Inicializador de bootstrap administrativo (`AdminBootstrapInitializer.java`): aprovisionamiento automático y desbloqueo de `admin@meditriaje.com` con `ROLE_ADMINISTRADOR` al levantar el servicio en caso de bases de datos sin sembrado previo.
+- **Resolución de Enrutamiento y Descarga en Importación de Afiliados EPS**:
+  - Corrección de error 404 en `#/affiliations/import`: registro unificado de rutas `/affiliations/import` y `/admin/affiliations/import` en `app.js` para asegurar concordancia total con el enlace del menú lateral (`app-sidebar.js`).
+  - Resiliencia en descarga de plantilla oficial XLSX (`affiliation-import.js`): consumo centralizado mediante `api.buildUrl('/affiliations/template')` con credenciales de sesión (`credentials: 'include'`).
+  - Blindaje de rutas sin identificador en barra lateral: adición de rutas `/hospital/beds` (con redirección al censo) y `/professional/patient-history` en `app.js`.
+  - Cobertura de pruebas E2E ampliada en Playwright (`06-affiliations-eps-import-scheduling.spec.js`) con 5 de 5 pruebas en verde.
 
 - **Auditoría Integral y Rediseño de Centro de Mando y Analítica Hospitalaria (Fase O, ADR-027)**:
   - Rediseño hospitalario de alta fidelidad para `operational-dashboard.js` y nuevos estilos CSS dedicados `.operational-*` en `components.css`:

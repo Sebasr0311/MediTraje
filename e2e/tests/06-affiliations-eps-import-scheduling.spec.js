@@ -48,8 +48,22 @@ test.describe('Fase 4: Aseguramiento EPS, Importación Masiva y Citas Avanzadas'
     });
   });
 
+  test('debe acceder a la vista mediante /affiliations/import y desde el enlace del menú lateral', async ({ page }) => {
+    // 1. Acceso directo por URL sin prefijo /admin
+    await page.goto('/#/affiliations/import');
+    await expect(page.locator('h1')).toContainText('Importación Masiva de Afiliados EPS');
+    await expect(page.locator('#file-excel')).toBeVisible();
+
+    // 2. Acceso haciendo clic en el enlace del sidebar
+    await page.goto('/#/admin/dashboard');
+    const linkImportacion = page.locator('a[href="#/affiliations/import"]');
+    await expect(linkImportacion).toBeVisible();
+    await linkImportacion.click();
+    await expect(page.locator('h1')).toContainText('Importación Masiva de Afiliados EPS');
+  });
+
   test('debe permitir descargar la plantilla oficial de afiliados Excel (.xlsx)', async ({ page }) => {
-    await page.goto('/#/admin/affiliations/import');
+    await page.goto('/#/affiliations/import');
     await expect(page.locator('h1')).toContainText('Importación Masiva de Afiliados EPS');
 
     const btnDescargar = page.locator('#btn-descargar-plantilla');

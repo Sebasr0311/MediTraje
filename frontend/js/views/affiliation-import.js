@@ -3,7 +3,7 @@
  * Carga segura de XLSX, previsualización en staging y commit atómico/parcial (A02, A03, A04).
  */
 
-import { affiliationApi } from '../api.js';
+import { api, affiliationApi } from '../api.js';
 
 export async function renderAffiliationImport(container) {
   container.innerHTML = `
@@ -146,7 +146,8 @@ export async function renderAffiliationImport(container) {
       const originalText = btnDescargarPlantilla.textContent;
       btnDescargarPlantilla.textContent = 'Descargando plantilla...';
       try {
-        const res = await fetch('/api/v1/affiliations/template');
+        const templateUrl = api.buildUrl('/affiliations/template');
+        const res = await fetch(templateUrl, { credentials: 'include' });
         if (res.ok) {
           const blob = await res.blob();
           const url = window.URL.createObjectURL(blob);
