@@ -7,6 +7,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+- **Rediseño del Dashboard de Administración y Reubicación de Apartados al Menú Lateral**:
+  - Reemplazo integral de la vista genérica "Administración del Sistema" por un **Dashboard** auténtico en `#/admin/dashboard` y `#/admin`:
+    - Métricas ejecutivas en tiempo real: Sedes Hospitalarias, Cuerpo Médico, Especialidades Médicas y Turnos Programados.
+    - Cuadrícula de accesos directos estructurada por áreas funcionales (Infraestructura, Cuerpo Médico y Aseguramiento/Control).
+    - Tarjeta de actividad reciente con los últimos eventos de auditoría inmutable del sistema.
+  - Reubicación de todos los apartados administrativos como ítems de primer nivel en el menú lateral (`app-sidebar.js`): Instituciones, Sedes, Especialidades, Profesionales, Slots de Turnos, Calendario de Citas, Importación EPS (BDUA), Aseguramiento EPS, Reportes Operativos y Auditoría del Sistema.
+  - Implementación de migas de pan limpias (`Dashboard > [Sección]`) en cada vista administrativa individual, eliminando la fila de 11 pestañas aglomeradas.
+  - Incorporación de iconos SVG nativos `map-pin`, `bar-chart` y `bar-chart-2` en `ui.js`.
+  - Cobertura de pruebas E2E en Playwright (`06`, `07`, `09`): 16 de 16 pruebas 100% en verde.
+
 - **Auditoría TestSprite y Corrección de Ciclo de Vida Modal en Centro de Mando**:
   - Corrección crítica en `ui.showModal` (`frontend/js/ui.js`): `closeModal()` ahora se ejecuta tras `onConfirm()` y únicamente si `result !== false`, garantizando que elementos interactivos dentro del diálogo (como `#txtMotivoAckModal`) permanezcan en el DOM para su lectura y validación.
   - Blindaje en `operational-dashboard.js`: retorno explícito de `false` en `onConfirm` ante justificación vacía o errores de red para prevenir el cierre no deseado del modal.

@@ -57,10 +57,9 @@ function statusBadge(estado) {
 }
 
 /* ==========================================================================
-   VISTA PRINCIPAL DEL PANEL ADMINISTRATIVO
+   VISTA PRINCIPAL DEL DASHBOARD ADMINISTRATIVO
    ========================================================================== */
-export async function adminDashboardView(container, { tab = 'institutions' } = {}) {
-  // Resolver pestaña activa desde parámetros o ruta
+export async function adminDashboardView(container, { tab = 'dashboard' } = {}) {
   const hash = window.location.hash;
   let activeTab = tab;
   if (hash.includes('/admin/sites')) activeTab = 'sites';
@@ -74,107 +73,353 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
   else if (hash.includes('/admin/reports')) activeTab = 'reports';
   else if (hash.includes('/admin/audit')) activeTab = 'audit';
   else if (hash.includes('/admin/institutions')) activeTab = 'institutions';
+  else if (hash === '#/admin' || hash === '#/admin/' || hash.includes('/admin/dashboard')) activeTab = 'dashboard';
 
+  if (activeTab === 'dashboard') {
+    return renderAdminDashboardHome(container);
+  }
+
+  // Envoltorio con migas de pan limpias para vistas específicas
+  function renderSectionWrapper(title, renderFn) {
+    container.innerHTML = `
+      <div style="max-width: var(--container); margin: 0 auto; padding-bottom: var(--space-12);">
+        <nav class="breadcrumb mb-4" aria-label="Ruta de navegación">
+          <a href="#/admin/dashboard" class="flex items-center gap-1">
+            ${ui.icon('home', 'icon icon--sm')}
+            <span>Dashboard</span>
+          </a>
+          <span class="breadcrumb-separator" aria-hidden="true">&gt;</span>
+          <span class="breadcrumb-current" aria-current="page">${esc(title)}</span>
+        </nav>
+        <div id="adminSectionContent"></div>
+      </div>
+    `;
+    const target = container.querySelector('#adminSectionContent');
+    renderFn(target);
+  }
+
+  if (activeTab === 'sites') renderSectionWrapper('Sedes Hospitalarias', renderSites);
+  else if (activeTab === 'specialties') renderSectionWrapper('Especialidades Médicas', renderSpecialties);
+  else if (activeTab === 'professionals') renderSectionWrapper('Profesionales de la Salud', renderProfessionals);
+  else if (activeTab === 'slots') renderSectionWrapper('Slots de Turnos', renderSlots);
+  else if (activeTab === 'appointments') renderSectionWrapper('Calendario de Citas', renderAdminAppointments);
+  else if (activeTab === 'affiliations') renderSectionWrapper('Importación Masiva EPS', renderAffiliationImport);
+  else if (activeTab === 'census') hospitalCensusView(container);
+  else if (activeTab === 'operational') renderOperationalDashboard(container);
+  else if (activeTab === 'reports') renderSectionWrapper('Reportes Operativos', renderReports);
+  else if (activeTab === 'audit') renderSectionWrapper('Auditoría del Sistema', renderAudit);
+  else renderSectionWrapper('Instituciones de Salud', renderInstitutions);
+}
+
+/**
+ * Renderiza el Dashboard principal del administrador con métricas, accesos directos y auditoría.
+ */
+async function renderAdminDashboardHome(container) {
   container.innerHTML = `
     <div style="max-width: var(--container); margin: 0 auto; padding-bottom: var(--space-12);">
+      <!-- Cabecera del Dashboard -->
       <div class="mb-6 flex justify-between items-center flex-wrap gap-4">
         <div>
-          <h1 class="text-2xl font-bold mb-1">Administración del Sistema</h1>
-          <p class="text-sm text-muted m-0">Gestión de infraestructura, aseguramiento, capacidad hospitalaria, mando analítico y auditoría</p>
+          <div class="flex items-center gap-3 mb-1">
+            <h1 class="text-2xl font-bold m-0">Dashboard</h1>
+            <span class="badge badge--confirmed">Panel de Control</span>
+          </div>
+          <p class="text-sm text-muted m-0">Supervisión integral de infraestructura hospitalaria, cuerpo médico, turnos y seguridad</p>
         </div>
-        <button type="button" id="btnAdminMfa" class="btn btn-secondary btn--sm">
-          ${ui.icon('shield', 'icon icon--sm')}
-          <span>Seguridad MFA</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <a href="#/operational/dashboard" class="btn btn-secondary btn--sm">
+            ${ui.icon('sliders', 'icon icon--sm')}
+            <span>Centro de Mando En Vivo</span>
+          </a>
+          <button type="button" id="btnAdminMfa" class="btn btn-primary btn--sm">
+            ${ui.icon('shield', 'icon icon--sm')}
+            <span>Seguridad MFA</span>
+          </button>
+        </div>
       </div>
 
+      <!-- Alerta de Aislamiento de Privilegios (ADR-007) -->
       <div class="alert alert--info mb-6" role="note">
         ${ui.icon('shield', 'icon alert-icon')}
         <div class="alert-content">
           <p class="m-0 text-xs">
-            <strong>Aislamiento de Privilegios:</strong> El rol administrativo no tiene acceso a historias clínicas,
-            diagnósticos ni recetas (ADR-007). Gestiona la oferta asistencial, bitácora de eventos e indicadores operativos agregados.
+            <strong>Aislamiento de Privilegios:</strong> El rol administrativo gestiona la oferta asistencial, infraestructura y bitácora técnica de eventos. No tiene acceso a historias clínicas, diagnósticos ni recetas individuales (ADR-007).
           </p>
         </div>
       </div>
 
-      <!-- Navegación por pestañas -->
-      <nav class="admin-tabs" aria-label="Secciones de administración">
-        <button type="button" class="admin-tab ${activeTab === 'institutions' ? 'is-active' : ''}" data-tab="institutions">
-          ${ui.icon('hospital', 'icon icon--sm')}<span>Instituciones</span>
-        </button>
-        <button type="button" class="admin-tab ${activeTab === 'sites' ? 'is-active' : ''}" data-tab="sites">
-          ${ui.icon('map-pin', 'icon icon--sm')}<span>Sedes</span>
-        </button>
-        <button type="button" class="admin-tab ${activeTab === 'specialties' ? 'is-active' : ''}" data-tab="specialties">
-          ${ui.icon('activity', 'icon icon--sm')}<span>Especialidades</span>
-        </button>
-        <button type="button" class="admin-tab ${activeTab === 'professionals' ? 'is-active' : ''}" data-tab="professionals">
-          ${ui.icon('user', 'icon icon--sm')}<span>Profesionales</span>
-        </button>
-        <button type="button" class="admin-tab ${activeTab === 'slots' ? 'is-active' : ''}" data-tab="slots">
-          ${ui.icon('clock', 'icon icon--sm')}<span>Slots de turnos</span>
-        </button>
-        <button type="button" class="admin-tab ${activeTab === 'appointments' ? 'is-active' : ''}" data-tab="appointments">
-          ${ui.icon('calendar', 'icon icon--sm')}<span>Calendario de Citas</span>
-        </button>
-        <button type="button" class="admin-tab ${activeTab === 'affiliations' ? 'is-active' : ''}" data-tab="affiliations">
-          ${ui.icon('file-text', 'icon icon--sm')}<span>Afiliaciones EPS</span>
-        </button>
-        <button type="button" class="admin-tab ${activeTab === 'census' ? 'is-active' : ''}" data-tab="census">
-          ${ui.icon('hospital', 'icon icon--sm')}<span>Censo Camas</span>
-        </button>
-        <button type="button" class="admin-tab ${activeTab === 'operational' ? 'is-active' : ''}" data-tab="operational">
-          ${ui.icon('bar-chart-2', 'icon icon--sm')}<span>Mando Operativo</span>
-        </button>
-        <button type="button" class="admin-tab ${activeTab === 'reports' ? 'is-active' : ''}" data-tab="reports">
-          ${ui.icon('bar-chart', 'icon icon--sm')}<span>Reportes</span>
-        </button>
-        <button type="button" class="admin-tab ${activeTab === 'audit' ? 'is-active' : ''}" data-tab="audit">
-          ${ui.icon('shield', 'icon icon--sm')}<span>Auditoría</span>
-        </button>
-      </nav>
+      <!-- Métricas Clave del Sistema (KPIs) -->
+      <div class="grid grid-cols-1 grid-cols-2-md grid-cols-4-lg gap-4 mb-8" aria-label="Indicadores del sistema">
+        <div class="card p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-muted font-medium uppercase tracking-wide">Sedes Hospitalarias</span>
+            <span class="text-primary">${ui.icon('map-pin', 'icon icon--md')}</span>
+          </div>
+          <div class="text-3xl font-bold mb-1" id="dashMetricSites">…</div>
+          <div class="text-xs text-muted flex justify-between items-center">
+            <span>Sedes activas</span>
+            <a href="#/admin/sites" class="text-primary font-medium hover:underline">Ver sedes &rarr;</a>
+          </div>
+        </div>
 
-      <!-- Contenedor del contenido de la pestaña activa -->
-      <div id="adminTabContent" aria-live="polite"></div>
+        <div class="card p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-muted font-medium uppercase tracking-wide">Cuerpo Médico</span>
+            <span class="text-primary">${ui.icon('users', 'icon icon--md')}</span>
+          </div>
+          <div class="text-3xl font-bold mb-1" id="dashMetricPros">…</div>
+          <div class="text-xs text-muted flex justify-between items-center">
+            <span>Profesionales activos</span>
+            <a href="#/admin/professionals" class="text-primary font-medium hover:underline">Ver personal &rarr;</a>
+          </div>
+        </div>
+
+        <div class="card p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-muted font-medium uppercase tracking-wide">Especialidades</span>
+            <span class="text-primary">${ui.icon('activity', 'icon icon--md')}</span>
+          </div>
+          <div class="text-3xl font-bold mb-1" id="dashMetricSpecs">…</div>
+          <div class="text-xs text-muted flex justify-between items-center">
+            <span>Catálogo clínico</span>
+            <a href="#/admin/specialties" class="text-primary font-medium hover:underline">Ver catálogo &rarr;</a>
+          </div>
+        </div>
+
+        <div class="card p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-muted font-medium uppercase tracking-wide">Turnos Programados</span>
+            <span class="text-primary">${ui.icon('clock', 'icon icon--md')}</span>
+          </div>
+          <div class="text-3xl font-bold mb-1" id="dashMetricSlots">…</div>
+          <div class="text-xs text-muted flex justify-between items-center">
+            <span>Slots disponibles</span>
+            <a href="#/admin/slots" class="text-primary font-medium hover:underline">Gestionar slots &rarr;</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Módulos de Gestión Rápida -->
+      <h2 class="text-lg font-bold mb-4">Módulos de Gestión</h2>
+      <div class="grid grid-cols-1 grid-cols-2-md grid-cols-3-lg gap-4 mb-8">
+        <!-- Infraestructura -->
+        <div class="card p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-primary">${ui.icon('hospital', 'icon icon--md')}</span>
+            <h3 class="text-md font-bold m-0">Infraestructura</h3>
+          </div>
+          <ul class="flex flex-col gap-2 list-none p-0 m-0 text-sm">
+            <li>
+              <a href="#/admin/institutions" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Instituciones de Salud</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+            <li>
+              <a href="#/admin/sites" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Sedes Hospitalarias</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+            <li>
+              <a href="#/hospital/census" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Censo de Camas</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+            <li>
+              <a href="#/operational/dashboard" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Centro de Mando y Analítica</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Cuerpo Médico y Citas -->
+        <div class="card p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-primary">${ui.icon('users', 'icon icon--md')}</span>
+            <h3 class="text-md font-bold m-0">Cuerpo Médico y Citas</h3>
+          </div>
+          <ul class="flex flex-col gap-2 list-none p-0 m-0 text-sm">
+            <li>
+              <a href="#/admin/specialties" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Especialidades Médicas</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+            <li>
+              <a href="#/admin/professionals" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Profesionales de la Salud</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+            <li>
+              <a href="#/admin/slots" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Slots y Disponibilidad</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+            <li>
+              <a href="#/admin/appointments" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Calendario de Citas</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Aseguramiento y Seguridad -->
+        <div class="card p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-primary">${ui.icon('shield-check', 'icon icon--md')}</span>
+            <h3 class="text-md font-bold m-0">Aseguramiento y Control</h3>
+          </div>
+          <ul class="flex flex-col gap-2 list-none p-0 m-0 text-sm">
+            <li>
+              <a href="#/affiliations/import" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Importación EPS (BDUA)</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+            <li>
+              <a href="#/affiliations/search" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Aseguramiento EPS</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+            <li>
+              <a href="#/admin/reports" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Reportes Operativos</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+            <li>
+              <a href="#/admin/audit" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
+                <span>Auditoría del Sistema</span>
+                <span class="text-muted text-xs">&rarr;</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Bitácora Reciente de Auditoría -->
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div>
+            <h2 class="text-md font-bold m-0">Actividad Reciente del Sistema</h2>
+            <p class="text-xs text-muted m-0">Últimos eventos registrados en la bitácora inmutable de auditoría</p>
+          </div>
+          <a href="#/admin/audit" class="btn btn-secondary btn--sm">
+            ${ui.icon('shield', 'icon icon--sm')}
+            <span>Ver toda la auditoría</span>
+          </a>
+        </div>
+        <div id="dashRecentAuditContainer">
+          <div class="text-center text-muted text-sm py-4">Cargando bitácora reciente...</div>
+        </div>
+      </div>
     </div>
   `;
-
-  const contentEl = container.querySelector('#adminTabContent');
-
-  function switchTab(t) {
-    activeTab = t;
-    container.querySelectorAll('.admin-tab').forEach(b => {
-      b.classList.toggle('is-active', b.dataset.tab === t);
-    });
-    // Actualizar hash sin provocar recarga completa
-    history.replaceState(null, '', `#/admin/${t}`);
-    renderActiveTab();
-  }
-
-  container.querySelectorAll('.admin-tab').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-  });
-
-  function renderActiveTab() {
-    if (activeTab === 'sites') renderSites(contentEl);
-    else if (activeTab === 'specialties') renderSpecialties(contentEl);
-    else if (activeTab === 'professionals') renderProfessionals(contentEl);
-    else if (activeTab === 'slots') renderSlots(contentEl);
-    else if (activeTab === 'appointments') renderAdminAppointments(contentEl);
-    else if (activeTab === 'affiliations') renderAffiliationImport(contentEl);
-    else if (activeTab === 'census') hospitalCensusView(contentEl);
-    else if (activeTab === 'operational') renderOperationalDashboard(contentEl);
-    else if (activeTab === 'reports') renderReports(contentEl);
-    else if (activeTab === 'audit') renderAudit(contentEl);
-    else renderInstitutions(contentEl);
-  }
 
   container.querySelector('#btnAdminMfa')?.addEventListener('click', () => {
     showMfaModal();
   });
 
-  renderActiveTab();
+  // Cargar métricas y auditoría en segundo plano
+  loadDashboardMetrics(container);
+  loadRecentAudit(container);
+}
+
+/**
+ * Carga métricas agregadas del sistema para las tarjetas del Dashboard.
+ */
+async function loadDashboardMetrics(container) {
+  try {
+    const [sitesRes, prosRes, specsRes, slotsRes] = await Promise.allSettled([
+      api.get('/admin/sites', { page: 0, size: 100, estado: 'ACTIVO' }),
+      api.get('/admin/professionals', { page: 0, size: 100, estado: 'ACTIVO' }),
+      api.get('/admin/specialties', { page: 0, size: 100, estado: 'ACTIVO' }),
+      api.get('/admin/slots', { page: 0, size: 100 })
+    ]);
+
+    const elSites = container.querySelector('#dashMetricSites');
+    const elPros = container.querySelector('#dashMetricPros');
+    const elSpecs = container.querySelector('#dashMetricSpecs');
+    const elSlots = container.querySelector('#dashMetricSlots');
+
+    if (elSites) {
+      const totalSites = sitesRes.status === 'fulfilled' ? (sitesRes.value?.totalElements ?? sitesRes.value?.content?.length ?? (Array.isArray(sitesRes.value) ? sitesRes.value.length : 0)) : '—';
+      elSites.textContent = totalSites;
+    }
+    if (elPros) {
+      const totalPros = prosRes.status === 'fulfilled' ? (prosRes.value?.totalElements ?? prosRes.value?.content?.length ?? (Array.isArray(prosRes.value) ? prosRes.value.length : 0)) : '—';
+      elPros.textContent = totalPros;
+    }
+    if (elSpecs) {
+      const totalSpecs = specsRes.status === 'fulfilled' ? (specsRes.value?.totalElements ?? specsRes.value?.content?.length ?? (Array.isArray(specsRes.value) ? specsRes.value.length : 0)) : '—';
+      elSpecs.textContent = totalSpecs;
+    }
+    if (elSlots) {
+      const totalSlots = slotsRes.status === 'fulfilled' ? (slotsRes.value?.totalElements ?? slotsRes.value?.content?.length ?? (Array.isArray(slotsRes.value) ? slotsRes.value.length : 0)) : '—';
+      elSlots.textContent = totalSlots;
+    }
+  } catch (err) {
+    console.warn('Error al cargar métricas del Dashboard:', err);
+  }
+}
+
+/**
+ * Carga los eventos de auditoría más recientes para el Dashboard.
+ */
+async function loadRecentAudit(container) {
+  const auditContainer = container.querySelector('#dashRecentAuditContainer');
+  if (!auditContainer) return;
+
+  try {
+    const res = await api.get('/admin/audit', { page: 0, size: 5 });
+    const items = res?.content || (Array.isArray(res) ? res.slice(0, 5) : []);
+
+    if (!items || items.length === 0) {
+      auditContainer.innerHTML = `
+        <div class="text-center text-muted text-sm py-4">No hay eventos recientes en la bitácora de auditoría.</div>
+      `;
+      return;
+    }
+
+    auditContainer.innerHTML = `
+      <div class="table-container">
+        <table class="table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th scope="col">Fecha / Hora</th>
+              <th scope="col">Evento</th>
+              <th scope="col">Usuario</th>
+              <th scope="col">Resultado</th>
+              <th scope="col">IP</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(it => `
+              <tr>
+                <td class="text-xs text-muted">${formatDateTime(it.fechaHora || it.creadoAt)}</td>
+                <td><strong class="text-xs font-mono">${esc(it.tipoEvento || it.accion || 'EVENTO')}</strong></td>
+                <td class="text-sm">${esc(it.usuarioEmail || it.usuario || 'Sistema')}</td>
+                <td>${statusBadge(it.resultado === 'EXITO' ? 'ACTIVO' : (it.resultado === 'FALLO' ? 'INACTIVO' : it.resultado))}</td>
+                <td class="text-xs font-mono text-muted">${esc(it.ipOrigen || it.ip || '—')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) {
+    auditContainer.innerHTML = `
+      <div class="text-center text-muted text-xs py-3">Auditoría no disponible en este momento.</div>
+    `;
+  }
 }
 
 /* ==========================================================================

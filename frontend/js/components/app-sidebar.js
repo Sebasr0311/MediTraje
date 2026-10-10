@@ -72,15 +72,36 @@ function getNavigationConfig() {
 
   if (auth.isAdmin) {
     sections.push({
-      title: 'Gestión y Operación',
+      title: 'Principal',
       items: [
-        { label: 'Panel de Control', href: '#/admin/dashboard', icon: 'shield' },
+        { label: 'Dashboard', href: '#/admin/dashboard', icon: 'home' },
+        { label: 'Centro de Mando', href: '#/operational/dashboard', icon: 'sliders' },
+        { label: 'Censo de Camas', href: '#/hospital/census', icon: 'grid' }
+      ]
+    });
+    sections.push({
+      title: 'Infraestructura',
+      items: [
+        { label: 'Instituciones', href: '#/admin/institutions', icon: 'hospital' },
+        { label: 'Sedes Hospitalarias', href: '#/admin/sites', icon: 'map-pin' }
+      ]
+    });
+    sections.push({
+      title: 'Cuerpo Médico y Citas',
+      items: [
+        { label: 'Especialidades', href: '#/admin/specialties', icon: 'activity' },
         { label: 'Profesionales de la Salud', href: '#/admin/professionals', icon: 'users' },
-        { label: 'Censo Hospitalario', href: '#/hospital/census', icon: 'grid' },
-        { label: 'Gestión de Camas', href: '#/hospital/beds', icon: 'layers' },
+        { label: 'Slots de Turnos', href: '#/admin/slots', icon: 'clock' },
+        { label: 'Calendario de Citas', href: '#/admin/appointments', icon: 'calendar' }
+      ]
+    });
+    sections.push({
+      title: 'Aseguramiento y Control',
+      items: [
         { label: 'Importación EPS (BDUA)', href: '#/affiliations/import', icon: 'database' },
         { label: 'Aseguramiento EPS', href: '#/affiliations/search', icon: 'shield-check' },
-        { label: 'Centro de Mando y Analítica', href: '#/operational/dashboard', icon: 'sliders' }
+        { label: 'Reportes Operativos', href: '#/admin/reports', icon: 'bar-chart' },
+        { label: 'Auditoría del Sistema', href: '#/admin/audit', icon: 'shield' }
       ]
     });
   }

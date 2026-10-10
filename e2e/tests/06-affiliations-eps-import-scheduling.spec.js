@@ -56,7 +56,7 @@ test.describe('Fase 4: Aseguramiento EPS, Importación Masiva y Citas Avanzadas'
 
     // 2. Acceso haciendo clic en el enlace del sidebar
     await page.goto('/#/admin/dashboard');
-    const linkImportacion = page.locator('a[href="#/affiliations/import"]');
+    const linkImportacion = page.locator('#app-sidebar a[href="#/affiliations/import"]');
     await expect(linkImportacion).toBeVisible();
     await linkImportacion.click();
     await expect(page.locator('h1')).toContainText('Importación Masiva de Afiliados EPS');
