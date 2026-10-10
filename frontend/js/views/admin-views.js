@@ -12,6 +12,9 @@ import { showMfaModal } from './mfa-setup-modal.js';
 import { renderReports } from './admin-reports.js';
 import { renderAudit } from './admin-audit.js';
 import { renderAdminAppointments } from './admin-appointments.js';
+import { renderAffiliationImport } from './affiliation-import.js';
+import { hospitalCensusView } from './hospital-census.js';
+import { renderOperationalDashboard } from './operational-dashboard.js';
 
 /** Fecha de hoy en formato YYYY-MM-DD en zona America/Bogota. */
 function todayBogota() {
@@ -65,6 +68,9 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
   else if (hash.includes('/admin/professionals')) activeTab = 'professionals';
   else if (hash.includes('/admin/slots')) activeTab = 'slots';
   else if (hash.includes('/admin/appointments')) activeTab = 'appointments';
+  else if (hash.includes('/admin/affiliations')) activeTab = 'affiliations';
+  else if (hash.includes('/admin/census')) activeTab = 'census';
+  else if (hash.includes('/admin/operational')) activeTab = 'operational';
   else if (hash.includes('/admin/reports')) activeTab = 'reports';
   else if (hash.includes('/admin/audit')) activeTab = 'audit';
   else if (hash.includes('/admin/institutions')) activeTab = 'institutions';
@@ -74,7 +80,7 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
       <div class="mb-6 flex justify-between items-center flex-wrap gap-4">
         <div>
           <h1 class="text-2xl font-bold mb-1">Administración del Sistema</h1>
-          <p class="text-sm text-muted m-0">Gestión de infraestructura, profesionales asistenciales, slots, reportes y auditoría</p>
+          <p class="text-sm text-muted m-0">Gestión de infraestructura, aseguramiento, capacidad hospitalaria, mando analítico y auditoría</p>
         </div>
         <button type="button" id="btnAdminMfa" class="btn btn-secondary btn--sm">
           ${ui.icon('shield', 'icon icon--sm')}
@@ -112,6 +118,15 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
         <button type="button" class="admin-tab ${activeTab === 'appointments' ? 'is-active' : ''}" data-tab="appointments">
           ${ui.icon('calendar', 'icon icon--sm')}<span>Calendario de Citas</span>
         </button>
+        <button type="button" class="admin-tab ${activeTab === 'affiliations' ? 'is-active' : ''}" data-tab="affiliations">
+          ${ui.icon('file-text', 'icon icon--sm')}<span>Afiliaciones EPS</span>
+        </button>
+        <button type="button" class="admin-tab ${activeTab === 'census' ? 'is-active' : ''}" data-tab="census">
+          ${ui.icon('hospital', 'icon icon--sm')}<span>Censo Camas</span>
+        </button>
+        <button type="button" class="admin-tab ${activeTab === 'operational' ? 'is-active' : ''}" data-tab="operational">
+          ${ui.icon('bar-chart-2', 'icon icon--sm')}<span>Mando Operativo</span>
+        </button>
         <button type="button" class="admin-tab ${activeTab === 'reports' ? 'is-active' : ''}" data-tab="reports">
           ${ui.icon('bar-chart', 'icon icon--sm')}<span>Reportes</span>
         </button>
@@ -147,6 +162,9 @@ export async function adminDashboardView(container, { tab = 'institutions' } = {
     else if (activeTab === 'professionals') renderProfessionals(contentEl);
     else if (activeTab === 'slots') renderSlots(contentEl);
     else if (activeTab === 'appointments') renderAdminAppointments(contentEl);
+    else if (activeTab === 'affiliations') renderAffiliationImport(contentEl);
+    else if (activeTab === 'census') hospitalCensusView(contentEl);
+    else if (activeTab === 'operational') renderOperationalDashboard(contentEl);
     else if (activeTab === 'reports') renderReports(contentEl);
     else if (activeTab === 'audit') renderAudit(contentEl);
     else renderInstitutions(contentEl);

@@ -79,7 +79,15 @@ export async function professionalAgendaView(container) {
           <h1 class="text-2xl font-bold mb-1">Agenda del día</h1>
           <p class="text-sm text-muted m-0">Tus citas asignadas en orden cronológico</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+          <a href="#/hospital/census" class="btn btn-secondary btn--sm" title="Consultar censo hospitalario de camas">
+            ${ui.icon('hospital', 'icon icon--sm')}
+            <span>Censo Camas</span>
+          </a>
+          <a href="#/nursing/dashboard" class="btn btn-secondary btn--sm" title="Consultar centro de urgencias y cola de triaje">
+            ${ui.icon('activity', 'icon icon--sm')}
+            <span>Urgencias</span>
+          </a>
           <button type="button" id="btnCambiarPassword" class="btn btn-secondary btn--sm" title="Actualizar contraseña de acceso">
             ${ui.icon('lock', 'icon icon--sm')}
             <span>Contraseña</span>

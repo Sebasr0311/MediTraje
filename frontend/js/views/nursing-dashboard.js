@@ -69,13 +69,28 @@ export async function nursingDashboardView(container) {
           <p class="text-sm text-muted m-0">Recepción, clasificación presencial (Resolución 5596), monitoreo de espera y reevaluación clínica</p>
         </div>
 
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2">
           <!-- Selector de Sede -->
-          <div class="form-group m-0" style="min-width: 240px;">
+          <div class="form-group m-0" style="min-width: 220px;">
             <select id="nursingSedeSelect" class="form-select form-input--sm" aria-label="Seleccionar sede de atención">
               <option value="">Cargando sedes...</option>
             </select>
           </div>
+
+          <a href="#/hospital/census" class="btn btn-secondary btn--sm flex items-center gap-1" title="Ver censo de camas hospitalarias">
+            ${ui.icon('hospital', 'icon icon--sm')}
+            <span>Censo Camas</span>
+          </a>
+
+          <a href="#/affiliations/search" class="btn btn-secondary btn--sm flex items-center gap-1" title="Consultar aseguramiento EPS">
+            ${ui.icon('file-text', 'icon icon--sm')}
+            <span>Consulta EPS</span>
+          </a>
+
+          <a href="#/operational/dashboard" class="btn btn-secondary btn--sm flex items-center gap-1" title="Ver tablero de mando operativo">
+            ${ui.icon('bar-chart-2', 'icon icon--sm')}
+            <span>Mando</span>
+          </a>
 
           <a href="#/nursing/admission" class="btn btn-primary btn--sm flex items-center gap-2">
             ${ui.icon('plus', 'icon icon--sm')}
