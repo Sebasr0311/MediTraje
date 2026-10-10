@@ -218,14 +218,14 @@ export async function renderAudit(container) {
           <table class="table table--stacked">
             <thead>
               <tr>
-                <th style="width: 70px;">ID</th>
-                <th>Fecha / Hora (Bogotá)</th>
-                <th>Usuario</th>
-                <th>Acción</th>
-                <th>Tipo Recurso</th>
-                <th>ID Recurso</th>
-                <th>Resultado</th>
-                <th>IP Origen</th>
+                <th scope="col" style="width: 70px;">ID</th>
+                <th scope="col">Fecha / Hora (Bogotá)</th>
+                <th scope="col">Usuario</th>
+                <th scope="col">Acción</th>
+                <th scope="col">Tipo Recurso</th>
+                <th scope="col">ID Recurso</th>
+                <th scope="col">Resultado</th>
+                <th scope="col">IP Origen</th>
               </tr>
             </thead>
             <tbody>

@@ -14,7 +14,7 @@ export async function renderAffiliationSearch(container) {
     </div>
 
     <!-- Banner normativo de no bloqueo asistencial -->
-    <div class="alert alert-info" style="margin-top: 1rem; border-left: 4px solid var(--color-primary);">
+    <div class="alert alert-info" style="margin-top: 1rem; border-left: 4px solid var(--primary);">
       <strong>Aviso de Cumplimiento Legal (Ley 1751 de 2015):</strong> La comprobación de derechos de aseguramiento es estrictamente administrativa.
       Bajo ninguna circunstancia la falta de carné, afiliación inactiva o condición de no asegurado puede suspender o demorar la valoración médica inicial de urgencias.
     </div>
@@ -24,7 +24,7 @@ export async function renderAffiliationSearch(container) {
       <form id="form-consulta-eps" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 120px;">
           <label for="tipo-doc-eps" class="label-required">Tipo Doc.</label>
-          <select id="tipo-doc-eps" class="form-control" required>
+          <select id="tipo-doc-eps" class="form-control" required aria-label="Tipo de documento">
             <option value="CC">CC - Cédula</option>
             <option value="TI">TI - Tarjeta Id</option>
             <option value="RC">RC - Registro Civil</option>
@@ -35,10 +35,10 @@ export async function renderAffiliationSearch(container) {
         </div>
         <div style="flex: 2; min-width: 180px;">
           <label for="num-doc-eps" class="label-required">Número Documento</label>
-          <input type="text" id="num-doc-eps" class="form-control" placeholder="Ej: 1065123456" required />
+          <input type="text" id="num-doc-eps" class="form-control" placeholder="Ej: 1065123456" required aria-label="Número de documento de identificación" />
         </div>
         <div style="width: 100%; margin-top: 0.5rem;">
-          <button type="submit" id="btn-consultar" class="btn btn-primary" style="width: 100%;">
+          <button type="submit" id="btn-consultar" class="btn btn-primary" style="width: 100%;" aria-label="Consultar estado de afiliación en EPS">
             Consultar Estado de Afiliación
           </button>
         </div>

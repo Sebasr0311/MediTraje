@@ -501,7 +501,7 @@ async function loadRecentAudit(container) {
 
     auditContainer.innerHTML = `
       <div class="table-container">
-        <table class="table" style="width: 100%;">
+        <table class="table table--stacked" style="width: 100%;">
           <thead>
             <tr>
               <th scope="col">Fecha / Hora</th>
@@ -514,11 +514,11 @@ async function loadRecentAudit(container) {
           <tbody>
             ${items.map(it => `
               <tr>
-                <td class="text-xs text-muted">${formatDateTime(it.fechaHora || it.creadoAt)}</td>
-                <td><strong class="text-xs font-mono">${esc(it.tipoEvento || it.accion || 'EVENTO')}</strong></td>
-                <td class="text-sm">${esc(it.usuarioEmail || it.usuario || 'Sistema')}</td>
-                <td>${auditResultBadge(it.resultado)}</td>
-                <td class="text-xs font-mono text-muted">${esc(it.ipOrigen || it.ip || '—')}</td>
+                <td data-label="Fecha / Hora" class="text-xs text-muted">${formatDateTime(it.fechaHora || it.creadoAt)}</td>
+                <td data-label="Evento"><strong class="text-xs font-mono">${esc(it.tipoEvento || it.accion || 'EVENTO')}</strong></td>
+                <td data-label="Usuario" class="text-sm">${esc(it.usuarioEmail || it.usuario || 'Sistema')}</td>
+                <td data-label="Resultado">${auditResultBadge(it.resultado)}</td>
+                <td data-label="IP" class="text-xs font-mono text-muted">${esc(it.ipOrigen || it.ip || '—')}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -549,8 +549,8 @@ async function renderInstitutions(container) {
     <div>
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 class="text-xl font-bold m-0">Instituciones de Salud</h2>
-        <button type="button" id="btnToggleNewInst" class="btn btn-primary btn--sm">
-          ${ui.icon('check', 'icon icon--sm')}<span>+ Nueva institución</span>
+        <button type="button" id="btnToggleNewInst" class="btn btn-primary btn--sm" aria-label="Registrar nueva institución de salud">
+          ${ui.icon('plus', 'icon icon--sm')}<span>+ Nueva institución</span>
         </button>
       </div>
 
@@ -579,7 +579,7 @@ async function renderInstitutions(container) {
       <!-- Filtro rápido y tabla -->
       <div class="flex items-center justify-between gap-3 mb-3">
         <div class="form-group m-0" style="max-width: 14rem;">
-          <select id="instEstadoFilter" class="form-select">
+          <select id="instEstadoFilter" class="form-select" aria-label="Filtrar por estado">
             <option value="">Todos los estados</option>
             <option value="ACTIVO">Solo Activos</option>
             <option value="INACTIVO">Solo Inactivos</option>
@@ -674,10 +674,10 @@ async function renderInstitutions(container) {
         <table class="table table--stacked">
           <thead>
             <tr>
-              <th>NIT</th>
-              <th>Razón Social</th>
-              <th>Estado</th>
-              <th style="text-align: right;">Acciones</th>
+              <th scope="col">NIT</th>
+              <th scope="col">Razón Social</th>
+              <th scope="col">Estado</th>
+              <th scope="col" style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -687,14 +687,14 @@ async function renderInstitutions(container) {
                 <td data-label="Razón Social"><strong>${esc(it.razonSocial)}</strong></td>
                 <td data-label="Estado">${statusBadge(it.estado)}</td>
                 <td data-label="Acciones" style="text-align: right;">
-                  <button type="button" class="btn btn-secondary btn--sm btn-edit" data-id="${esc(it.publicId)}" data-razon="${esc(it.razonSocial)}">
+                  <button type="button" class="btn btn-secondary btn--sm btn-edit" data-id="${esc(it.publicId)}" data-razon="${esc(it.razonSocial)}" aria-label="Editar institución ${esc(it.razonSocial)}">
                     Editar
                   </button>
                   ${it.estado === 'ACTIVO' ? `
-                    <button type="button" class="btn btn-ghost btn--sm text-danger btn-deactivate" data-id="${esc(it.publicId)}" data-razon="${esc(it.razonSocial)}">
+                    <button type="button" class="btn btn-ghost btn--sm text-danger btn-deactivate" data-id="${esc(it.publicId)}" data-razon="${esc(it.razonSocial)}" aria-label="Desactivar institución ${esc(it.razonSocial)}">
                       Desactivar
                     </button>` : `
-                    <button type="button" class="btn btn-ghost btn--sm text-success btn-activate" data-id="${esc(it.publicId)}" data-razon="${esc(it.razonSocial)}">
+                    <button type="button" class="btn btn-ghost btn--sm text-success btn-activate" data-id="${esc(it.publicId)}" data-razon="${esc(it.razonSocial)}" aria-label="Activar institución ${esc(it.razonSocial)}">
                       Activar
                     </button>`}
                 </td>
@@ -811,8 +811,8 @@ async function renderSites(container) {
     <div>
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 class="text-xl font-bold m-0">Sedes Asistenciales</h2>
-        <button type="button" id="btnToggleNewSite" class="btn btn-primary btn--sm">
-          ${ui.icon('check', 'icon icon--sm')}<span>+ Nueva sede</span>
+        <button type="button" id="btnToggleNewSite" class="btn btn-primary btn--sm" aria-label="Registrar nueva sede asistencial">
+          ${ui.icon('plus', 'icon icon--sm')}<span>+ Nueva sede</span>
         </button>
       </div>
 
@@ -851,12 +851,12 @@ async function renderSites(container) {
       <!-- Filtros -->
       <div class="grid grid-cols-1 grid-cols-3-md gap-3 mb-3">
         <div class="form-group m-0">
-          <select id="siteInstFilter" class="form-select">
+          <select id="siteInstFilter" class="form-select" aria-label="Filtrar por institución">
             <option value="">Todas las instituciones</option>
           </select>
         </div>
         <div class="form-group m-0">
-          <select id="siteEstadoFilter" class="form-select">
+          <select id="siteEstadoFilter" class="form-select" aria-label="Filtrar por estado">
             <option value="">Todos los estados</option>
             <option value="ACTIVO">Solo Activos</option>
             <option value="INACTIVO">Solo Inactivos</option>
@@ -886,6 +886,7 @@ async function renderSites(container) {
   const newCard = container.querySelector('#newSiteCard');
   container.querySelector('#btnToggleNewSite').addEventListener('click', () => {
     newCard.style.display = newCard.style.display === 'none' ? 'block' : 'none';
+    if (newCard.style.display === 'block') container.querySelector('#siteInstSelect').focus();
   });
   container.querySelector('#btnCancelNewSite').addEventListener('click', () => {
     newCard.style.display = 'none';
@@ -972,11 +973,11 @@ async function renderSites(container) {
         <table class="table table--stacked">
           <thead>
             <tr>
-              <th>Sede</th>
-              <th>Institución</th>
-              <th>Ubicación</th>
-              <th>Estado</th>
-              <th style="text-align: right;">Acciones</th>
+              <th scope="col">Sede</th>
+              <th scope="col">Institución</th>
+              <th scope="col">Ubicación</th>
+              <th scope="col">Estado</th>
+              <th scope="col" style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -991,14 +992,15 @@ async function renderSites(container) {
                     data-id="${esc(it.publicId)}"
                     data-nombre="${esc(it.nombre)}"
                     data-dir="${esc(it.direccion)}"
-                    data-ciudad="${esc(it.ciudad)}">
+                    data-ciudad="${esc(it.ciudad)}"
+                    aria-label="Editar sede ${esc(it.nombre)}">
                     Editar
                   </button>
                   ${it.estado === 'ACTIVO' ? `
-                    <button type="button" class="btn btn-ghost btn--sm text-danger btn-deactivate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombre)}">
+                    <button type="button" class="btn btn-ghost btn--sm text-danger btn-deactivate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombre)}" aria-label="Desactivar sede ${esc(it.nombre)}">
                       Desactivar
                     </button>` : `
-                    <button type="button" class="btn btn-ghost btn--sm text-success btn-activate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombre)}">
+                    <button type="button" class="btn btn-ghost btn--sm text-success btn-activate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombre)}" aria-label="Activar sede ${esc(it.nombre)}">
                       Activar
                     </button>`}
                 </td>
@@ -1125,8 +1127,8 @@ async function renderSpecialties(container) {
     <div>
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 class="text-xl font-bold m-0">Especialidades Médicas</h2>
-        <button type="button" id="btnToggleNewSpec" class="btn btn-primary btn--sm">
-          ${ui.icon('check', 'icon icon--sm')}<span>+ Nueva especialidad</span>
+        <button type="button" id="btnToggleNewSpec" class="btn btn-primary btn--sm" aria-label="Registrar nueva especialidad médica">
+          ${ui.icon('plus', 'icon icon--sm')}<span>+ Nueva especialidad</span>
         </button>
       </div>
 
@@ -1155,7 +1157,7 @@ async function renderSpecialties(container) {
       <!-- Filtros -->
       <div class="flex items-center justify-between gap-3 mb-3">
         <div class="form-group m-0" style="max-width: 14rem;">
-          <select id="specEstadoFilter" class="form-select">
+          <select id="specEstadoFilter" class="form-select" aria-label="Filtrar por estado">
             <option value="">Todos los estados</option>
             <option value="ACTIVO">Solo Activos</option>
             <option value="INACTIVO">Solo Inactivos</option>
@@ -1171,6 +1173,7 @@ async function renderSpecialties(container) {
   const newCard = container.querySelector('#newSpecCard');
   container.querySelector('#btnToggleNewSpec').addEventListener('click', () => {
     newCard.style.display = newCard.style.display === 'none' ? 'block' : 'none';
+    if (newCard.style.display === 'block') container.querySelector('#specNombre').focus();
   });
   container.querySelector('#btnCancelNewSpec').addEventListener('click', () => {
     newCard.style.display = 'none';
@@ -1252,10 +1255,10 @@ async function renderSpecialties(container) {
         <table class="table table--stacked">
           <thead>
             <tr>
-              <th>Especialidad</th>
-              <th>Duración de slot</th>
-              <th>Estado</th>
-              <th style="text-align: right;">Acciones</th>
+              <th scope="col">Especialidad</th>
+              <th scope="col">Duración de slot</th>
+              <th scope="col">Estado</th>
+              <th scope="col" style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -1268,14 +1271,15 @@ async function renderSpecialties(container) {
                   <button type="button" class="btn btn-secondary btn--sm btn-edit"
                     data-id="${esc(it.publicId)}"
                     data-nombre="${esc(it.nombre)}"
-                    data-duracion="${it.duracionSlotMin}">
+                    data-duracion="${it.duracionSlotMin}"
+                    aria-label="Editar especialidad ${esc(it.nombre)}">
                     Editar
                   </button>
                   ${it.estado === 'ACTIVO' ? `
-                    <button type="button" class="btn btn-ghost btn--sm text-danger btn-deactivate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombre)}">
+                    <button type="button" class="btn btn-ghost btn--sm text-danger btn-deactivate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombre)}" aria-label="Desactivar especialidad ${esc(it.nombre)}">
                       Desactivar
                     </button>` : `
-                    <button type="button" class="btn btn-ghost btn--sm text-success btn-activate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombre)}">
+                    <button type="button" class="btn btn-ghost btn--sm text-success btn-activate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombre)}" aria-label="Activar especialidad ${esc(it.nombre)}">
                       Activar
                     </button>`}
                 </td>
@@ -1398,8 +1402,8 @@ async function renderProfessionals(container) {
     <div>
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 class="text-xl font-bold m-0">Profesionales Asistenciales</h2>
-        <button type="button" id="btnToggleNewProf" class="btn btn-primary btn--sm">
-          ${ui.icon('check', 'icon icon--sm')}<span>+ Nuevo profesional</span>
+        <button type="button" id="btnToggleNewProf" class="btn btn-primary btn--sm" aria-label="Dar de alta a nuevo profesional asistencial">
+          ${ui.icon('plus', 'icon icon--sm')}<span>+ Nuevo profesional</span>
         </button>
       </div>
 
@@ -1473,12 +1477,12 @@ async function renderProfessionals(container) {
       <!-- Filtros -->
       <div class="grid grid-cols-1 grid-cols-3-md gap-3 mb-3">
         <div class="form-group m-0">
-          <select id="profSpecFilter" class="form-select">
+          <select id="profSpecFilter" class="form-select" aria-label="Filtrar por especialidad">
             <option value="">Todas las especialidades</option>
           </select>
         </div>
         <div class="form-group m-0">
-          <select id="profEstadoFilter" class="form-select">
+          <select id="profEstadoFilter" class="form-select" aria-label="Filtrar por estado">
             <option value="">Todos los estados</option>
             <option value="ACTIVO">Solo Activos</option>
             <option value="INACTIVO">Solo Inactivos</option>
@@ -1508,6 +1512,7 @@ async function renderProfessionals(container) {
   const newCard = container.querySelector('#newProfCard');
   container.querySelector('#btnToggleNewProf').addEventListener('click', () => {
     newCard.style.display = newCard.style.display === 'none' ? 'block' : 'none';
+    if (newCard.style.display === 'block') container.querySelector('#profNumDoc').focus();
   });
   container.querySelector('#btnCancelNewProf').addEventListener('click', () => {
     newCard.style.display = 'none';
@@ -1855,13 +1860,13 @@ async function renderProfessionals(container) {
         <table class="table table--stacked">
           <thead>
             <tr>
-              <th>Profesional</th>
-              <th>Documento</th>
-              <th>Registro ReTHUS</th>
-              <th>Contacto</th>
-              <th>Especialidad</th>
-              <th>Estado</th>
-              <th style="text-align: right;">Acciones</th>
+              <th scope="col">Profesional</th>
+              <th scope="col">Documento</th>
+              <th scope="col">Registro ReTHUS</th>
+              <th scope="col">Contacto</th>
+              <th scope="col">Especialidad</th>
+              <th scope="col">Estado</th>
+              <th scope="col" style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -1886,14 +1891,15 @@ async function renderProfessionals(container) {
                     data-nombres="${esc(it.nombres)}"
                     data-apellidos="${esc(it.apellidos)}"
                     data-spec="${esc(it.especialidadPublicId)}"
-                    data-telefono="${esc(it.telefono || '')}">
+                    data-telefono="${esc(it.telefono || '')}"
+                    aria-label="Editar profesional ${esc(it.nombres)} ${esc(it.apellidos)}">
                     Editar
                   </button>
                   ${it.estado === 'ACTIVO' ? `
-                    <button type="button" class="btn btn-ghost btn--sm text-danger btn-deactivate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombres)}">
+                    <button type="button" class="btn btn-ghost btn--sm text-danger btn-deactivate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombres)}" aria-label="Desactivar profesional ${esc(it.nombres)}">
                       Desactivar
                     </button>` : `
-                    <button type="button" class="btn btn-ghost btn--sm text-success btn-activate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombres)}">
+                    <button type="button" class="btn btn-ghost btn--sm text-success btn-activate" data-id="${esc(it.publicId)}" data-nombre="${esc(it.nombres)}" aria-label="Activar profesional ${esc(it.nombres)}">
                       Activar
                     </button>`}
                 </td>
@@ -2287,11 +2293,11 @@ async function renderSlots(container) {
         <table class="table table--stacked">
           <thead>
             <tr>
-              <th>Fecha y Horario</th>
-              <th>Profesional</th>
-              <th>Sede / Modalidad</th>
-              <th>Estado</th>
-              <th style="text-align: right;">Acciones</th>
+              <th scope="col">Fecha y Horario</th>
+              <th scope="col">Profesional</th>
+              <th scope="col">Sede / Modalidad</th>
+              <th scope="col">Estado</th>
+              <th scope="col" style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -2312,10 +2318,10 @@ async function renderSlots(container) {
                 <td data-label="Estado">${statusBadge(s.estado)}</td>
                 <td data-label="Acciones" style="text-align: right;">
                   ${s.estado === 'LIBRE' ? `
-                    <button type="button" class="btn btn-secondary btn--sm btn-block-slot" data-id="${esc(s.publicId)}">Bloquear</button>
-                    <button type="button" class="btn btn-ghost btn--sm text-danger btn-del-slot" data-id="${esc(s.publicId)}">Eliminar</button>
+                    <button type="button" class="btn btn-secondary btn--sm btn-block-slot" data-id="${esc(s.publicId)}" aria-label="Bloquear turno de ${esc(s.profesionalNombre)}">Bloquear</button>
+                    <button type="button" class="btn btn-ghost btn--sm text-danger btn-del-slot" data-id="${esc(s.publicId)}" aria-label="Eliminar turno libre de ${esc(s.profesionalNombre)}">Eliminar</button>
                   ` : s.estado === 'BLOQUEADO' ? `
-                    <button type="button" class="btn btn-secondary btn--sm btn-unblock-slot" data-id="${esc(s.publicId)}">Desbloquear</button>
+                    <button type="button" class="btn btn-secondary btn--sm btn-unblock-slot" data-id="${esc(s.publicId)}" aria-label="Desbloquear turno de ${esc(s.profesionalNombre)}">Desbloquear</button>
                   ` : `
                     <span class="text-xs text-muted">Cita asignada</span>
                   `}

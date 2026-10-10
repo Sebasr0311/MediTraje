@@ -14,18 +14,18 @@ export async function renderAffiliationImport(container) {
     </div>
 
     <!-- Tarjeta de Descarga de Plantilla Oficial -->
-    <div class="card" style="margin-top: 1rem; background: var(--color-bg-secondary, #f8fafc); border-left: 4px solid var(--primary, #0d9488); padding: 1.25rem;">
+    <div class="card" style="margin-top: 1rem; background: var(--surface-2); border-left: 4px solid var(--primary); padding: 1.25rem;">
       <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
         <div>
           <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-            <span style="font-size: 1.25rem;">📥</span>
-            <h2 style="font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--color-text-primary);">Plantilla Oficial de Afiliados (.xlsx)</h2>
+            <span style="font-size: 1.25rem;" aria-hidden="true">📥</span>
+            <h2 style="font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--text-main);">Plantilla Oficial de Afiliados (.xlsx)</h2>
           </div>
-          <p style="margin: 0; font-size: 0.875rem; color: var(--color-text-secondary);">
+          <p style="margin: 0; font-size: 0.875rem; color: var(--text-muted);">
             Descargue el formato estándar preconfigurado con columnas requeridas (TIPO_DOCUMENTO, NUMERO_DOCUMENTO, NOMBRES, APELLIDOS, REGIMEN, TIPO_AFILIADO), ejemplos reales y guía técnica MinSalud.
           </p>
         </div>
-        <button type="button" id="btn-descargar-plantilla" class="btn btn-secondary" style="font-weight: 600; white-space: nowrap;">
+        <button type="button" id="btn-descargar-plantilla" class="btn btn-secondary" style="font-weight: 600; white-space: nowrap;" aria-label="Descargar plantilla oficial de afiliados en Excel">
           Descargar Plantilla Excel
         </button>
       </div>
@@ -38,20 +38,20 @@ export async function renderAffiliationImport(container) {
         <form id="form-upload-excel" class="form-group" style="display: flex; flex-direction: column; gap: 1rem;">
           <div>
             <label for="select-eps" class="label-required">Entidad Promotora de Salud (EPS)</label>
-            <select id="select-eps" class="form-control" required>
+            <select id="select-eps" class="form-control" required aria-label="Seleccionar Entidad Promotora de Salud">
               <option value="">-- Seleccione una EPS --</option>
             </select>
           </div>
 
           <div>
             <label for="file-excel" class="label-required">Archivo Excel (.xlsx, máx. 10 MB)</label>
-            <input type="file" id="file-excel" class="form-control" accept=".xlsx" required />
+            <input type="file" id="file-excel" class="form-control" accept=".xlsx" required aria-label="Cargar archivo Excel de afiliados" />
             <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
               Columnas requeridas: TIPO_DOCUMENTO, NUMERO_DOCUMENTO, NOMBRES, APELLIDOS, REGIMEN, TIPO_AFILIADO.
             </small>
           </div>
 
-          <button type="submit" id="btn-previsualizar" class="btn btn-primary" style="margin-top: 0.5rem;">
+          <button type="submit" id="btn-previsualizar" class="btn btn-primary" style="margin-top: 0.5rem;" aria-label="Analizar y previsualizar archivo de afiliados">
             Analizar y Previsualizar Archivo
           </button>
         </form>
@@ -77,11 +77,11 @@ export async function renderAffiliationImport(container) {
 
         <div style="border-top: 1px solid var(--border); padding-top: 1rem;">
           <label for="select-modo-commit" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Modo de Aplicación:</label>
-          <select id="select-modo-commit" class="form-control" style="margin-bottom: 1rem;">
+          <select id="select-modo-commit" class="form-control" style="margin-bottom: 1rem;" aria-label="Modo de aplicación del lote">
             <option value="VALID_ROWS">Importar solo filas válidas (ignorar filas con error)</option>
             <option value="ATOMIC_ALL">Atómico estricto (rechazar todo si hay un solo error)</option>
           </select>
-          <button id="btn-confirmar-commit" class="btn btn-success" style="width: 100%;">
+          <button id="btn-confirmar-commit" class="btn btn-success" style="width: 100%;" aria-label="Confirmar y aplicar importación definitiva">
             Confirmar y Aplicar Importación Definitiva
           </button>
         </div>
@@ -91,17 +91,17 @@ export async function renderAffiliationImport(container) {
     <!-- Muestra de Filas Analizadas -->
     <div class="card" id="card-muestra" style="margin-top: 1.5rem; display: none;">
       <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">Muestra de Registros Analizados (Staging)</h2>
-      <div style="overflow-x: auto;">
-        <table class="table" style="width: 100%; text-align: left;">
+      <div class="table-container">
+        <table class="table table--stacked" style="width: 100%; text-align: left;">
           <thead>
             <tr>
-              <th>Fila</th>
-              <th>Documento</th>
-              <th>Nombres y Apellidos</th>
-              <th>Régimen</th>
-              <th>Tipo Afiliado</th>
-              <th>Estado</th>
-              <th>Observación / Error</th>
+              <th scope="col">Fila</th>
+              <th scope="col">Documento</th>
+              <th scope="col">Nombres y Apellidos</th>
+              <th scope="col">Régimen</th>
+              <th scope="col">Tipo Afiliado</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Observación / Error</th>
             </tr>
           </thead>
           <tbody id="tbody-muestra"></tbody>
