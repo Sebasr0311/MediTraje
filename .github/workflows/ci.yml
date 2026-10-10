@@ -57,7 +57,7 @@ jobs:
 
       - name: Subir reportes de Surefire
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: surefire-reports
           path: backend/target/surefire-reports/
@@ -65,7 +65,7 @@ jobs:
 
       - name: Subir reportes de Failsafe
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: failsafe-reports
           path: backend/target/failsafe-reports/
