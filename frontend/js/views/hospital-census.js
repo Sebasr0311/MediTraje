@@ -169,7 +169,8 @@ export async function hospitalCensusView(container) {
 async function loadSedes() {
   const sedeSelect = document.getElementById('censusSedeSelect');
   try {
-    const sedes = await emergencyApi.listarSedes();
+    const rawSedes = await emergencyApi.listarSedes();
+    const sedes = Array.isArray(rawSedes) ? rawSedes : (rawSedes?.content || []);
     censusState.sedes = sedes || [];
     if (sedes && sedes.length > 0) {
       censusState.selectedSedePublicId = sedes[0].publicId;

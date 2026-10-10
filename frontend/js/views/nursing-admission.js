@@ -147,7 +147,8 @@ export async function nursingAdmissionView(container) {
   // Cargar Sedes
   const sedeSelect = document.getElementById('admSedeSelect');
   try {
-    const sedes = await emergencyApi.listarSedes();
+    const rawSedes = await emergencyApi.listarSedes();
+    const sedes = Array.isArray(rawSedes) ? rawSedes : (rawSedes?.content || []);
     if (sedes && sedes.length > 0) {
       sedeSelect.innerHTML = sedes.map(s => `
         <option value="${esc(s.publicId)}">${esc(s.nombre)} (${esc(s.ciudad || 'Valledupar')})</option>

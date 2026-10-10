@@ -207,7 +207,8 @@ export async function nursingDashboardView(container) {
 async function loadSedes() {
   const sedeSelect = document.getElementById('nursingSedeSelect');
   try {
-    const sedes = await emergencyApi.listarSedes();
+    const rawSedes = await emergencyApi.listarSedes();
+    const sedes = Array.isArray(rawSedes) ? rawSedes : (rawSedes?.content || []);
     dashboardState.sedes = sedes || [];
     if (sedes && sedes.length > 0) {
       dashboardState.selectedSedePublicId = sedes[0].publicId;
@@ -233,11 +234,11 @@ async function loadQueue() {
   tbody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-muted">Cargando episodios de urgencias...</td></tr>`;
 
   try {
-    const queue = await emergencyApi.listarColaUrgencias(
+    const rawQueue = await emergencyApi.listarColaUrgencias(
       dashboardState.selectedSedePublicId,
       dashboardState.filterEstado || null
     );
-    dashboardState.queue = queue || [];
+    dashboardState.queue = Array.isArray(rawQueue) ? rawQueue : (rawQueue?.items || rawQueue?.content || []);
     renderQueue();
     updateKpis();
   } catch (err) {
@@ -249,8 +250,8 @@ function updateKpis() {
   const queue = dashboardState.queue;
   const total = queue.length;
   const criticos = queue.filter(q => q.nivelTriaje === 'I' || q.nivelTriaje === 'II').length;
-  const pendientes = queue.filter(q => !q.nivelTriaje || q.nivelTriaje === 'PENDIENTE_VALORACION' || q.estado === 'REGISTRADO').length;
-  const nn = queue.filter(q => q.codigoProvisional != null).length;
+  const pendientes = queue.filter(q => !q.nivelTriaje || q.nivelTriaje === 'PENDIENTE_VALORACION' || q.estado === 'REGISTRADO' || q.estadoEpisodio === 'REGISTRADO').length;
+  const nn = queue.filter(q => q.codigoProvisional != null || q.esIdentidadProvisional || q.esNN).length;
 
   document.getElementById('kpiTotal').textContent = total;
   document.getElementById('kpiCriticos').textContent = criticos;
@@ -275,8 +276,13 @@ function renderQueue() {
   }
 
   tbody.innerHTML = queue.map(item => {
-    const isNN = item.codigoProvisional != null;
+    const isNN = item.codigoProvisional != null || item.esIdentidadProvisional || item.esNN;
     const waitClass = getWaitAlertClass(item.nivelTriaje, item.minutosEspera);
+    const epId = item.episodioPublicId || item.episodioId;
+    const nombre = item.pacienteNombre || item.identificadorVisible || 'Paciente No Identificado';
+    const motivo = item.motivoConsulta || item.motivoLlegada || item.motivoIngreso || '—';
+    const estado = item.estado || item.estadoEpisodio || 'REGISTRADO';
+    const medico = item.medicoAsignado || item.profesionalTratanteNombre || 'Sin asignar';
 
     return `
       <tr>
@@ -284,39 +290,39 @@ function renderQueue() {
         <td>
           <div class="font-bold flex items-center gap-1">
             ${isNN ? `<span class="badge badge--warning text-xs">NN</span>` : ''}
-            <span>${esc(item.pacienteNombre || 'Paciente No Identificado')}</span>
+            <span>${esc(nombre)}</span>
           </div>
           ${isNN ? `<div class="text-xs text-muted font-mono">${esc(item.codigoProvisional)}</div>` : ''}
         </td>
         <td style="max-width: 250px;">
-          <div class="text-sm truncate" title="${esc(item.motivoConsulta || '')}">${esc(item.motivoConsulta || '—')}</div>
+          <div class="text-sm truncate" title="${esc(motivo)}">${esc(motivo)}</div>
         </td>
         <td>
           <span class="${waitClass}">${formatWaitTime(item.minutosEspera)}</span>
         </td>
         <td>
-          <span class="badge ${item.estado === 'EN_ATENCION' ? 'badge--in-progress' : 'badge--scheduled'}">
-            ${esc(item.estado)}
+          <span class="badge ${estado === 'EN_ATENCION' ? 'badge--in-progress' : 'badge--scheduled'}">
+            ${esc(estado)}
           </span>
         </td>
         <td>
-          <span class="text-sm text-muted">${esc(item.medicoAsignado || 'Sin asignar')}</span>
+          <span class="text-sm text-muted">${esc(medico)}</span>
         </td>
         <td class="text-right">
           <div class="flex items-center justify-end gap-1">
-            <a href="#/nursing/assessment/${esc(item.episodioPublicId)}" class="btn btn-ghost btn--xs" title="Valorar o reevaluar triaje">
+            <a href="#/nursing/assessment/${esc(epId)}" class="btn btn-ghost btn--xs" title="Valorar o reevaluar triaje">
               ${ui.icon('clipboard', 'icon icon--sm')}
               <span>Triaje</span>
             </a>
 
             ${isNN ? `
-              <a href="#/nursing/identity/${esc(item.episodioPublicId)}" class="btn btn-ghost btn--xs" title="Reconciliar identidad NN">
+              <a href="#/nursing/identity/${esc(epId)}" class="btn btn-ghost btn--xs" title="Reconciliar identidad NN">
                 ${ui.icon('user-check', 'icon icon--sm')}
                 <span>Identidad</span>
               </a>
             ` : ''}
 
-            <button type="button" class="btn btn-ghost btn--xs btn-close-episode" data-id="${esc(item.episodioPublicId)}" title="Egresar o cerrar episodio">
+            <button type="button" class="btn btn-ghost btn--xs btn-close-episode" data-id="${esc(epId)}" title="Egresar o cerrar episodio">
               ${ui.icon('log-out', 'icon icon--sm')}
             </button>
           </div>

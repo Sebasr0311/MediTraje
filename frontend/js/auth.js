@@ -182,11 +182,13 @@ class AuthService extends EventTarget {
   }
 
   setUserFromSession(session) {
+    if (!session) return;
+    const userObj = session.usuario || session;
     this.currentUser = {
-      publicId: session.publicId,
-      email: session.email,
-      roles: session.roles || [],
-      debeCambiarPassword: Boolean(session.debeCambiarPassword)
+      publicId: userObj.publicId,
+      email: userObj.email,
+      roles: userObj.roles || [],
+      debeCambiarPassword: Boolean(userObj.debeCambiarPassword)
     };
   }
 

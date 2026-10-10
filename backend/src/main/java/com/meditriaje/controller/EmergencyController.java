@@ -159,13 +159,15 @@ public class EmergencyController {
     /**
      * Endpoint para consultar la cola priorizada de urgencias por sede (U05).
      */
-    @GetMapping("/queue")
+    @GetMapping({"/queue", "/queue/{siteId}"})
     @PreAuthorize("hasAnyAuthority('ROLE_ENFERMERIA', 'ROLE_PROFESIONAL', 'ROLE_ADMINISTRADOR')")
     public ResponseEntity<List<ItemColaUrgenciaResponse>> listarColaUrgencias(
-            @RequestParam(required = false) String siteId,
+            @PathVariable(required = false) String siteId,
+            @RequestParam(name = "siteId", required = false) String querySiteId,
             @RequestParam(required = false) String status
     ) {
-        List<ItemColaUrgenciaResponse> cola = emergencyService.listarColaUrgencias(siteId, status);
+        String effectiveSiteId = siteId != null ? siteId : querySiteId;
+        List<ItemColaUrgenciaResponse> cola = emergencyService.listarColaUrgencias(effectiveSiteId, status);
         return ResponseEntity.ok(cola);
     }
 

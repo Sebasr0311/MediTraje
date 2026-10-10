@@ -164,7 +164,8 @@ export async function renderOperationalDashboard(container) {
 
   // Cargar sedes disponibles
   try {
-    const sedes = await emergencyApi.listarSedes();
+    const rawSedes = await emergencyApi.listarSedes();
+    const sedes = Array.isArray(rawSedes) ? rawSedes : (rawSedes?.content || []);
     selectSede.innerHTML = '';
     if (sedes && sedes.length > 0) {
       sedes.forEach(s => {
