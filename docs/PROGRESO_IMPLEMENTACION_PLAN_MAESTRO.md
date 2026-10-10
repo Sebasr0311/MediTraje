@@ -181,6 +181,25 @@ Estado: Implementación comprobada y verificada al 100%.
 - **Pruebas Frontend:** 13 pruebas unitarias pasando 100% (`operational-module.test.js`).
 - **Seguridad Clínica:** QR no expone PHI ni diagnósticos; endpoints analíticos restringidos a personal autorizado.
 
+## Fase 6: Cierre, Calidad y Verificación Integral (Lote Q: Q01–Q06)
+
+### Componentes y Verificaciones Consolidadas
+
+| Módulo / Tarea | Alcance | Verificación |
+|---|---|---|
+| **Q01 (Regresión y Cobertura Crítica)** | Ejecución total de suites de prueba backend y frontend | 1002 pruebas backend Surefire pasando (0 fallos, 0 errores, 0 skipped); 13 pruebas frontend Node.js pasando 100% |
+| **Q02 (Auditoría de Seguridad y Mínimo Privilegio)** | Análisis SAST, mitigación IDOR, control de subidas, CSRF, cookies HttpOnly y secreto cero en Git | Pruebas de seguridad cruzadas (`CrossPatientIdAccessSecurityTest`, `AdminClinicalAccessMetaSecurityTest`, `TokenLifecycleSecurityTest`, sanitización de bitácoras) |
+| **Q03 (Rendimiento, Concurrencia y Resiliencia)** | Concurrencia en camas, citas y lotes; tolerancia a fallos en transporte Brevo; mitigación Zip Bomb | Pruebas de concurrencia y transaccionalidad (`HospitalServiceTest`, `AppointmentConcurrencyTest`, `AffiliationServiceTest`) |
+| **Q04 (Calidad Funcional y UX)** | Consistencia visual, tokens CSS, hora de Bogotá (UTC-5), avisos de prototipo en UI | Validación en todas las vistas de la SPA; cumplimiento WCAG 2.1 AA |
+| **Q05 (Release y Procedimiento de Reversión)** | Migraciones inmutables forward-only (V001 a V021), estrategia de contingencia sin revertir DDL | Protocolo de contingencia y rollback documentado |
+| **Q06 (Artefactos Finales y Trazabilidad)** | Matriz de trazabilidad integral, actualización de manuales, CHANGELOG y README | `docs/MATRIZ_TRAZABILIDAD_PLAN_MAESTRO.md` cubriendo RF-001 a RF-027 (100% CUBIERTO); `CHANGELOG.md` y `README.md` consolidados |
+
+### Resultados Finales de la Plataforma
+- **Backend:** 1002 pruebas unitarias y de integración pasando 100% verde.
+- **Frontend:** 13 pruebas automatizadas pasando 100% verde.
+- **Base de Datos:** 21 migraciones Flyway inmutables versionadas.
+- **Cumplimiento Normativo:** Protección de datos (Ley 1581/2012), urgencias garantizadas (Ley 1751/2015), interoperabilidad RIPS (Res. 2275/2023).
+
 ## Evidencia externa aún necesaria
 
 Despliegue a Oracle ATP Cloud en staging/producción (pendiente de credenciales y autorización del usuario); firma de aprobación y release hospitalaria.

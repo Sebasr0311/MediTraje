@@ -7,6 +7,49 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Added
+- **Implementación Integral del Plan Maestro Codex (Fases 1 a 6 / Lotes B, U, H, A, C, O, Q)**:
+  - **Fase 1 (Lote B: B01–B04) — Estabilización y Línea Base de Calidad**:
+    - Mitigación de seguridad S01 en `TriajeService`: control estricto de autorización (ACL) sobre lectura de triajes por ID para evitar brechas IDOR entre pacientes.
+    - Mitigación S02 en `EmergencySummaryService`: control transaccional robusto `@Transactional(noRollbackFor = {CredencialesInvalidasException.class})` para persistir conteos de intentos fallidos de PIN sin abortar la transacción de auditoría.
+    - Documentación de ADR-022 a ADR-028 en `docs/DECISIONES.md` formalizando roles, inmutabilidad, aislamiento clínico y compatibilidad.
+    - Diagnóstico de brechas y línea base en `docs/ESTADO_VERIFICADO.md` y `docs/MATRIZ_BRECHAS_PLAN_MAESTRO.md`.
+    - Integración de Mockito JVM agent en `pom.xml` para Java 21 LTS sin advertencias dinámicas.
+  - **Fase 2 (Lote U: U01–U07) — Enfermería y Gestión Asistencial de Urgencias**:
+    - Migración Flyway `V018__enfermeria_urgencias_episodios.sql` creando `EPISODIO_ATENCION`, `INGRESO_URGENCIA`, `VALORACION_TRIAJE`, `ASIGNACION_ASISTENCIAL` e `IDENTIDAD_PROVISIONAL`.
+    - Módulo de admisión de urgencias sin requerir documento previo ni cuenta de usuario (`EmergencyService.admitirUrgencia`).
+    - Soporte completo a pacientes sin identificación / indocumentados (NN) con generación de identidades provisionales opacas `NN-XXXXXX`, rasgos físicos referenciales y posterior vinculación a expedientes reales sin pérdida de historial (`PATCH /api/v1/emergency/provisional-identities/{id}/link-patient`).
+    - Motor de triaje presencial humano (Niveles I–V) con signos vitales, escala de coma de Glasgow y aval clínico obligatorio.
+    - Soporte de múltiples reevaluaciones dinámicas append-only en el tiempo.
+    - Cola priorizada de urgencias ordenada en tiempo real por severidad de triaje y sede asistencial.
+    - Vistas frontend para enfermería: `nursing-dashboard.js`, `nursing-admission.js`, `nursing-assessment.js`, `nursing-identity.js`.
+  - **Fase 3 (Lote H: H01–H06) — Gestión Hospitalaria, Camas y Traslados**:
+    - Migración Flyway `V019__gestion_hospitalaria_camas_movimientos.sql` creando `SALA_CONSULTORIO`, `CAMA_HOSPITALARIA` y `MOVIMIENTO_PACIENTE`.
+    - Inventario dinámico de salas, consultorios y camas con estados controlados (`DISPONIBLE`, `OCUPADA`, `EN_LIMPIEZA`, `EN_MANTENIMIENTO`).
+    - Asignación atómica de camas con prevención de doble ocupación concurrente.
+    - Registro inmutable de traslados intrahospitalarios, pase a quirófano y recuperación posquirúrgica.
+    - Proceso de egreso hospitalario médico (`HospitalService.registrarEgreso`) que concluye el episodio de atención y libera la cama a estado de desinfección/limpieza.
+    - Vistas frontend: `hospital-census.js`, `hospital-bed-management.js`, `hospital-discharge.js`.
+  - **Fase 4 (Lotes A y C: A01–A06, C01–C04) — Afiliaciones EPS y Citas Avanzadas**:
+    - Integración de Apache POI OOXML 5.3.0 en `backend/pom.xml` con protección contra bombas de descompresión (Zip Bomb) mediante `ZipSecureFile.setMinInflateRatio(0.01)` y desinfección preventiva de inyección de fórmulas de hoja de cálculo.
+    - Migración Flyway `V020__afiliaciones_eps_citas_avanzadas.sql` creando `ENTIDAD_EPS`, `AFILIACION_PACIENTE`, `LOTE_IMPORTACION_EPS`, `DETALLE_IMPORTACION_EPS`, `AUSENCIA_MEDICA` y `REPRESENTACION_LEGAL`.
+    - Proceso de importación masiva de afiliados mediante Excel con fases de previsualización (preview) y confirmación (commit) atómica (`ATOMIC_ALL`) o resiliente (`VALID_ROWS`).
+    - Conciliación de expedientes sin generación de credenciales ni usuarios ficticios en el sistema.
+    - Consulta de afiliación a EPS no bloqueante respetando el principio de atención inicial obligatoria de urgencias (Ley Estatutaria 1751 de 2015).
+    - Registro y bloqueo de agenda por ausencias médicas (`AUSENCIA_MEDICA`) y soporte para tutores y representación legal de menores (`REPRESENTACION_LEGAL`).
+    - Vistas frontend: `affiliation-import.js`, `affiliation-search.js`.
+  - **Fase 5 (Lote O: O01–O05) — Centro de Mando, Analítica Hospitalaria y QR Seguro**:
+    - Migración Flyway `V021__analitica_alertas_operativas_qr.sql` creando `ALERTA_OPERATIVA` y `SEGUIMIENTO_INTRAHOSPITALARIO_QR`.
+    - Tablero centralizado de mando con métricas de ocupación, tiempos de espera de urgencias, distribución de triaje y procedimientos quirúrgicos activos.
+    - Motor de detección de alertas operativas con reconocimiento auditable por personal facultado.
+    - Identificación y seguimiento intrahospitalario mediante código QR seguro con tokens aleatorios SHA-256 (cero PHI ni diagnósticos expuestos en el escaneo).
+    - Vista frontend: `operational-dashboard.js`.
+    - Especificación exhaustiva de interoperabilidad para el sistema de salud colombiano (`docs/INTEROPERABILIDAD_HOSPITALARIA_COLOMBIA.md`: RIPS JSON Resolución 2275 de 2023, CIE-10, CUPS, BDUA/ADRES y FHIR R4).
+  - **Fase 6 (Lote Q: Q01–Q06) — Cierre de Calidad, Auditoría y Verificación Integral**:
+    - Suite de 1002 pruebas unitarias y de integración backend ejecutadas satisfactoriamente (0 fallos, 0 errores).
+    - Suite de 13 pruebas automatizadas frontend ejecutadas satisfactoriamente (0 fallos).
+    - Matriz de trazabilidad consolidada (`docs/MATRIZ_TRAZABILIDAD_PLAN_MAESTRO.md`) demostrando cobertura verificada para los 27 requisitos funcionales (RF-001 a RF-027).
+
 ### Fixed
 - **Correcciones de Seguridad Post-Auditoría (T11, Plan Post-Auditoría)**:
   - **SEC-002 (Alta) — Endurecimiento Integral de Resumen QR de Emergencia**:
