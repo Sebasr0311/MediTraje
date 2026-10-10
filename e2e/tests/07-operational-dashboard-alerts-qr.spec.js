@@ -144,6 +144,12 @@ test.describe('Fase 5: Centro de Mando Operativo, Analítica, Alertas y QR', () 
     await expect(btnAck).toBeVisible();
     await btnAck.click();
 
+    // Rellenar motivo en modal accesible y confirmar
+    const txtMotivo = page.locator('#txtMotivoAckModal');
+    await expect(txtMotivo).toBeVisible();
+    await txtMotivo.fill('Habilitadas 4 camillas de expansión en sala de observación');
+    await page.click('button:has-text("Confirmar Reconocimiento (ACK)")');
+
     // Verificar que se envió el acuse de recibo
     expect(ackCaptured).toBe(true);
     expect(ackPayload).not.toBeNull();

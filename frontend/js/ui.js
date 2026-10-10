@@ -179,8 +179,14 @@ export const ui = {
     });
 
     backdrop.querySelector('.btn-confirm-modal')?.addEventListener('click', async () => {
-      closeModal();
-      await onConfirm();
+      try {
+        const result = await onConfirm();
+        if (result !== false) {
+          closeModal();
+        }
+      } catch (err) {
+        console.error('Error al confirmar acción modal:', err);
+      }
     });
 
     backdrop.addEventListener('click', (e) => {

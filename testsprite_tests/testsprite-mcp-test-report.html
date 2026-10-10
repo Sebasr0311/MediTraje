@@ -1209,11 +1209,11 @@ body {
         <div class="metadata-container">
         <div class="metadata-row">
           <div class="metadata-label text-body-medium">Project Name</div>
-          <div class="metadata-value text-body">MediTriaje 2.0 (Plataforma Web Hospitalaria y de Triaje Clínico)</div>
+          <div class="metadata-value text-body">MediTriaje 2.0 (Módulo: Centro de Mando Hospitalario & Dashboards)</div>
         </div>
         <div class="metadata-row">
           <div class="metadata-label text-body-medium">Date</div>
-          <div class="metadata-value text-body">9/10/2026</div>
+          <div class="metadata-value text-body">10/10/2026</div>
         </div>
         <div class="metadata-row">
           <div class="metadata-label text-body-medium">Prepared by</div>
@@ -1234,23 +1234,23 @@ body {
         
         <div class="coverage-summary">
           <ul class="coverage-list text-body">
-            <li><span class="coverage-highlight">20/20</span> of tests passed</li>
+            <li><span class="coverage-highlight">5/5</span> of tests passed</li>
             <li><span class="coverage-highlight">Key gaps / risks:</span>
             
               <ol>
-<li><strong>Despliegue a Oracle ATP Cloud en Staging/Producción:</strong>
+<li><strong>Ciclo de Vida de Modales Dinámicos:</strong>
 <ul>
-<li>La suite ejecuta sobre base de datos H2 en modo compatibilidad Oracle y Testcontainers localmente. El paso final a la instancia Cloud de Oracle ATP está sujeto a la inyección de credenciales y el wallet de desarrollo provisto por el usuario.</li>
+<li>La corrección en <code>ui.js</code> garantizó que los valores de inputs dentro de <code>ui.showModal</code> se extraigan antes de cerrar el diálogo. Se recomienda mantener este patrón para cualquier futuro modal asistencial que capture justificaciones o motivos de anulación.</li>
 </ul>
 </li>
-<li><strong>Servicio Transaccional de Correos (Brevo API):</strong>
+<li><strong>Ambientes de Ejecución para Servidores de Pruebas Frontend:</strong>
 <ul>
-<li>El transporte HTTP de Brevo cuenta con mock y reintentos automáticos ante errores transitorios (5xx/429); en entornos locales sin clave real (<code>BREVO_API_KEY</code>), el servicio degrada de manera controlada registrando el intento fallido en auditoría sin abortar la transacción clínica.</li>
+<li>Los servidores estáticos básicos (como Python <code>http.server</code>) no admiten el verbo <code>POST</code> (arrojando HTTP 501), por lo cual las pruebas directas que interactúan con endpoints de login requieren servidor proxy o ejecución contra el backend de Spring Boot / mock de Playwright (<code>page.route</code>).</li>
 </ul>
 </li>
-<li><strong>Validación Clínica en Producción:</strong>
+<li><strong>Refresco en Segundo Plano:</strong>
 <ul>
-<li>Como establece el aviso legal y regulatorio del sistema, las reglas deterministas de triaje son de carácter orientativo prototípico y no reemplazan el juicio clínico humano del profesional de la salud.</li>
+<li>El auto-refresco del Centro de Mando está fijado a 30 segundos y se pausa de forma limpia al abandonar la ruta <code>#/operational/dashboard</code>, evitando fugas de memoria o peticiones huérfanas.</li>
 </ul>
 </li>
 </ol>
@@ -1278,15 +1278,7 @@ body {
           <div class="table-rows">
             
             <div class="table-row">
-              <div class="table-cell"><span class="text-body">Requirement: Autenticación y Seguridad de Cuentas (MOD-AUTH)</span></div>
-              <div class="table-cell"><span class="text-body">5</span></div>
-              <div class="table-cell"><span class="text-body">5</span></div>
-              <div class="table-cell"><span class="text-body">0</span></div>
-            </div>
-        
-
-            <div class="table-row">
-              <div class="table-cell"><span class="text-body">Requirement: Circuito Asistencial de Urgencias y Triaje Presencial (MOD-EMERGENCY)</span></div>
+              <div class="table-cell"><span class="text-body">Requirement: Hospital Operational Dashboard and QR Tracking (MOD-OPERATIONAL)</span></div>
               <div class="table-cell"><span class="text-body">4</span></div>
               <div class="table-cell"><span class="text-body">4</span></div>
               <div class="table-cell"><span class="text-body">0</span></div>
@@ -1294,33 +1286,9 @@ body {
         
 
             <div class="table-row">
-              <div class="table-cell"><span class="text-body">Requirement: Gestión Hospitalaria, Camas y Traslados (MOD-HOSPITAL)</span></div>
-              <div class="table-cell"><span class="text-body">3</span></div>
-              <div class="table-cell"><span class="text-body">3</span></div>
-              <div class="table-cell"><span class="text-body">0</span></div>
-            </div>
-        
-
-            <div class="table-row">
-              <div class="table-cell"><span class="text-body">Requirement: Aseguramiento EPS y Citas Médicas Avanzadas (MOD-AFFILIATIONS)</span></div>
-              <div class="table-cell"><span class="text-body">3</span></div>
-              <div class="table-cell"><span class="text-body">3</span></div>
-              <div class="table-cell"><span class="text-body">0</span></div>
-            </div>
-        
-
-            <div class="table-row">
-              <div class="table-cell"><span class="text-body">Requirement: Centro de Mando, Analítica y QR de Seguimiento (MOD-OPERATIONAL)</span></div>
-              <div class="table-cell"><span class="text-body">3</span></div>
-              <div class="table-cell"><span class="text-body">3</span></div>
-              <div class="table-cell"><span class="text-body">0</span></div>
-            </div>
-        
-
-            <div class="table-row">
-              <div class="table-cell"><span class="text-body">Requirement: Historia Clínica Inmutable y Farmacia (MOD-CLINICAL)</span></div>
-              <div class="table-cell"><span class="text-body">2</span></div>
-              <div class="table-cell"><span class="text-body">2</span></div>
+              <div class="table-cell"><span class="text-body">Requirement: Administrative & Role Dashboards (MOD-ADMIN-NAV)</span></div>
+              <div class="table-cell"><span class="text-body">1</span></div>
+              <div class="table-cell"><span class="text-body">1</span></div>
               <div class="table-cell"><span class="text-body">0</span></div>
             </div>
         
@@ -1344,260 +1312,7 @@ body {
           <div class="accordion-header" onclick="toggleAccordion(this)">
             <div class="requirement-content">
                                           <div class="requirement-title-row">
-              <h3 class="title-requirement">Requirement: Autenticación y Seguridad de Cuentas (MOD-AUTH)</h3>
-                <div class="requirement-status-tag status-success">
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>5/5</span>
-            </div>
-              </div>
-              <p class="text-body-medium requirement-description">Proper error handling for API calls and invalid data scenarios.</p>
-            </div>
-            <div class="accordion-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M11.4276 6C11.9145 6 12.1687 6.61626 11.875 7.01439L11.8316 7.06689L8.40295 10.817C8.30455 10.9246 8.17364 10.9892 8.03476 10.9988C7.89589 11.0083 7.7586 10.9621 7.64865 10.8688L7.59493 10.817L4.16629 7.06689L4.11886 7.00814L4.088 6.96002L4.05714 6.90002L4.04743 6.87752L4.032 6.83564L4.01371 6.76814L4.008 6.73501L4.00229 6.69751L4 6.66189V6.58814L4.00286 6.55188L4.008 6.51438L4.01371 6.48188L4.032 6.41438L4.04743 6.37251L4.08743 6.29L4.12457 6.23375L4.16629 6.18313L4.22 6.13125L4.26401 6.0975L4.31886 6.06375L4.33944 6.05313L4.37772 6.03625L4.43944 6.01625L4.46972 6.01L4.50401 6.00375L4.53658 6.00125L11.4276 6Z" fill="var(--fg-secondary)"/>
-              </svg>
-            </div>
-          </div>
-
-            <div class="accordion-content">
-            <div class="test-wrapper">
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC001: Registro de paciente con documento colombiano válido y consentimiento</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./AuthControllerTest.java" class="text-link">AuthControllerTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Valida formato de cédula de ciudadanía, coherencia de edad mínima, consentimiento expreso y hash Argon2id (≥10 caracteres). Retorna HTTP 201 Created.</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC002: Rechazo de registro ante falta de consentimiento o documento inválido</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./NormaColombianaValidatorTest.java" class="text-link">NormaColombianaValidatorTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">El sistema rechaza formatos de documento anómalos o edades incongruentes (ej. CC para menor de 18 años) y deniega el registro sin consentimiento (Ley 1581) retornando HTTP 400 Bad Request.</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC003: Inicio de sesión válido con emisión de cookies HttpOnly y sesión segura</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./AuthControllerTest.java" class="text-link">AuthControllerTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">El login emite cookies con directivas `HttpOnly`, `Secure` y `SameSite=Strict`. Cero almacenamiento de tokens en `localStorage` o `sessionStorage`.</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC004: Bloqueo de cuenta preventivo tras 5 intentos fallidos consecutivos</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./AuthControllerTest.java" class="text-link">AuthControllerTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Al quinto intento consecutivo de contraseña errónea, la cuenta se bloquea por 15 minutos retornando HTTP 423 Locked con mensaje neutro anti-enumeración.</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC005: Verificación de segundo factor MFA TOTP y códigos de respaldo</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./TotpServiceTest.java" class="text-link">TotpServiceTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Valida códigos TOTP con ventana de deriva temporal ±1 paso y 8 códigos de respaldo cifrados en base de datos.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-                <div class="requirement-wrapper accordion-item active">
-          <div class="accordion-header" onclick="toggleAccordion(this)">
-            <div class="requirement-content">
-                                          <div class="requirement-title-row">
-              <h3 class="title-requirement">Requirement: Circuito Asistencial de Urgencias y Triaje Presencial (MOD-EMERGENCY)</h3>
+              <h3 class="title-requirement">Requirement: Hospital Operational Dashboard and QR Tracking (MOD-OPERATIONAL)</h3>
                 <div class="requirement-status-tag status-success">
               <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
@@ -1619,13 +1334,13 @@ body {
             <div class="test-wrapper">
 <div class="test-card">
                 <div class="test-header">
-                  <h4 class="text-body-medium">TC006: Admisión presencial inmediata sin credenciales previas</h4>
+                  <h4 class="text-body-medium">TC011: Review operational KPIs for a selected site (O01)</h4>
                 </div>
                 <div class="test-content">
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Test Code</div>
                     <div class="test-field-value text-body">
-                      <a href="./EmergencyControllerTest.java" class="text-link">EmergencyControllerTest.java</a>
+                      <a href="./07-operational-dashboard-alerts-qr.spec.js" class="text-link">07-operational-dashboard-alerts-qr.spec.js</a>
                     </div>
                   </div>
                   <div class="test-field">
@@ -1658,24 +1373,24 @@ body {
                   </div>
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Enfermería (`ROLE_ENFERMERIA`) registra el ingreso directo en urgencias generando un episodio activo (`EPISODIO_ATENCION`) sin requerir login del paciente.</div>
+                    <div class="test-field-value text-body">Valida la carga reactiva al seleccionar una sede hospitalaria (`#select-sede-op`), la presentación de los 4 KPIs principales (tasa de ocupación con barra de progreso adaptativa por severidad, pacientes en urgencias desglosados por triaje I-V, alertas activas y camas disponibles) y el cumplimiento de los tiempos máximos normativos de la Resolución 5596/2015 con advertencias visuales ante sobrepaso (ej. Triage II > 30 min, Triage III > 45 min). El endpoint `GET /api/v1/operational/dashboard` responde con métricas consolidadas en tiempo real.</div>
                   </div>
                 </div>
               </div>
 <div class="test-card">
                 <div class="test-header">
-                  <h4 class="text-body-medium">TC007: Generación de identidad provisional para paciente indocumentado (NN)</h4>
+                  <h4 class="text-body-medium">TC016: Acknowledge an operational alert with justification (O02)</h4>
                 </div>
                 <div class="test-content">
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Test Code</div>
                     <div class="test-field-value text-body">
-                      <a href="./EmergencyServiceTest.java" class="text-link">EmergencyServiceTest.java</a>
+                      <a href="./07-operational-dashboard-alerts-qr.spec.js" class="text-link">07-operational-dashboard-alerts-qr.spec.js</a>
                     </div>
                   </div>
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
+                    <div class="test-field-value text-body">Ninguno (subsanado defecto de ciclo de vida modal)</div>
                   </div>
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Test Visualization and Result</div>
@@ -1699,23 +1414,23 @@ body {
                   </div>
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
+                    <div class="test-field-value text-body">MEDIUM</div>
                   </div>
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Genera identificador opaco único con prefijo `NN-XXXXXX`, almacena rasgos físicos referenciales y permite su posterior vinculación a un expediente real sin pérdida de historial.</div>
+                    <div class="test-field-value text-body">Durante la auditoría se identificó que el componente reutilizable `ui.showModal` (`frontend/js/ui.js`) desenganchaba el modal del DOM (`closeModal()`) antes de ejecutar el callback `onConfirm()`. Esto causaba que la lectura del motivo justificado (`#txtMotivoAckModal`) devolviera `null`, bloqueando el acuse de recibo. Se corrigió el ciclo de vida en `ui.js` y `operational-dashboard.js` para retener el DOM durante la validación y solo cerrar si `result !== false`. El reconocimiento auditado ahora envía el motivo de mitigación obligatorio a `POST /api/v1/operational/alerts/{alertaPublicId}/acknowledge`, registrando usuario e IP en la bitácora inmutable.</div>
                   </div>
                 </div>
               </div>
 <div class="test-card">
                 <div class="test-header">
-                  <h4 class="text-body-medium">TC008: Valoración asistencial de triaje humano con escala Glasgow y signos vitales</h4>
+                  <h4 class="text-body-medium">TC022: Look up safe patient location from a QR token (O03)</h4>
                 </div>
                 <div class="test-content">
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Test Code</div>
                     <div class="test-field-value text-body">
-                      <a href="./EmergencyServiceTest.java" class="text-link">EmergencyServiceTest.java</a>
+                      <a href="./07-operational-dashboard-alerts-qr.spec.js" class="text-link">07-operational-dashboard-alerts-qr.spec.js</a>
                     </div>
                   </div>
                   <div class="test-field">
@@ -1748,19 +1463,19 @@ body {
                   </div>
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Evalúa signos vitales (presión arterial sistólica/diastólica, FC, FR, SpO2, temperatura) y escala Glasgow. Asigna nivel I a V con aval clínico obligatorio y soporte de múltiples reevaluaciones append-only.</div>
+                    <div class="test-field-value text-body">Consulta el token criptográfico UUID/SHA-256 de una manilla o cabecera clínica mediante `GET /api/v1/operational/tracking-qr/{token}`. Despliega la ubicación actual (pabellón/cama), nivel de triaje asignado y estado del episodio. Cumple estrictamente con la Ley 1581 de 2012 y Resolución 1995 de 1999 al omitir diagnósticos, códigos CIE-10 y notas asistenciales en la respuesta.</div>
                   </div>
                 </div>
               </div>
 <div class="test-card">
                 <div class="test-header">
-                  <h4 class="text-body-medium">TC009: Cola priorizada de urgencias por sede en tiempo real</h4>
+                  <h4 class="text-body-medium">TC031: Show validation when QR token is missing or invalid (O03-Val)</h4>
                 </div>
                 <div class="test-content">
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Test Code</div>
                     <div class="test-field-value text-body">
-                      <a href="./EmergencyControllerTest.java" class="text-link">EmergencyControllerTest.java</a>
+                      <a href="./07-operational-dashboard-alerts-qr.spec.js" class="text-link">07-operational-dashboard-alerts-qr.spec.js</a>
                     </div>
                   </div>
                   <div class="test-field">
@@ -1793,7 +1508,7 @@ body {
                   </div>
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Ordena pacientes activos por nivel de triaje (I antes que II, etc.), tiempo de espera acumulado y sede. Acceso restringido a personal asistencial y administrativo.</div>
+                    <div class="test-field-value text-body">El formulario de consulta de manilla QR valida la presencia de un token antes del envío. Tokens inexistentes o con formato anómalo retornan HTTP 404/400 controlado y despliegan una notificación toast accesible sin comprometer la estabilidad del tablero ni revelar estructuras internas.</div>
                   </div>
                 </div>
               </div>
@@ -1805,13 +1520,13 @@ body {
           <div class="accordion-header" onclick="toggleAccordion(this)">
             <div class="requirement-content">
                                           <div class="requirement-title-row">
-              <h3 class="title-requirement">Requirement: Gestión Hospitalaria, Camas y Traslados (MOD-HOSPITAL)</h3>
+              <h3 class="title-requirement">Requirement: Administrative & Role Dashboards (MOD-ADMIN-NAV)</h3>
                 <div class="requirement-status-tag status-success">
               <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
                 <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              <span>3/3</span>
+              <span>1/1</span>
             </div>
               </div>
               <p class="text-body-medium requirement-description">Proper error handling for API calls and invalid data scenarios.</p>
@@ -1827,13 +1542,13 @@ body {
             <div class="test-wrapper">
 <div class="test-card">
                 <div class="test-header">
-                  <h4 class="text-body-medium">TC010: Censo hospitalario interactivo y estados de camas</h4>
+                  <h4 class="text-body-medium">TC032: Segmentación y aislamiento de vistas de tablero por rol</h4>
                 </div>
                 <div class="test-content">
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Test Code</div>
                     <div class="test-field-value text-body">
-                      <a href="./HospitalControllerTest.java" class="text-link">HospitalControllerTest.java</a>
+                      <a href="./03-admin-security-isolation.spec.js" class="text-link">03-admin-security-isolation.spec.js</a>
                     </div>
                   </div>
                   <div class="test-field">
@@ -1866,541 +1581,7 @@ body {
                   </div>
                   <div class="test-field">
                     <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Reporta camas disponibles, ocupadas, en limpieza y en mantenimiento por sede y servicio, sin filtrar datos clínicos a usuarios administrativos.</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC011: Asignación atómica de cama y prevención de doble ocupación</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./HospitalServiceTest.java" class="text-link">HospitalServiceTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Transacción atómica que asigna una cama a un episodio activo. Si la cama se encuentra ocupada, lanza `ConflictoOperacionException` (HTTP 409).</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC012: Traslado intrahospitalario inmutable y egreso médico</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./HospitalServiceTest.java" class="text-link">HospitalServiceTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Registra el movimiento en `MOVIMIENTO_PACIENTE` (append-only), libera la cama de origen a desinfección y ocupa la de destino. El egreso médico concluye el episodio asistencial.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-                <div class="requirement-wrapper accordion-item active">
-          <div class="accordion-header" onclick="toggleAccordion(this)">
-            <div class="requirement-content">
-                                          <div class="requirement-title-row">
-              <h3 class="title-requirement">Requirement: Aseguramiento EPS y Citas Médicas Avanzadas (MOD-AFFILIATIONS)</h3>
-                <div class="requirement-status-tag status-success">
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>3/3</span>
-            </div>
-              </div>
-              <p class="text-body-medium requirement-description">Proper error handling for API calls and invalid data scenarios.</p>
-            </div>
-            <div class="accordion-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M11.4276 6C11.9145 6 12.1687 6.61626 11.875 7.01439L11.8316 7.06689L8.40295 10.817C8.30455 10.9246 8.17364 10.9892 8.03476 10.9988C7.89589 11.0083 7.7586 10.9621 7.64865 10.8688L7.59493 10.817L4.16629 7.06689L4.11886 7.00814L4.088 6.96002L4.05714 6.90002L4.04743 6.87752L4.032 6.83564L4.01371 6.76814L4.008 6.73501L4.00229 6.69751L4 6.66189V6.58814L4.00286 6.55188L4.008 6.51438L4.01371 6.48188L4.032 6.41438L4.04743 6.37251L4.08743 6.29L4.12457 6.23375L4.16629 6.18313L4.22 6.13125L4.26401 6.0975L4.31886 6.06375L4.33944 6.05313L4.37772 6.03625L4.43944 6.01625L4.46972 6.01L4.50401 6.00375L4.53658 6.00125L11.4276 6Z" fill="var(--fg-secondary)"/>
-              </svg>
-            </div>
-          </div>
-
-            <div class="accordion-content">
-            <div class="test-wrapper">
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC013: Carga de archivo Excel XLSX con protección Zip Bomb y sanitización</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./AffiliationServiceTest.java" class="text-link">AffiliationServiceTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Emplea Apache POI con `ZipSecureFile.setMinInflateRatio(0.01)` limitando la tasa de expansión y neutraliza inyección de fórmulas anteponiendo comilla simple `'`.</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC014: Previsualización paginada y confirmación atómica / resiliente</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./AffiliationServiceTest.java" class="text-link">AffiliationServiceTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Soporta previsualización con resumen de válidas/inválidas y confirmación en modos `ATOMIC_ALL` y `VALID_ROWS` sin crear cuentas ficticias de usuario en el sistema.</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC015: Consulta de afiliación a EPS no bloqueante (Ley 1751 de 2015)</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./AffiliationControllerTest.java" class="text-link">AffiliationControllerTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Si el paciente no se encuentra en la base de datos de la EPS, se reporta como `NO_ASEGURADO` sin bloquear la valoración ni el ingreso por urgencias.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-                <div class="requirement-wrapper accordion-item active">
-          <div class="accordion-header" onclick="toggleAccordion(this)">
-            <div class="requirement-content">
-                                          <div class="requirement-title-row">
-              <h3 class="title-requirement">Requirement: Centro de Mando, Analítica y QR de Seguimiento (MOD-OPERATIONAL)</h3>
-                <div class="requirement-status-tag status-success">
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>3/3</span>
-            </div>
-              </div>
-              <p class="text-body-medium requirement-description">Proper error handling for API calls and invalid data scenarios.</p>
-            </div>
-            <div class="accordion-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M11.4276 6C11.9145 6 12.1687 6.61626 11.875 7.01439L11.8316 7.06689L8.40295 10.817C8.30455 10.9246 8.17364 10.9892 8.03476 10.9988C7.89589 11.0083 7.7586 10.9621 7.64865 10.8688L7.59493 10.817L4.16629 7.06689L4.11886 7.00814L4.088 6.96002L4.05714 6.90002L4.04743 6.87752L4.032 6.83564L4.01371 6.76814L4.008 6.73501L4.00229 6.69751L4 6.66189V6.58814L4.00286 6.55188L4.008 6.51438L4.01371 6.48188L4.032 6.41438L4.04743 6.37251L4.08743 6.29L4.12457 6.23375L4.16629 6.18313L4.22 6.13125L4.26401 6.0975L4.31886 6.06375L4.33944 6.05313L4.37772 6.03625L4.43944 6.01625L4.46972 6.01L4.50401 6.00375L4.53658 6.00125L11.4276 6Z" fill="var(--fg-secondary)"/>
-              </svg>
-            </div>
-          </div>
-
-            <div class="accordion-content">
-            <div class="test-wrapper">
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC016: Tablero de mando analítico en tiempo real</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./OperationalControllerTest.java" class="text-link">OperationalControllerTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Agrega indicadores de ocupación, tiempos de espera, distribución de triaje y cirugías activas en tiempo real.</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC017: Motor de alertas operativas con reconocimiento auditable</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./OperationalAnalyticsServiceTest.java" class="text-link">OperationalAnalyticsServiceTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Dispara alertas operativas por sobrecupo o demoras. El reconocimiento registra usuario, fecha y notas en la bitácora inmutable.</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC018: Seguimiento intrahospitalario por QR sin exposición de PHI</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./OperationalAnalyticsServiceTest.java" class="text-link">OperationalAnalyticsServiceTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Genera token UUID con hash SHA-256. El escaneo público (`permitAll`) muestra únicamente datos de ubicación y estado asistencial sin exponer diagnósticos ni notas clínicas.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-                <div class="requirement-wrapper accordion-item active">
-          <div class="accordion-header" onclick="toggleAccordion(this)">
-            <div class="requirement-content">
-                                          <div class="requirement-title-row">
-              <h3 class="title-requirement">Requirement: Historia Clínica Inmutable y Farmacia (MOD-CLINICAL)</h3>
-                <div class="requirement-status-tag status-success">
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>2/2</span>
-            </div>
-              </div>
-              <p class="text-body-medium requirement-description">Proper error handling for API calls and invalid data scenarios.</p>
-            </div>
-            <div class="accordion-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M11.4276 6C11.9145 6 12.1687 6.61626 11.875 7.01439L11.8316 7.06689L8.40295 10.817C8.30455 10.9246 8.17364 10.9892 8.03476 10.9988C7.89589 11.0083 7.7586 10.9621 7.64865 10.8688L7.59493 10.817L4.16629 7.06689L4.11886 7.00814L4.088 6.96002L4.05714 6.90002L4.04743 6.87752L4.032 6.83564L4.01371 6.76814L4.008 6.73501L4.00229 6.69751L4 6.66189V6.58814L4.00286 6.55188L4.008 6.51438L4.01371 6.48188L4.032 6.41438L4.04743 6.37251L4.08743 6.29L4.12457 6.23375L4.16629 6.18313L4.22 6.13125L4.26401 6.0975L4.31886 6.06375L4.33944 6.05313L4.37772 6.03625L4.43944 6.01625L4.46972 6.01L4.50401 6.00375L4.53658 6.00125L11.4276 6Z" fill="var(--fg-secondary)"/>
-              </svg>
-            </div>
-          </div>
-
-            <div class="accordion-content">
-            <div class="test-wrapper">
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC019: Inmutabilidad de atenciones cerradas y enmiendas append-only</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./ClinicalAttentionServiceTest.java" class="text-link">ClinicalAttentionServiceTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Atenciones cerradas no admiten UPDATE ni DELETE (protegido por triggers relacionales). Modificaciones se gestionan exclusivamente mediante enmiendas auditadas.</div>
-                  </div>
-                </div>
-              </div>
-<div class="test-card">
-                <div class="test-header">
-                  <h4 class="text-body-medium">TC020: Prescripción médica y dispensación con lotes INVIMA</h4>
-                </div>
-                <div class="test-content">
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Code</div>
-                    <div class="test-field-value text-body">
-                      <a href="./PrescriptionServiceTest.java" class="text-link">PrescriptionServiceTest.java</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Error</div>
-                    <div class="test-field-value text-body">Ninguno</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Test Visualization and Result</div>
-                    <div class="test-field-value text-body">
-                      <a href="null" class="text-link">View Results</a>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Status</div>
-                    <div class="test-field-value">
-                      <div class="status-wrapper">
-                <div class="status-icon">
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="7.99961" cy="7.99998" r="6.4" fill="#10A363" fill-opacity="0.2"/>
-                        <path d="M5.59961 8.00002L7.19961 9.60002L10.3996 6.40002" stroke="#19C379" stroke-width="1.28" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <span class="text-body status-pass">Pass</span>
-            </div>
-                    </div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Severity</div>
-                    <div class="test-field-value text-body">LOW</div>
-                  </div>
-                  <div class="test-field">
-                    <div class="test-field-label text-body-medium">Analysis / Findings</div>
-                    <div class="test-field-value text-body">Prescripción congela snapshot inmutable del medicamento. Farmacia valida vigencia, saldos no sobrepasados y registra lotes INVIMA y fechas de vencimiento.</div>
+                    <div class="test-field-value text-body">Los enlaces principales en la barra lateral y cabecera dirigen dinámicamente según rol (`ROLE_ADMINISTRADOR` → `#/admin/dashboard`, `ROLE_ENFERMERIA` → `#/nursing/dashboard`, `ROLE_PROFESIONAL` → `#/professional/agenda`, `ROLE_PACIENTE` → `#/patient/dashboard`). El aislamiento 403 en backend impide que perfiles administrativos consulten información clínica individual.</div>
                   </div>
                 </div>
               </div>
@@ -2424,7 +1605,7 @@ body {
         </div>
         <div class="metadata-row">
           <div class="metadata-label text-body-medium">Code Repo</div>
-          <div class="metadata-value text-body">MediTriaje 2.0 (Plataforma Web Hospitalaria y de Triaje Clínico)</div>
+          <div class="metadata-value text-body">MediTriaje 2.0 (Módulo: Centro de Mando Hospitalario & Dashboards)</div>
         </div>
         <div class="metadata-row">
           <div class="metadata-label text-body-medium">Test Results</div>

@@ -694,7 +694,7 @@ export async function renderOperationalDashboard(container) {
         const motivo = textarea ? textarea.value.trim() : '';
         if (!motivo) {
           ui.showToast('Debe ingresar el motivo de reconocimiento para el registro de auditoría.', 'error');
-          return;
+          return false;
         }
 
         try {
@@ -703,6 +703,7 @@ export async function renderOperationalDashboard(container) {
           await cargarDatosDashboard(selectSede.value);
         } catch (err) {
           ui.showToast(err.message || 'Error al reconocer la alerta.', 'error');
+          return false;
         }
       }
     });

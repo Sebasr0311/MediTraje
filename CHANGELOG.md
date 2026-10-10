@@ -7,6 +7,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+- **Auditoría TestSprite y Corrección de Ciclo de Vida Modal en Centro de Mando**:
+  - Corrección crítica en `ui.showModal` (`frontend/js/ui.js`): `closeModal()` ahora se ejecuta tras `onConfirm()` y únicamente si `result !== false`, garantizando que elementos interactivos dentro del diálogo (como `#txtMotivoAckModal`) permanezcan en el DOM para su lectura y validación.
+  - Blindaje en `operational-dashboard.js`: retorno explícito de `false` en `onConfirm` ante justificación vacía o errores de red para prevenir el cierre no deseado del modal.
+  - Actualización de suite Playwright `07-operational-dashboard-alerts-qr.spec.js` para interactuar con el modal accesible en vez del diálogo nativo del navegador, alcanzando 3 de 3 pruebas 100% en verde.
+  - Generación de reporte formal TestSprite en `testsprite_tests/testsprite-mcp-test-report.md`.
+
 - **Resiliencia en Despliegue de Producción (Render / Spring Boot Profile `prod`)**:
   - Incorporación de soporte y fallback seguro para `MAIL_FROM` y `MAIL_FROM_NAME` en `render.yaml`, `application-prod.yml` y `ProdEnvironmentValidator.java`.
   - Validación fail-fast resiliente en arranque: búsqueda en cascada (`MAIL_FROM` -> `SMTP_FROM` -> `meditriaje.mail.from`), evitando interrupciones en el deploy si las variables de entorno no fueron configuradas manualmente en el dashboard de Render.
