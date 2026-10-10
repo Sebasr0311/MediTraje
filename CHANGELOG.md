@@ -7,7 +7,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
-### Added
+- **Auditoría Integral y Rediseño de Centro de Mando y Analítica Hospitalaria (Fase O, ADR-027)**:
+  - Rediseño hospitalario de alta fidelidad para `operational-dashboard.js` y nuevos estilos CSS dedicados `.operational-*` en `components.css`:
+    - **Cabecera Operativa:** Indicador de pulso animado "En vivo", selector de sedes, alternador de auto-refresco (cada 30s) y botón manual con retroalimentación visual.
+    - **Tarjetas de KPIs:**
+      - Ocupación de camas con barra de progreso dinámica por rangos de saturación (<70% verde, 70-85% amarillo, >85% rojo) y desglose de camas libres, en desinfección y mantenimiento.
+      - Urgencias activas con desglose detallado de pacientes en espera por clasificación de triaje I–V.
+      - Alertas de saturación con insignias de estado y banner crítico persistente.
+      - Camas disponibles para asignación inmediata.
+    - **Tiempos de Espera (Resolución 5596/2015 MinSalud Colombia):** Grilla comparativa de tiempos promedio contra estándares normativos obligatorios (Niveles I a V) con insignias de alerta automática ante demoras excesivas.
+    - **Gestión Auditada de Alertas:** Reemplazo de diálogos nativos `prompt()`/`alert()` por modales accesibles `ui.showModal` con justificación obligatoria y registro auditado inmutable (IP + usuario).
+    - **Seguimiento Seguro por Manilla QR:** Credencial visual de localización intrahospitalaria sin exposición de PHI ni diagnóstico (cumplimiento Ley 1581 / Res. 1995 de 1999) y botón para copiar token al portapapeles.
+    - **Compatibilidad de Diseño:** 100% alineado con `tokens.css`, soporte completo para tema claro y oscuro, y adaptabilidad responsive en pantallas móviles (`< 768px`).
+- **Optimización de Usabilidad y Accesibilidad en Barra Lateral (Sidebar)**:
+  - Corrección de bloqueo/estatismo al seleccionar enlaces: al hacer clic en cualquier opción en modo no fijado (hover), el menú se repliega inmediatamente al rail de 68px (`.is-clicked-collapsed`) y desenfoca el enlace (`link.blur()`) para evitar que `:focus-within` lo mantenga abierto sobre la vista cargada.
+  - Sincronización en cambios de ruta (`hashchange`) y clics fuera del contenedor para garantizar cierre limpio y predecible.
+  - Ampliación de la suite E2E en Playwright (`09-accessibility-wcag-sidebar.spec.js`) con 8 de 8 pruebas pasando 100% en verde (incluyendo repliegue al clic y auditoría del Centro de Mando).
 - **Auditoría de Accesibilidad Web (WCAG 2.1 AA) y Rediseño de Navegación Lateral (Sidebar)**:
   - Rediseño de la barra de navegación principal hacia una barra lateral izquierda accesible (Sidebar / Navigation Rail):
     - Modo Hover dinámico: rail colapsado de 68px que se expande suavemente a 264px al posar el cursor del mouse (`mouseenter`/`mouseleave`).

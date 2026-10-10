@@ -126,6 +126,7 @@ export function initSidebar() {
 
   // Evento mouseenter / mouseleave para expansión suave por hover
   sidebarElement.addEventListener('mouseenter', () => {
+    sidebarElement.classList.remove('is-clicked-collapsed');
     if (!sidebarElement.classList.contains('is-pinned')) {
       sidebarElement.classList.add('is-hovered');
     }
@@ -133,6 +134,10 @@ export function initSidebar() {
 
   sidebarElement.addEventListener('mouseleave', () => {
     sidebarElement.classList.remove('is-hovered');
+    sidebarElement.classList.remove('is-clicked-collapsed');
+    if (!sidebarElement.classList.contains('is-pinned') && sidebarElement.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
   });
 
   // Eventos de teclado (WCAG 1.4.13 Dismissable y 2.1.1 Keyboard Accessible)
@@ -140,8 +145,9 @@ export function initSidebar() {
     if (e.key === 'Escape') {
       if (sidebarElement.classList.contains('is-mobile-open')) {
         closeMobileSidebar();
-      } else if (sidebarElement.classList.contains('is-hovered')) {
+      } else if (sidebarElement.classList.contains('is-hovered') || sidebarElement.contains(document.activeElement)) {
         sidebarElement.classList.remove('is-hovered');
+        sidebarElement.classList.remove('is-clicked-collapsed');
         // Quitar foco activo de enlaces para cumplir criterio dismissable
         if (sidebarElement.contains(document.activeElement)) {
           document.activeElement.blur();
@@ -168,10 +174,19 @@ export function initSidebar() {
       return;
     }
 
-    // 3. Clic en enlace de navegación dentro de móvil cierra el drawer
+    // 3. Clic en enlace de navegación: en móvil cierra el drawer; en desktop unpinned repliega inmediatamente
     const link = e.target.closest('.sidebar-link');
-    if (link && sidebarElement?.classList.contains('is-mobile-open')) {
-      closeMobileSidebar();
+    if (link) {
+      if (sidebarElement?.classList.contains('is-mobile-open')) {
+        closeMobileSidebar();
+      } else if (sidebarElement && !sidebarElement.classList.contains('is-pinned')) {
+        sidebarElement.classList.remove('is-hovered');
+        sidebarElement.classList.add('is-clicked-collapsed');
+        link.blur();
+        if (sidebarElement.contains(document.activeElement)) {
+          document.activeElement.blur();
+        }
+      }
       return;
     }
 
@@ -190,6 +205,18 @@ export function initSidebar() {
       } else {
         openMobileSidebar();
       }
+      return;
+    }
+
+    // 6. Clic fuera del sidebar: replegar si está en modo hover y limpiar focos residuales
+    if (sidebarElement && !sidebarElement.contains(e.target)) {
+      if (!sidebarElement.classList.contains('is-pinned')) {
+        sidebarElement.classList.remove('is-hovered');
+        sidebarElement.classList.remove('is-clicked-collapsed');
+        if (sidebarElement.contains(document.activeElement)) {
+          document.activeElement.blur();
+        }
+      }
     }
   });
 
@@ -198,6 +225,12 @@ export function initSidebar() {
     updateActiveRouteLinks();
     if (sidebarElement.classList.contains('is-mobile-open')) {
       closeMobileSidebar();
+    } else if (!sidebarElement.classList.contains('is-pinned')) {
+      sidebarElement.classList.remove('is-hovered');
+      sidebarElement.classList.add('is-clicked-collapsed');
+      if (sidebarElement.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
     }
   });
 
