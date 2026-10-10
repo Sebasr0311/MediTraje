@@ -7,6 +7,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+- **Resiliencia en Despliegue de Producción (Render / Spring Boot Profile `prod`)**:
+  - Incorporación de soporte y fallback seguro para `MAIL_FROM` y `MAIL_FROM_NAME` en `render.yaml`, `application-prod.yml` y `ProdEnvironmentValidator.java`.
+  - Validación fail-fast resiliente en arranque: búsqueda en cascada (`MAIL_FROM` -> `SMTP_FROM` -> `meditriaje.mail.from`), evitando interrupciones en el deploy si las variables de entorno no fueron configuradas manualmente en el dashboard de Render.
+
 - **Auditoría Integral y Rediseño de Centro de Mando y Analítica Hospitalaria (Fase O, ADR-027)**:
   - Rediseño hospitalario de alta fidelidad para `operational-dashboard.js` y nuevos estilos CSS dedicados `.operational-*` en `components.css`:
     - **Cabecera Operativa:** Indicador de pulso animado "En vivo", selector de sedes, alternador de auto-refresco (cada 30s) y botón manual con retroalimentación visual.

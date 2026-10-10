@@ -35,7 +35,11 @@ services:
         sync: false
       - key: BREVO_API_KEY
         sync: false
+      - key: MAIL_FROM
+        value: meditraje.admin@gmail.com
+      - key: MAIL_FROM_NAME
+        value: MediTriaje 2.0
       - key: SMTP_FROM
-        sync: false
+        value: meditraje.admin@gmail.com
       - key: SMTP_FROM_NAME
         value: MediTriaje 2.0

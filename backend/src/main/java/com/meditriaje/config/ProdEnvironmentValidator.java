@@ -37,19 +37,41 @@ public class ProdEnvironmentValidator {
                 "CORS_ORIGINS"
         ));
 
-        String mailTransport = environment.getProperty("meditriaje.mail.transport",
-                environment.getProperty("MAIL_TRANSPORT", "brevo-api")).trim().toLowerCase();
-
-        if ("brevo-api".equals(mailTransport) || "brevo".equals(mailTransport)) {
-            requiredVars.add("BREVO_API_KEY");
-            requiredVars.add("MAIL_FROM");
-            requiredVars.add("MAIL_FROM_NAME");
-        }
-
         for (String var : requiredVars) {
             String val = environment.getProperty(var);
             if (val == null || val.isBlank() || val.equals("${" + var + "}")) {
                 String errorMsg = "Configuracion de produccion invalida: La variable obligatoria '" + var + "' no esta definida o esta vacia.";
+                log.error("FAIL-FAST EN PRODUCCION: {}", errorMsg);
+                throw new IllegalStateException(errorMsg);
+            }
+        }
+
+        String mailTransport = environment.getProperty("meditriaje.mail.transport",
+                environment.getProperty("MAIL_TRANSPORT", "brevo-api")).trim().toLowerCase();
+
+        if ("brevo-api".equals(mailTransport) || "brevo".equals(mailTransport)) {
+            String brevoApiKey = environment.getProperty("BREVO_API_KEY",
+                    environment.getProperty("meditriaje.mail.brevo.api-key"));
+            if (brevoApiKey == null || brevoApiKey.isBlank() || brevoApiKey.startsWith("${")) {
+                String errorMsg = "Configuracion de produccion invalida: La variable obligatoria 'BREVO_API_KEY' no esta definida o esta vacia.";
+                log.error("FAIL-FAST EN PRODUCCION: {}", errorMsg);
+                throw new IllegalStateException(errorMsg);
+            }
+
+            String mailFrom = environment.getProperty("MAIL_FROM",
+                    environment.getProperty("SMTP_FROM",
+                    environment.getProperty("meditriaje.mail.from", "meditraje.admin@gmail.com")));
+            if (mailFrom == null || mailFrom.isBlank() || mailFrom.startsWith("${")) {
+                String errorMsg = "Configuracion de produccion invalida: La variable obligatoria 'MAIL_FROM' no esta definida o esta vacia.";
+                log.error("FAIL-FAST EN PRODUCCION: {}", errorMsg);
+                throw new IllegalStateException(errorMsg);
+            }
+
+            String mailFromName = environment.getProperty("MAIL_FROM_NAME",
+                    environment.getProperty("SMTP_FROM_NAME",
+                    environment.getProperty("meditriaje.mail.from-name", "MediTriaje 2.0")));
+            if (mailFromName == null || mailFromName.isBlank() || mailFromName.startsWith("${")) {
+                String errorMsg = "Configuracion de produccion invalida: La variable obligatoria 'MAIL_FROM_NAME' no esta definida o esta vacia.";
                 log.error("FAIL-FAST EN PRODUCCION: {}", errorMsg);
                 throw new IllegalStateException(errorMsg);
             }

@@ -47,8 +47,8 @@ meditriaje:
     brevo:
       api-url: ${BREVO_API_URL:https://api.brevo.com/v3/smtp/email}
       api-key: ${BREVO_API_KEY}
-    from: ${MAIL_FROM}
-    from-name: ${MAIL_FROM_NAME}
+    from: ${MAIL_FROM:${SMTP_FROM:meditraje.admin@gmail.com}}
+    from-name: ${MAIL_FROM_NAME:${SMTP_FROM_NAME:MediTriaje 2.0}}
   demo:
     seed: ${DEMO_SEED:false}
     password: ${DEMO_PASSWORD:}
