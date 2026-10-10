@@ -114,7 +114,7 @@ public class EmergencySummaryService {
      * Consulta pública protegida del resumen clínico de salud mediante token criptográfico y PIN opcional.
      * Valida vigencia, consume un acceso atómicamente y audita el evento sin exponer datos clínicos en bitácora.
      */
-    @Transactional
+    @Transactional(noRollbackFor = CredencialesInvalidasException.class)
     public ResumenSaludResponse consultarResumenPorToken(String token, ConsultarResumenRequest request, String ipOrigen) {
         if (token == null || token.isBlank()) {
             throw new RecursoNoEncontradoException("Acceso de emergencia no valido o inexistente.");

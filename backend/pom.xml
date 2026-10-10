@@ -22,6 +22,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <ojdbc.version>23.5.0.24.07</ojdbc.version>
+        <!-- Valor vacío permite evaluación tardía compatible con prepare-agent de JaCoCo. -->
+        <argLine></argLine>
     </properties>
 
     <dependencies>
@@ -171,11 +173,22 @@
                 </dependencies>
             </plugin>
 
+            <!-- Mockito se carga al iniciar la JVM: evita self-attach restringido en Java 21. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals><goal>properties</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- Pruebas de integración: clases con @Tag("integration"), requieren Docker -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <argLine>@{argLine} -javaagent:"${org.mockito:mockito-core:jar}"</argLine>
                     <!-- Excluye tests de integración del ciclo unit-test -->
                     <excludedGroups>integration</excludedGroups>
                 </configuration>
@@ -184,6 +197,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
+                    <argLine>@{argLine} -javaagent:"${org.mockito:mockito-core:jar}"</argLine>
                     <!-- Solo ejecuta tests etiquetados como "integration" -->
                     <groups>integration</groups>
                     <includes>

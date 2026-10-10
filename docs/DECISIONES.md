@@ -302,9 +302,73 @@ No obstante, el ecosistema Spring avanza hacia su próxima generación mayor (**
    - Validar compatibilidad de librerías criptográficas satélite: BouncyCastle, JJWT (soporte para Jackson 3) y el driver de Oracle JDBC.
    - Ejecutar la suite integral de verificación: 948+ pruebas unitarias Surefire, integración en base de datos real con Testcontainers (Failsafe) y pruebas de extremo a extremo con Playwright.
 
+## ADR-022 Arquitectura de Urgencias y Episodios Clínicos Desacoplados de Citas
+**Estado:** PROPUESTO — Plan Maestro Hospitalario.
+**Contexto:**
+El modelo original vincula estrictamente cada atención médica (`ATENCION_MEDICA`) a una cita previa obligatoria (`cita_id NOT NULL UNIQUE`). En urgencias hospitalarias, los pacientes ingresan de manera espontánea, por ambulancia o remitidos, sin cita previa agendada.
+**Decisión Propuesta:**
+1. Introducir el concepto de `EPISODIO_ATENCION` (tipo: URGENCIA, CONSULTA, HOSPITALIZACION) con ciclo de vida independiente.
+2. Mantener retrocompatibilidad absoluta: la consulta externa continúa usando citas sin regresión; en urgencias, la atención se vincula al `episodio_id`.
+3. Ningún ingreso de urgencia puede ser bloqueado por ausencia de cita, falta de correo electrónico o falta de cuenta web.
+
+## ADR-023 Identidad Provisional y Atención a Pacientes No Identificados (NN)
+**Estado:** PROPUESTO — Plan Maestro Hospitalario.
+**Contexto:**
+En urgencias pueden ingresar pacientes inconscientes, menores sin documento o personas indocumentadas (NN). El modelo actual de `PACIENTE` exige documento civil y usuario web obligatorio.
+**Decisión Propuesta:**
+1. Crear `IDENTIDAD_PROVISIONAL` con un código aleatorio opaco único (sin asignar cédula falsa ni inventar datos).
+2. Permitir la reconciliación transaccional auditada hacia un expediente verificado cuando la identidad civil sea confirmada por personal autorizado, preservando inalterado el historial asistencial previo.
+
+## ADR-024 Jerarquía de Instalaciones y Gestión Concurrente de Camas Hospitalarias
+**Estado:** PROPUESTO — Plan Maestro Hospitalario.
+**Contexto:**
+La plataforma cuenta únicamente con sedes institucionales. La gestión hospitalaria requiere unidades, zonas, salas, habitaciones y camas con control estricto de concurrencia.
+**Decisión Propuesta:**
+1. Estructura jerárquica acotada: `SEDE -> UNIDAD -> ZONA -> SALA -> HABITACION -> CAMA`.
+2. Ocupación transaccional con restricción única en Oracle: exactamente una ocupación abierta por cama (`OCUPACION_CAMA`). Bloqueo pesimista o índice funcional único que garantice rechazo con 409 ante concurrencia sin sobreasignación.
+3. Registro append-only de movimientos hospitalarios (`MOVIMIENTO_PACIENTE`).
+
+## ADR-025 Afiliaciones Administrativas e Importación Asíncrona en Dos Pasos de Lotes Excel
+**Estado:** PROPUESTO — Plan Maestro Hospitalario.
+**Contexto:**
+La verificación de cobertura de EPS requiere procesar padrones administrativos masivos sin exponer el sistema a vulnerabilidades de subida ni bloquear la atención médica.
+**Decisión Propuesta:**
+1. Proceso de importación seguro en 2 pasos: `preview` (validación en memoria, neutralización de fórmulas, reporte por fila de errores) y `commit` (aplicación atómica o por filas válidas con token de lote e idempotencia por hash).
+2. La importación de afiliaciones NO crea cuentas web ni contraseñas.
+3. La ausencia de afiliación a EPS o el estado desconocido NUNCA bloquea el ingreso ni la estabilización en urgencias (cumplimiento Ley Estatutaria de Salud Colombia).
+
+## ADR-026 Perfil y Permisos Asistenciales de Enfermería en el Modelo RBAC
+**Estado:** PROPUESTO — Plan Maestro Hospitalario.
+**Contexto:**
+El sistema actual soporta PACIENTE, PROFESIONAL, ADMINISTRADOR y FARMACEUTICO. El circuito hospitalario de urgencias requiere el rol de ENFERMERIA para recepción, admisión provisional, triaje presencial y administración de cuidados.
+**Decisión Propuesta:**
+1. Incorporar la autoridad `ROLE_ENFERMERIA` con menú, vistas y endpoints acotados.
+2. Enfermería puede admitir urgencias, registrar identidades provisionales, realizar valoración presencial de triaje y reevaluaciones.
+3. Se prohíbe a enfermería prescribir recetas médicas, cerrar historias clínicas diagnósticas o alterar registros administrativos globales.
+
+## ADR-027 Protocolo de Triaje Presencial Humano con Estados Pendientes y Reevaluación Append-Only
+**Estado:** PROPUESTO — Plan Maestro Hospitalario.
+**Contexto:**
+El triaje actual es un cuestionario web de autoorientación para cita ambulatoria (20 síntomas, prototipo con fallback III). En urgencias presenciales rige la Resolución 5596/2015 del Ministerio de Salud.
+**Decisión Propuesta:**
+1. Separar tajantemente el triaje web ambulatorio de la valoración clínica presencial de urgencias.
+2. En urgencias, todo paciente recién ingresado inicia en `PENDIENTE_VALORACION`; nunca se le asigna un nivel automático por omisión.
+3. La clasificación en niveles I a V la firma un profesional de salud habilitado (enfermería/médico) registrando signos vitales y motivo.
+4. Cada reevaluación genera un nuevo registro inmutable (`VALORACION_TRIAJE`), conservando el historial cronológico completo.
+
+## ADR-028 Política de Retención de Documentos, Trazabilidad y Diseño de Interoperabilidad
+**Estado:** PROPUESTO — Plan Maestro Hospitalario.
+**Contexto:**
+Se requiere trazabilidad completa para eventos clínicos y administrativos, salvaguardando la confidencialidad (Ley 1581/2012) y preparando el sistema para futura interoperabilidad.
+**Decisión Propuesta:**
+1. Trazabilidad append-only en `EVENTO_AUDITORIA` sin registrar datos clínicos ni identificaciones legibles en logs técnicos.
+2. Identificación operativa mediante pulsera con código QR opaco, independiente del QR de resumen clínico temporal.
+3. Diseño de contratos candidatos alineados conceptualmente con estándares de interoperabilidad (RIPS, HL7 FHIR), sin asumir conectores activos no autorizados.
+
 ---
 
 ## Pendientes reales
 - **Reglas exactas de triaje**: requieren revisión de un profesional de salud.
 - **Nombre/dominio definitivo** y **diseño visual**: no bloquean el MVP.
+
 
