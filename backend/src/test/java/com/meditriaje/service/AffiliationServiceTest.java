@@ -310,4 +310,36 @@ class AffiliationServiceTest {
         verify(representacionRepository).guardar(any(RepresentacionLegal.class));
         verify(auditoriaService).auditar(any(EventoAuditoria.class));
     }
+
+    @Test
+    @DisplayName("A02: generarPlantillaExcel produce un archivo XLSX válido con hojas y columnas requeridas")
+    void generarPlantillaExcel_valida() throws Exception {
+        byte[] bytes = service.generarPlantillaExcel();
+        assertNotNull(bytes);
+        assertTrue(bytes.length > 1000);
+
+        try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(bytes);
+             Workbook workbook = new XSSFWorkbook(bais)) {
+            assertEquals(2, workbook.getNumberOfSheets());
+            Sheet sheetAfiliados = workbook.getSheet("AFILIADOS_EPS");
+            assertNotNull(sheetAfiliados);
+            Row header = sheetAfiliados.getRow(0);
+            assertEquals("TIPO_DOCUMENTO", header.getCell(0).getStringCellValue());
+            assertEquals("NUMERO_DOCUMENTO", header.getCell(1).getStringCellValue());
+            assertEquals("NOMBRES", header.getCell(2).getStringCellValue());
+            assertEquals("APELLIDOS", header.getCell(3).getStringCellValue());
+            assertEquals("REGIMEN", header.getCell(4).getStringCellValue());
+            assertEquals("TIPO_AFILIADO", header.getCell(5).getStringCellValue());
+
+            Sheet sheetInstrucciones = workbook.getSheet("INSTRUCCIONES");
+            assertNotNull(sheetInstrucciones);
+            assertTrue(sheetInstrucciones.getLastRowNum() >= 7);
+        }
+
+        // Exportar a frontend/assets para disponibilidad estática directa
+        java.io.File assetsDir = new java.io.File("../frontend/assets");
+        if (assetsDir.exists()) {
+            java.nio.file.Files.write(new java.io.File(assetsDir, "plantilla_afiliados_eps.xlsx").toPath(), bytes);
+        }
+    }
 }

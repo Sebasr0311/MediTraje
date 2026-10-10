@@ -13,6 +13,24 @@ export async function renderAffiliationImport(container) {
       <p class="view-subtitle">Cargue archivos XLSX oficiales de aseguradoras para actualizar el censo de afiliados en Valledupar.</p>
     </div>
 
+    <!-- Tarjeta de Descarga de Plantilla Oficial -->
+    <div class="card" style="margin-top: 1rem; background: var(--color-bg-secondary, #f8fafc); border-left: 4px solid var(--primary, #0d9488); padding: 1.25rem;">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+            <span style="font-size: 1.25rem;">📥</span>
+            <h2 style="font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--color-text-primary);">Plantilla Oficial de Afiliados (.xlsx)</h2>
+          </div>
+          <p style="margin: 0; font-size: 0.875rem; color: var(--color-text-secondary);">
+            Descargue el formato estándar preconfigurado con columnas requeridas (TIPO_DOCUMENTO, NUMERO_DOCUMENTO, NOMBRES, APELLIDOS, REGIMEN, TIPO_AFILIADO), ejemplos reales y guía técnica MinSalud.
+          </p>
+        </div>
+        <button type="button" id="btn-descargar-plantilla" class="btn btn-secondary" style="font-weight: 600; white-space: nowrap;">
+          Descargar Plantilla Excel
+        </button>
+      </div>
+    </div>
+
     <div class="grid grid-2" style="gap: 1.5rem; margin-top: 1rem;">
       <!-- Tarjeta de Carga -->
       <div class="card">
@@ -118,6 +136,47 @@ export async function renderAffiliationImport(container) {
     }
   } catch (err) {
     console.error('Error cargando lista de EPS:', err);
+  }
+
+  // Descarga de plantilla oficial Excel (.xlsx)
+  const btnDescargarPlantilla = container.querySelector('#btn-descargar-plantilla');
+  if (btnDescargarPlantilla) {
+    btnDescargarPlantilla.addEventListener('click', async () => {
+      btnDescargarPlantilla.disabled = true;
+      const originalText = btnDescargarPlantilla.textContent;
+      btnDescargarPlantilla.textContent = 'Descargando plantilla...';
+      try {
+        const res = await fetch('/api/v1/affiliations/template');
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'plantilla_afiliados_eps.xlsx';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } else {
+          const a = document.createElement('a');
+          a.href = '/assets/plantilla_afiliados_eps.xlsx';
+          a.download = 'plantilla_afiliados_eps.xlsx';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }
+      } catch (err) {
+        const a = document.createElement('a');
+        a.href = '/assets/plantilla_afiliados_eps.xlsx';
+        a.download = 'plantilla_afiliados_eps.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } finally {
+        btnDescargarPlantilla.disabled = false;
+        btnDescargarPlantilla.textContent = originalText;
+      }
+    });
   }
 
   // Carga de archivo y preview

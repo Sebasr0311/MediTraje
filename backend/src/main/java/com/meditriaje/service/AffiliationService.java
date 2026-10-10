@@ -525,4 +525,129 @@ public class AffiliationService {
             return UUID.randomUUID().toString();
         }
     }
+
+    /**
+     * Genera la plantilla Excel oficial (.xlsx) para importación de afiliados EPS.
+     * Diseñada para Valledupar, Cesar con encabezados estandarizados, estilos y hoja de instrucciones.
+     */
+    public byte[] generarPlantillaExcel() {
+        try (Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
+             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerFont.setFontHeightInPoints((short) 11);
+
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.TEAL.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+            headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+            headerStyle.setBorderBottom(BorderStyle.THIN);
+            headerStyle.setBorderTop(BorderStyle.THIN);
+            headerStyle.setBorderRight(BorderStyle.THIN);
+            headerStyle.setBorderLeft(BorderStyle.THIN);
+
+            CellStyle dataStyle = workbook.createCellStyle();
+            dataStyle.setBorderBottom(BorderStyle.THIN);
+            dataStyle.setBorderTop(BorderStyle.THIN);
+            dataStyle.setBorderRight(BorderStyle.THIN);
+            dataStyle.setBorderLeft(BorderStyle.THIN);
+
+            // Hoja 1: Afiliados EPS
+            Sheet sheetAfiliados = workbook.createSheet("AFILIADOS_EPS");
+            sheetAfiliados.setDisplayGridlines(true);
+
+            String[] columnas = {
+                    "TIPO_DOCUMENTO",
+                    "NUMERO_DOCUMENTO",
+                    "NOMBRES",
+                    "APELLIDOS",
+                    "REGIMEN",
+                    "TIPO_AFILIADO"
+            };
+
+            Row headerRow = sheetAfiliados.createRow(0);
+            headerRow.setHeightInPoints(26);
+            for (int i = 0; i < columnas.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(columnas[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Ejemplos realistas para Colombia / Cesar
+            String[][] ejemplos = {
+                    {"CC", "1065123456", "Carlos Andrés", "Gómez Quintero", "CONTRIBUTIVO", "COTIZANTE"},
+                    {"TI", "1098765432", "Valentina", "Dangond Baute", "CONTRIBUTIVO", "BENEFICIARIO"},
+                    {"CC", "1065987654", "Andrés Felipe", "Cuello Oñate", "SUBSIDIADO", "CABEZA_FAMILIA"},
+                    {"RC", "1024567890", "Sofía", "Martínez Mejía", "SUBSIDIADO", "BENEFICIARIO"},
+                    {"CE", "456789012", "María Elena", "Mendoza Gutiérrez", "CONTRIBUTIVO", "COTIZANTE"}
+            };
+
+            for (int r = 0; r < ejemplos.length; r++) {
+                Row row = sheetAfiliados.createRow(r + 1);
+                row.setHeightInPoints(20);
+                for (int c = 0; c < ejemplos[r].length; c++) {
+                    Cell cell = row.createCell(c);
+                    cell.setCellValue(ejemplos[r][c]);
+                    cell.setCellStyle(dataStyle);
+                }
+            }
+
+            for (int i = 0; i < columnas.length; i++) {
+                sheetAfiliados.autoSizeColumn(i);
+                sheetAfiliados.setColumnWidth(i, Math.max(sheetAfiliados.getColumnWidth(i) + 1200, 4200));
+            }
+
+            // Hoja 2: Instrucciones y Catálogos
+            Sheet sheetInstrucciones = workbook.createSheet("INSTRUCCIONES");
+            sheetInstrucciones.setDisplayGridlines(true);
+
+            Row r0 = sheetInstrucciones.createRow(0);
+            Cell c0 = r0.createCell(0);
+            c0.setCellValue("GUÍA OFICIAL DE DILIGENCIAMIENTO — IMPORTACIÓN DE AFILIADOS MEDITRIAJE");
+            Font titleFont = workbook.createFont();
+            titleFont.setBold(true);
+            titleFont.setFontHeightInPoints((short) 13);
+            CellStyle titleStyle = workbook.createCellStyle();
+            titleStyle.setFont(titleFont);
+            c0.setCellStyle(titleStyle);
+
+            String[][] reglas = {
+                    {"Columna", "Obligatorio", "Valores Permitidos / Formato", "Descripción y Reglas de Negocio"},
+                    {"TIPO_DOCUMENTO", "SÍ", "CC, TI, RC, CE, PA, PE, PPT", "Tipo de documento de identidad oficial en Colombia (MinSalud)."},
+                    {"NUMERO_DOCUMENTO", "SÍ", "Numérico o alfanumérico limpio", "Sin puntos, espacios ni guiones."},
+                    {"NOMBRES", "SÍ", "Texto (hasta 60 caracteres)", "Nombres del usuario tal como figura en su documento."},
+                    {"APELLIDOS", "SÍ", "Texto (hasta 60 caracteres)", "Apellidos del usuario."},
+                    {"REGIMEN", "SÍ", "CONTRIBUTIVO, SUBSIDIADO, ESPECIAL, NO_ASEGURADO", "Régimen de aseguramiento de salud SGSSS."},
+                    {"TIPO_AFILIADO", "SÍ", "COTIZANTE, BENEFICIARIO, CABEZA_FAMILIA, ADICIONAL", "Condición del usuario ante la EPS."}
+            };
+
+            for (int i = 0; i < reglas.length; i++) {
+                Row row = sheetInstrucciones.createRow(i + 2);
+                row.setHeightInPoints(22);
+                for (int j = 0; j < reglas[i].length; j++) {
+                    Cell cell = row.createCell(j);
+                    cell.setCellValue(reglas[i][j]);
+                    if (i == 0) {
+                        cell.setCellStyle(headerStyle);
+                    } else {
+                        cell.setCellStyle(dataStyle);
+                    }
+                }
+            }
+
+            for (int j = 0; j < 4; j++) {
+                sheetInstrucciones.autoSizeColumn(j);
+                sheetInstrucciones.setColumnWidth(j, sheetInstrucciones.getColumnWidth(j) + 1500);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new ConflictoOperacionException("Error al generar la plantilla Excel de afiliados: " + e.getMessage());
+        }
+    }
 }

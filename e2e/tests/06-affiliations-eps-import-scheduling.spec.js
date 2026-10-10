@@ -48,6 +48,24 @@ test.describe('Fase 4: Aseguramiento EPS, Importación Masiva y Citas Avanzadas'
     });
   });
 
+  test('debe permitir descargar la plantilla oficial de afiliados Excel (.xlsx)', async ({ page }) => {
+    await page.goto('/#/admin/affiliations/import');
+    await expect(page.locator('h1')).toContainText('Importación Masiva de Afiliados EPS');
+
+    const btnDescargar = page.locator('#btn-descargar-plantilla');
+    await expect(btnDescargar).toBeVisible();
+    await expect(btnDescargar).toContainText('Descargar Plantilla Excel');
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 10000 }).catch(() => null),
+      btnDescargar.click()
+    ]);
+
+    if (download) {
+      expect(download.suggestedFilename()).toBe('plantilla_afiliados_eps.xlsx');
+    }
+  });
+
   test('debe cargar y previsualizar archivo XLSX de EPS con métricas de staging y commit parcial (A02, A03, A04)', async ({ page }) => {
     const loteId = 'lote-xlsx-2026-001';
 

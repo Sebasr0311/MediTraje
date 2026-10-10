@@ -45,6 +45,17 @@ public class AffiliationController {
     }
 
     /**
+     * Descarga la plantilla oficial en formato Excel (.xlsx) para importación masiva de afiliados.
+     */
+    @GetMapping(value = "/template", produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public ResponseEntity<byte[]> descargarPlantilla() {
+        byte[] archivo = affiliationService.generarPlantillaExcel();
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"plantilla_afiliados_eps.xlsx\"")
+                .body(archivo);
+    }
+
+    /**
      * A02: Carga un archivo Excel (XLSX) con protección Zip Bomb y sanitización en staging preview.
      */
     @PostMapping(value = "/upload-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
