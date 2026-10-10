@@ -8,6 +8,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Added
+- **Auditoría de Accesibilidad Web (WCAG 2.1 AA) y Rediseño de Navegación Lateral (Sidebar)**:
+  - Rediseño de la barra de navegación principal hacia una barra lateral izquierda accesible (Sidebar / Navigation Rail):
+    - Modo Hover dinámico: rail colapsado de 68px que se expande suavemente a 264px al posar el cursor del mouse (`mouseenter`/`mouseleave`).
+    - Botón de Fijación permanente (Pin / Lock) con accesibilidad ARIA (`aria-pressed`), título dinámico y persistencia en `localStorage ('meditriaje_sidebar_pinned')`.
+    - Ajuste automático de márgenes del layout principal (`margin-left`) al fijar la barra lateral para evitar solapamientos con el contenido.
+    - Soporte completo de roles (`ROLE_PACIENTE`, `ROLE_ENFERMERIA`, `ROLE_PROFESIONAL`, `ROLE_ADMINISTRADOR`, `ROLE_FARMACEUTICO`) con enlaces contextuales, iconos SVG dedicados y tarjeta de usuario/rol en el pie del sidebar.
+    - Modo cajón móvil (Drawer) para pantallas menores a 768px con botón hamburguesa accesible (`#sidebarToggleBtn`), botón de cierre accesible (`#btnCloseSidebarMobile`) y telón de fondo interactivo (`#sidebar-backdrop`).
+    - Criterios de accesibilidad WCAG 2.1 AA verificados: Skip-link para bypass de bloques (WCAG 2.4.1), navegación por teclado con expansión `:focus-within` y descarte mediante tecla `Escape` (WCAG 1.4.13 / 2.1.1), áreas táctiles mínimas de 44x44px (WCAG 2.5.5 / 2.5.8), y contraste de colores en temas claro/oscuro.
+    - Suite de pruebas E2E automatizada en Playwright (`e2e/tests/09-accessibility-wcag-sidebar.spec.js`) con 6 pruebas pasando 100% en verde.
 - **Implementación Integral del Plan Maestro Codex (Fases 1 a 6 / Lotes B, U, H, A, C, O, Q)**:
   - **Fase 1 (Lote B: B01–B04) — Estabilización y Línea Base de Calidad**:
     - Mitigación de seguridad S01 en `TriajeService`: control estricto de autorización (ACL) sobre lectura de triajes por ID para evitar brechas IDOR entre pacientes.

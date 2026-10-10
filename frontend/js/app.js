@@ -35,6 +35,7 @@ import { renderAffiliationImport } from './views/affiliation-import.js';
 import { renderAffiliationSearch } from './views/affiliation-search.js';
 import { renderOperationalDashboard } from './views/operational-dashboard.js';
 import { initSystemAssistantWidget } from './views/system-assistant-widget.js';
+import { initSidebar, updateSidebar } from './components/app-sidebar.js';
 
 // Inicialización de Tema Claro / Oscuro
 function initTheme() {
@@ -147,6 +148,9 @@ function updateNavbar() {
       bottomNav.style.display = 'none';
     }
   }
+
+  // Sincronizar el estado del menú lateral accesible
+  updateSidebar();
 }
 
 // Configuración de las rutas del sistema
@@ -256,6 +260,7 @@ function setupRoutes() {
 // Inicialización de la Aplicación
 async function bootstrap() {
   initTheme();
+  initSidebar();
   setupRoutes();
 
   // Escuchar cambios de autenticación para sincronizar la barra superior
