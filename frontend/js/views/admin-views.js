@@ -126,7 +126,11 @@ async function renderAdminDashboardHome(container) {
           </div>
           <p class="text-sm text-muted m-0">Supervisión integral de infraestructura hospitalaria, cuerpo médico, turnos y seguridad</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
+          <button type="button" id="btnAdminRefresh" class="btn btn-ghost btn--sm" title="Actualizar indicadores y bitácora en tiempo real">
+            ${ui.icon('refresh', 'icon icon--sm')}
+            <span>Actualizar</span>
+          </button>
           <a href="#/operational/dashboard" class="btn btn-secondary btn--sm">
             ${ui.icon('sliders', 'icon icon--sm')}
             <span>Centro de Mando En Vivo</span>
@@ -150,51 +154,71 @@ async function renderAdminDashboardHome(container) {
 
       <!-- Métricas Clave del Sistema (KPIs) -->
       <div class="grid grid-cols-1 grid-cols-2-md grid-cols-4-lg gap-4 mb-8" aria-label="Indicadores del sistema">
-        <div class="card p-4 flex flex-col justify-between">
+        <div class="card card--interactive p-4 flex flex-col justify-between" role="region" aria-label="Indicador de Sedes">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs text-muted font-medium uppercase tracking-wide">Sedes Hospitalarias</span>
-            <span class="text-primary">${ui.icon('map-pin', 'icon icon--md')}</span>
+            <div class="stat-icon-wrapper" aria-hidden="true">${ui.icon('map-pin', 'icon icon--md')}</div>
           </div>
-          <div class="text-3xl font-bold mb-1" id="dashMetricSites">…</div>
+          <div class="text-3xl font-bold mb-1" id="dashMetricSites" aria-live="polite">
+            <span class="skeleton" style="display:inline-block; width:3.5rem; height:2rem; border-radius:var(--radius-sm);" aria-hidden="true"></span>
+          </div>
           <div class="text-xs text-muted flex justify-between items-center">
-            <span>Sedes activas</span>
-            <a href="#/admin/sites" class="text-primary font-medium hover:underline">Ver sedes &rarr;</a>
+            <span>Sedes registradas</span>
+            <a href="#/admin/sites" class="text-primary font-medium hover:underline flex items-center gap-1">
+              <span>Ver sedes</span>
+              <span aria-hidden="true">&rarr;</span>
+            </a>
           </div>
         </div>
 
-        <div class="card p-4 flex flex-col justify-between">
+        <div class="card card--interactive p-4 flex flex-col justify-between" role="region" aria-label="Indicador de Cuerpo Médico">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs text-muted font-medium uppercase tracking-wide">Cuerpo Médico</span>
-            <span class="text-primary">${ui.icon('users', 'icon icon--md')}</span>
+            <div class="stat-icon-wrapper" aria-hidden="true">${ui.icon('users', 'icon icon--md')}</div>
           </div>
-          <div class="text-3xl font-bold mb-1" id="dashMetricPros">…</div>
+          <div class="text-3xl font-bold mb-1" id="dashMetricPros" aria-live="polite">
+            <span class="skeleton" style="display:inline-block; width:3.5rem; height:2rem; border-radius:var(--radius-sm);" aria-hidden="true"></span>
+          </div>
           <div class="text-xs text-muted flex justify-between items-center">
-            <span>Profesionales activos</span>
-            <a href="#/admin/professionals" class="text-primary font-medium hover:underline">Ver personal &rarr;</a>
+            <span>Profesionales habilitados</span>
+            <a href="#/admin/professionals" class="text-primary font-medium hover:underline flex items-center gap-1">
+              <span>Ver personal</span>
+              <span aria-hidden="true">&rarr;</span>
+            </a>
           </div>
         </div>
 
-        <div class="card p-4 flex flex-col justify-between">
+        <div class="card card--interactive p-4 flex flex-col justify-between" role="region" aria-label="Indicador de Especialidades">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs text-muted font-medium uppercase tracking-wide">Especialidades</span>
-            <span class="text-primary">${ui.icon('activity', 'icon icon--md')}</span>
+            <div class="stat-icon-wrapper" aria-hidden="true">${ui.icon('stethoscope', 'icon icon--md')}</div>
           </div>
-          <div class="text-3xl font-bold mb-1" id="dashMetricSpecs">…</div>
+          <div class="text-3xl font-bold mb-1" id="dashMetricSpecs" aria-live="polite">
+            <span class="skeleton" style="display:inline-block; width:3.5rem; height:2rem; border-radius:var(--radius-sm);" aria-hidden="true"></span>
+          </div>
           <div class="text-xs text-muted flex justify-between items-center">
-            <span>Catálogo clínico</span>
-            <a href="#/admin/specialties" class="text-primary font-medium hover:underline">Ver catálogo &rarr;</a>
+            <span>Catálogo clínico activo</span>
+            <a href="#/admin/specialties" class="text-primary font-medium hover:underline flex items-center gap-1">
+              <span>Ver catálogo</span>
+              <span aria-hidden="true">&rarr;</span>
+            </a>
           </div>
         </div>
 
-        <div class="card p-4 flex flex-col justify-between">
+        <div class="card card--interactive p-4 flex flex-col justify-between" role="region" aria-label="Indicador de Turnos Programados">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs text-muted font-medium uppercase tracking-wide">Turnos Programados</span>
-            <span class="text-primary">${ui.icon('clock', 'icon icon--md')}</span>
+            <div class="stat-icon-wrapper" aria-hidden="true">${ui.icon('clock', 'icon icon--md')}</div>
           </div>
-          <div class="text-3xl font-bold mb-1" id="dashMetricSlots">…</div>
+          <div class="text-3xl font-bold mb-1" id="dashMetricSlots" aria-live="polite">
+            <span class="skeleton" style="display:inline-block; width:3.5rem; height:2rem; border-radius:var(--radius-sm);" aria-hidden="true"></span>
+          </div>
           <div class="text-xs text-muted flex justify-between items-center">
-            <span>Slots disponibles</span>
-            <a href="#/admin/slots" class="text-primary font-medium hover:underline">Gestionar slots &rarr;</a>
+            <span>Slots generados</span>
+            <a href="#/admin/slots" class="text-primary font-medium hover:underline flex items-center gap-1">
+              <span>Gestionar slots</span>
+              <span aria-hidden="true">&rarr;</span>
+            </a>
           </div>
         </div>
       </div>
@@ -204,33 +228,45 @@ async function renderAdminDashboardHome(container) {
       <div class="grid grid-cols-1 grid-cols-2-md grid-cols-3-lg gap-4 mb-8">
         <!-- Infraestructura -->
         <div class="card p-4">
-          <div class="flex items-center gap-2 mb-3">
+          <div class="flex items-center gap-2 mb-3 pb-2 border-b">
             <span class="text-primary">${ui.icon('hospital', 'icon icon--md')}</span>
             <h3 class="text-md font-bold m-0">Infraestructura</h3>
           </div>
-          <ul class="flex flex-col gap-2 list-none p-0 m-0 text-sm">
+          <ul class="flex flex-col gap-1 list-none p-0 m-0 text-sm">
             <li>
-              <a href="#/admin/institutions" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Instituciones de Salud</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/admin/institutions" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('hospital', 'icon icon--sm')}</span>
+                  <span>Instituciones de Salud</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
             <li>
-              <a href="#/admin/sites" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Sedes Hospitalarias</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/admin/sites" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('map-pin', 'icon icon--sm')}</span>
+                  <span>Sedes Hospitalarias</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
             <li>
-              <a href="#/hospital/census" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Censo de Camas</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/hospital/census" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('bed', 'icon icon--sm')}</span>
+                  <span>Censo de Camas</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
             <li>
-              <a href="#/operational/dashboard" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Centro de Mando y Analítica</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/operational/dashboard" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('sliders', 'icon icon--sm')}</span>
+                  <span>Centro de Mando y Analítica</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
           </ul>
@@ -238,33 +274,45 @@ async function renderAdminDashboardHome(container) {
 
         <!-- Cuerpo Médico y Citas -->
         <div class="card p-4">
-          <div class="flex items-center gap-2 mb-3">
+          <div class="flex items-center gap-2 mb-3 pb-2 border-b">
             <span class="text-primary">${ui.icon('users', 'icon icon--md')}</span>
             <h3 class="text-md font-bold m-0">Cuerpo Médico y Citas</h3>
           </div>
-          <ul class="flex flex-col gap-2 list-none p-0 m-0 text-sm">
+          <ul class="flex flex-col gap-1 list-none p-0 m-0 text-sm">
             <li>
-              <a href="#/admin/specialties" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Especialidades Médicas</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/admin/specialties" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('stethoscope', 'icon icon--sm')}</span>
+                  <span>Especialidades Médicas</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
             <li>
-              <a href="#/admin/professionals" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Profesionales de la Salud</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/admin/professionals" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('users', 'icon icon--sm')}</span>
+                  <span>Profesionales de la Salud</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
             <li>
-              <a href="#/admin/slots" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Slots y Disponibilidad</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/admin/slots" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('clock', 'icon icon--sm')}</span>
+                  <span>Slots y Disponibilidad</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
             <li>
-              <a href="#/admin/appointments" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Calendario de Citas</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/admin/appointments" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('calendar', 'icon icon--sm')}</span>
+                  <span>Calendario de Citas</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
           </ul>
@@ -272,33 +320,45 @@ async function renderAdminDashboardHome(container) {
 
         <!-- Aseguramiento y Seguridad -->
         <div class="card p-4">
-          <div class="flex items-center gap-2 mb-3">
+          <div class="flex items-center gap-2 mb-3 pb-2 border-b">
             <span class="text-primary">${ui.icon('shield-check', 'icon icon--md')}</span>
             <h3 class="text-md font-bold m-0">Aseguramiento y Control</h3>
           </div>
-          <ul class="flex flex-col gap-2 list-none p-0 m-0 text-sm">
+          <ul class="flex flex-col gap-1 list-none p-0 m-0 text-sm">
             <li>
-              <a href="#/affiliations/import" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Importación EPS (BDUA)</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/affiliations/import" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('file-text', 'icon icon--sm')}</span>
+                  <span>Importación EPS (BDUA)</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
             <li>
-              <a href="#/affiliations/search" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Aseguramiento EPS</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/affiliations/search" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('search', 'icon icon--sm')}</span>
+                  <span>Aseguramiento EPS</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
             <li>
-              <a href="#/admin/reports" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Reportes Operativos</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/admin/reports" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('bar-chart-2', 'icon icon--sm')}</span>
+                  <span>Reportes Operativos</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
             <li>
-              <a href="#/admin/audit" class="flex items-center justify-between p-2 rounded hover:bg-surface text-foreground font-medium">
-                <span>Auditoría del Sistema</span>
-                <span class="text-muted text-xs">&rarr;</span>
+              <a href="#/admin/audit" class="admin-dash-link">
+                <div class="flex items-center gap-2">
+                  <span class="text-primary">${ui.icon('shield', 'icon icon--sm')}</span>
+                  <span>Auditoría del Sistema</span>
+                </div>
+                <span class="admin-dash-arrow text-muted text-sm" aria-hidden="true">&rarr;</span>
               </a>
             </li>
           </ul>
@@ -310,7 +370,7 @@ async function renderAdminDashboardHome(container) {
         <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
             <h2 class="text-md font-bold m-0">Actividad Reciente del Sistema</h2>
-            <p class="text-xs text-muted m-0">Últimos eventos registrados en la bitácora inmutable de auditoría</p>
+            <p class="text-xs text-muted m-0">Últimos eventos registrados en la bitácora inmutable de auditoría técnica</p>
           </div>
           <a href="#/admin/audit" class="btn btn-secondary btn--sm">
             ${ui.icon('shield', 'icon icon--sm')}
@@ -318,14 +378,41 @@ async function renderAdminDashboardHome(container) {
           </a>
         </div>
         <div id="dashRecentAuditContainer">
-          <div class="text-center text-muted text-sm py-4">Cargando bitácora reciente...</div>
+          <div class="table-container">
+            <table class="table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th scope="col">Fecha / Hora</th>
+                  <th scope="col">Evento</th>
+                  <th scope="col">Usuario</th>
+                  <th scope="col">Resultado</th>
+                  <th scope="col">IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="5"><div class="skeleton skeleton-text" style="height: 1.5rem; margin: var(--space-2) 0;"></div></td></tr>
+                <tr><td colspan="5"><div class="skeleton skeleton-text" style="height: 1.5rem; margin: var(--space-2) 0;"></div></td></tr>
+                <tr><td colspan="5"><div class="skeleton skeleton-text" style="height: 1.5rem; margin: var(--space-2) 0;"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   `;
 
+  // Listener para configuración MFA
   container.querySelector('#btnAdminMfa')?.addEventListener('click', () => {
     showMfaModal();
+  });
+
+  // Listener para actualización bajo demanda
+  container.querySelector('#btnAdminRefresh')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#btnAdminRefresh');
+    if (btn) btn.classList.add('btn--loading');
+    await Promise.all([loadDashboardMetrics(container), loadRecentAudit(container)]);
+    if (btn) btn.classList.remove('btn--loading');
+    ui.showToast('Métricas y bitácora actualizadas en tiempo real.', 'info', 3000);
   });
 
   // Cargar métricas y auditoría en segundo plano
@@ -372,6 +459,23 @@ async function loadDashboardMetrics(container) {
 }
 
 /**
+ * Retorna badge semántico para el resultado de auditoría.
+ */
+function auditResultBadge(resultado) {
+  const res = String(resultado || '').toUpperCase();
+  if (res === 'EXITO' || res === 'EXITOSO' || res === 'SUCCESS') {
+    return `<span class="badge badge--confirmed">${ui.icon('check', 'icon icon--sm')} ÉXITO</span>`;
+  }
+  if (res === 'FALLO' || res === 'FALLIDO' || res === 'ERROR' || res === 'FAILED') {
+    return `<span class="badge badge--cancelled">${ui.icon('x', 'icon icon--sm')} FALLO</span>`;
+  }
+  if (res === 'BLOQUEADO' || res === 'BLOCKED') {
+    return `<span class="badge badge--rescheduled">${ui.icon('lock', 'icon icon--sm')} BLOQUEADO</span>`;
+  }
+  return `<span class="badge badge--neutral">${esc(resultado || 'REGISTRADO')}</span>`;
+}
+
+/**
  * Carga los eventos de auditoría más recientes para el Dashboard.
  */
 async function loadRecentAudit(container) {
@@ -384,7 +488,13 @@ async function loadRecentAudit(container) {
 
     if (!items || items.length === 0) {
       auditContainer.innerHTML = `
-        <div class="text-center text-muted text-sm py-4">No hay eventos recientes en la bitácora de auditoría.</div>
+        <div class="empty-state text-center py-6">
+          <div class="empty-state-icon" style="margin: 0 auto var(--space-3) auto; background-color: var(--teal-50); color: var(--primary);">
+            ${ui.icon('shield', 'icon icon--lg')}
+          </div>
+          <p class="text-sm font-medium m-0">No hay eventos recientes en la bitácora de auditoría.</p>
+          <p class="text-xs text-muted m-0">Los eventos administrativos y de seguridad aparecerán registrados automáticamente aquí.</p>
+        </div>
       `;
       return;
     }
@@ -407,7 +517,7 @@ async function loadRecentAudit(container) {
                 <td class="text-xs text-muted">${formatDateTime(it.fechaHora || it.creadoAt)}</td>
                 <td><strong class="text-xs font-mono">${esc(it.tipoEvento || it.accion || 'EVENTO')}</strong></td>
                 <td class="text-sm">${esc(it.usuarioEmail || it.usuario || 'Sistema')}</td>
-                <td>${statusBadge(it.resultado === 'EXITO' ? 'ACTIVO' : (it.resultado === 'FALLO' ? 'INACTIVO' : it.resultado))}</td>
+                <td>${auditResultBadge(it.resultado)}</td>
                 <td class="text-xs font-mono text-muted">${esc(it.ipOrigen || it.ip || '—')}</td>
               </tr>
             `).join('')}
@@ -417,7 +527,12 @@ async function loadRecentAudit(container) {
     `;
   } catch (err) {
     auditContainer.innerHTML = `
-      <div class="text-center text-muted text-xs py-3">Auditoría no disponible en este momento.</div>
+      <div class="alert alert--info m-0" role="status">
+        ${ui.icon('info', 'icon alert-icon')}
+        <div class="alert-content">
+          <p class="m-0 text-xs">Bitácora de auditoría inmutable activa. Consulta el módulo general para historial extendido.</p>
+        </div>
+      </div>
     `;
   }
 }

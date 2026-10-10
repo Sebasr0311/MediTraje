@@ -76,7 +76,7 @@ function getNavigationConfig() {
       items: [
         { label: 'Dashboard', href: '#/admin/dashboard', icon: 'home' },
         { label: 'Centro de Mando', href: '#/operational/dashboard', icon: 'sliders' },
-        { label: 'Censo de Camas', href: '#/hospital/census', icon: 'grid' }
+        { label: 'Censo de Camas', href: '#/hospital/census', icon: 'bed' }
       ]
     });
     sections.push({
@@ -89,7 +89,7 @@ function getNavigationConfig() {
     sections.push({
       title: 'Cuerpo Médico y Citas',
       items: [
-        { label: 'Especialidades', href: '#/admin/specialties', icon: 'activity' },
+        { label: 'Especialidades', href: '#/admin/specialties', icon: 'stethoscope' },
         { label: 'Profesionales de la Salud', href: '#/admin/professionals', icon: 'users' },
         { label: 'Slots de Turnos', href: '#/admin/slots', icon: 'clock' },
         { label: 'Calendario de Citas', href: '#/admin/appointments', icon: 'calendar' }
@@ -100,7 +100,7 @@ function getNavigationConfig() {
       items: [
         { label: 'Importación EPS (BDUA)', href: '#/affiliations/import', icon: 'database' },
         { label: 'Aseguramiento EPS', href: '#/affiliations/search', icon: 'shield-check' },
-        { label: 'Reportes Operativos', href: '#/admin/reports', icon: 'bar-chart' },
+        { label: 'Reportes Operativos', href: '#/admin/reports', icon: 'bar-chart-2' },
         { label: 'Auditoría del Sistema', href: '#/admin/audit', icon: 'shield' }
       ]
     });

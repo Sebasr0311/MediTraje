@@ -3270,3 +3270,53 @@ body.has-sidebar.sidebar-is-pinned .app-footer {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   25. ESTILOS DEL DASHBOARD ADMINISTRATIVO (.admin-dash-*)
+   ========================================================================== */
+.admin-dash-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.admin-dash-link:hover,
+.admin-dash-link:focus-visible {
+  background-color: var(--primary-soft);
+  color: var(--primary);
+  text-decoration: none;
+  outline: none;
+}
+
+.admin-dash-link:hover .admin-dash-arrow,
+.admin-dash-link:focus-visible .admin-dash-arrow {
+  transform: translateX(4px);
+  color: var(--primary);
+}
+
+.admin-dash-arrow {
+  transition: transform var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+}
+
+.stat-icon-wrapper {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-md);
+  background-color: var(--teal-50);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .stat-icon-wrapper {
+  background-color: var(--slate-800);
+  color: var(--teal-300);
+}

@@ -1,8 +1,8 @@
 [
   {
     "id": "TC001",
-    "title": "Patient registration with informed consent",
-    "description": "Verifies that a patient can create an account after reviewing and accepting informed consent and receive a confirmation of account creation.",
+    "title": "Register a patient account with informed consent",
+    "description": "A new patient can complete registration only after reviewing and accepting informed consent and then receive confirmation that the account was created.",
     "category": "Patient Authentication and Account Access",
     "steps": [
       {
@@ -15,7 +15,7 @@
       },
       {
         "type": "action",
-        "description": "Review the informed consent information"
+        "description": "Review the informed consent section"
       },
       {
         "type": "action",
@@ -34,8 +34,8 @@
   },
   {
     "id": "TC002",
-    "title": "Admit a patient into emergency queue",
-    "description": "Verifies that nursing staff can create an emergency admission for an identified patient and see it added to the prioritized queue.",
+    "title": "Admit an emergency patient into the queue",
+    "description": "This verifies that nursing staff can create an urgent admission and see the patient added to the prioritized queue.",
     "category": "Nursing Emergency Admission and Queue Management",
     "steps": [
       {
@@ -44,11 +44,7 @@
       },
       {
         "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+        "description": "Fill in the credential fields with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
       },
       {
         "type": "action",
@@ -68,15 +64,19 @@
       },
       {
         "type": "assertion",
-        "description": "Verify the admission appears in the emergency queue"
+        "description": "Verify the new admission appears in the queue"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the emergency queue is displayed"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC003",
-    "title": "Patient signs in to access the dashboard",
-    "description": "Verifies that a registered patient can sign in with valid credentials and reach the patient dashboard.",
+    "title": "Sign in and reach the patient dashboard",
+    "description": "An existing patient can log in with valid credentials and land on the patient dashboard.",
     "category": "Patient Authentication and Account Access",
     "steps": [
       {
@@ -98,71 +98,14 @@
       {
         "type": "assertion",
         "description": "Verify the patient dashboard is displayed"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify upcoming care information is displayed"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC004",
-    "title": "Record a complete nursing triage assessment",
-    "description": "Verifies that nursing staff can enter vital signs, Glasgow score, and triage level for a patient case and save the assessment.",
-    "category": "Nursing Triage Assessment",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /nursing/assessment/:id"
-      },
-      {
-        "type": "action",
-        "description": "Review the patient case"
-      },
-      {
-        "type": "action",
-        "description": "Record vital signs"
-      },
-      {
-        "type": "action",
-        "description": "Record a Glasgow scale value"
-      },
-      {
-        "type": "action",
-        "description": "Select a triage level from I to V"
-      },
-      {
-        "type": "action",
-        "description": "Submit the triage assessment"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the assigned triage level is displayed"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC005",
-    "title": "Document and close a clinical attention record",
-    "description": "A clinician can record encounter details, save the clinical note, and close the attention so the completed record is shown.",
+    "title": "Document and close a clinical encounter",
+    "description": "Verifies that a clinician can record findings and diagnoses for an active encounter, save the attention, and close it as an immutable clinical record.",
     "category": "Clinical Attention Record and Closure",
     "steps": [
       {
@@ -183,19 +126,23 @@
       },
       {
         "type": "action",
-        "description": "Click the attention record to open an active encounter"
+        "description": "Click the link to the professional agenda"
       },
       {
         "type": "action",
-        "description": "Record clinical findings in the encounter form"
+        "description": "Click the active consultation for an encounter"
       },
       {
         "type": "action",
-        "description": "Add diagnoses and care details"
+        "description": "Fill in the clinical findings field with a brief encounter summary"
       },
       {
         "type": "action",
-        "description": "Save the clinical attention record"
+        "description": "Fill in the diagnoses field with a primary diagnosis and care details"
+      },
+      {
+        "type": "action",
+        "description": "Save the attention record"
       },
       {
         "type": "action",
@@ -203,19 +150,97 @@
       },
       {
         "type": "assertion",
-        "description": "Verify the completed attention record is shown"
+        "description": "Verify the completed clinical record is displayed"
       },
       {
         "type": "assertion",
-        "description": "Verify the encounter is marked as closed"
+        "description": "Verify the encounter is shown as closed and immutable"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Record a triage assessment for a patient",
+    "description": "This verifies that nursing staff can enter vitals and Glasgow data and complete a triage assessment with an assigned level.",
+    "category": "Nursing Triage Assessment",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the credential fields with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /nursing/assessment/:id"
+      },
+      {
+        "type": "action",
+        "description": "Record valid vital signs"
+      },
+      {
+        "type": "action",
+        "description": "Record a valid Glasgow scale value"
+      },
+      {
+        "type": "action",
+        "description": "Submit the triage assessment"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a triage level assignment is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the assessment is saved"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC006",
-    "title": "Patient password recovery restores access",
-    "description": "Verifies that a patient can request an OTP-based password reset, complete the reset, and see access restored confirmation.",
+    "title": "Register a patient and accept informed consent",
+    "description": "Verifies that a new patient can complete registration by providing required details and accepting informed consent.",
+    "category": "Hospital Operational Dashboard and QR Tracking",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /register"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the registration details fields with valid patient information"
+      },
+      {
+        "type": "action",
+        "description": "Accept the informed consent"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new patient account is created"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a successful registration confirmation is visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Recover access with an OTP password reset",
+    "description": "A patient can request a password reset, complete OTP verification, set a new password, and see access restored confirmation.",
     "category": "Patient Authentication and Account Access",
     "steps": [
       {
@@ -236,7 +261,7 @@
       },
       {
         "type": "action",
-        "description": "Set a new valid password"
+        "description": "Set a new password"
       },
       {
         "type": "action",
@@ -250,35 +275,51 @@
     "priority": "High"
   },
   {
-    "id": "TC007",
-    "title": "Patient dashboard opens after login",
-    "description": "Verifies that an authenticated patient can open the main dashboard and see a patient summary with care information.",
-    "category": "Patient Dashboard and Self-Service Care",
+    "id": "TC008",
+    "title": "Register an unidentified emergency patient",
+    "description": "This verifies that nursing staff can admit an unidentified patient and still create a queue entry.",
+    "category": "Nursing Emergency Admission and Queue Management",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /patient/dashboard"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Sign in with valid patient credentials"
+        "description": "Fill in the credential fields with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /nursing/admission"
+      },
+      {
+        "type": "action",
+        "description": "Mark the patient as unidentified"
+      },
+      {
+        "type": "action",
+        "description": "Submit the emergency admission"
       },
       {
         "type": "assertion",
-        "description": "Verify the patient summary is displayed"
+        "description": "Verify the unidentified admission appears in the queue"
       },
       {
         "type": "assertion",
-        "description": "Verify upcoming care information is displayed"
+        "description": "Verify the patient was admitted as unidentified"
       }
     ],
     "priority": "High"
   },
   {
-    "id": "TC008",
-    "title": "Review prioritized nursing queue",
-    "description": "Verifies that nursing staff can open the queue dashboard and see waiting emergency patients ordered for attention.",
-    "category": "Nursing Emergency Admission and Queue Management",
+    "id": "TC009",
+    "title": "Monitor live operational KPIs for a site",
+    "description": "Verifies that an operational user can select a hospital site and see live KPI indicators for occupancy, waiting times, and alert status.",
+    "category": "Hospital Operational Dashboard and QR Tracking",
     "steps": [
       {
         "type": "action",
@@ -291,6 +332,43 @@
       {
         "type": "action",
         "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the operational dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Select a hospital site"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify live KPI indicators are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify occupancy, waiting times, and alert status are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Review the prioritized emergency queue",
+    "description": "This verifies that nursing staff can open the emergency dashboard and see current waiting patients in priority order.",
+    "category": "Nursing Emergency Admission and Queue Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the credential fields with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
       },
       {
         "type": "action",
@@ -306,361 +384,13 @@
       },
       {
         "type": "assertion",
-        "description": "Verify waiting patients are listed"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC009",
-    "title": "Assign an available bed to an active patient",
-    "description": "Hospital staff can choose an available bed and assign it to the active patient, after which the bed status updates.",
-    "category": "Hospital Bed Census and Assignment",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /hospital/census"
-      },
-      {
-        "type": "action",
-        "description": "Select a hospital site"
-      },
-      {
-        "type": "action",
-        "description": "Select a service filter"
-      },
-      {
-        "type": "action",
-        "description": "Choose an available bed"
-      },
-      {
-        "type": "action",
-        "description": "Assign the bed to the active patient"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the bed assignment is completed"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the bed status updates"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC010",
-    "title": "Review bed census by site and service",
-    "description": "Hospital staff can filter the census by site and service and see available beds for assignment.",
-    "category": "Hospital Bed Census and Assignment",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /hospital/census"
-      },
-      {
-        "type": "action",
-        "description": "Select a hospital site"
-      },
-      {
-        "type": "action",
-        "description": "Select a service filter"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the bed census is displayed for the selected site and service"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify available beds are shown"
+        "description": "Verify current waiting patients are displayed"
       }
     ],
     "priority": "High"
   },
   {
     "id": "TC011",
-    "title": "Review operational KPIs for a selected site",
-    "description": "Operational staff can select a hospital site and review the live KPI indicators for occupancy, waiting times, and alerts.",
-    "category": "Hospital Operational Dashboard and QR Tracking",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /operational/dashboard"
-      },
-      {
-        "type": "action",
-        "description": "Select a hospital site"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify live KPI indicators are displayed for the selected site"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify occupancy and waiting time information is shown"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC012",
-    "title": "Prevent reopening a closed clinical record",
-    "description": "Once a clinician closes an encounter, the record remains immutable and cannot be edited further.",
-    "category": "Clinical Attention Record and Closure",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Open a previously closed attention record"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the record is read-only"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify editing controls are unavailable"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC013",
-    "title": "Access the administration dashboard after login",
-    "description": "An administrator can sign in and reach the administration dashboard successfully.",
-    "category": "Administrative Catalog Management and Audit Review",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the user lands on the administration dashboard"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC014",
-    "title": "Book an appointment successfully",
-    "description": "A patient can select an available appointment slot, confirm the details, and see the booking confirmation.",
-    "category": "Patient Appointment Booking",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Click the link to access appointment booking"
-      },
-      {
-        "type": "action",
-        "description": "Review the available appointment options"
-      },
-      {
-        "type": "action",
-        "description": "Select a preferred appointment schedule"
-      },
-      {
-        "type": "action",
-        "description": "Confirm the booking details"
-      },
-      {
-        "type": "action",
-        "description": "Submit the booking request"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify an appointment confirmation is visible"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC015",
-    "title": "Open a scheduled clinical consultation from the agenda",
-    "description": "Verifies that clinicians can review their daily agenda and open a scheduled consultation to see the appointment details.",
-    "category": "Professional Daily Agenda",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /professional/agenda"
-      },
-      {
-        "type": "action",
-        "description": "Review the daily agenda"
-      },
-      {
-        "type": "action",
-        "description": "Open a scheduled consultation"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify appointment details are displayed"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC016",
-    "title": "Acknowledge an operational alert with justification",
-    "description": "Operational staff can open an alert, enter a justification, and confirm acknowledgment so the action is recorded in audit.",
-    "category": "Hospital Operational Dashboard and QR Tracking",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /operational/dashboard"
-      },
-      {
-        "type": "action",
-        "description": "Select a hospital site"
-      },
-      {
-        "type": "action",
-        "description": "Open an active alert"
-      },
-      {
-        "type": "action",
-        "description": "Enter a justified acknowledgment reason"
-      },
-      {
-        "type": "action",
-        "description": "Confirm the acknowledgment"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the alert is marked as acknowledged"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the acknowledgment is recorded in audit"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC017",
     "title": "Apply a validated EPS import batch",
     "description": "An administrator can apply a validated import batch and see the import results after processing.",
     "category": "EPS Affiliation Bulk Import",
@@ -691,32 +421,24 @@
       },
       {
         "type": "action",
-        "description": "Upload an XLSX file"
+        "description": "Upload an XLSX file for validation"
       },
       {
         "type": "action",
-        "description": "Review the row validation results"
-      },
-      {
-        "type": "action",
-        "description": "Apply the batch"
+        "description": "Apply the batch import"
       },
       {
         "type": "assertion",
-        "description": "Verify the import results are displayed"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the batch application completed"
+        "description": "Verify import results are displayed"
       }
     ],
     "priority": "High"
   },
   {
-    "id": "TC018",
-    "title": "View past encounter details",
-    "description": "A patient can open a previous encounter from their history and review the care details.",
-    "category": "Patient History and Medical Encounters",
+    "id": "TC012",
+    "title": "Look up a patient location using a QR token",
+    "description": "Verifies that an operational user can enter a QR token and retrieve safe patient location information from the dashboard.",
+    "category": "Hospital Operational Dashboard and QR Tracking",
     "steps": [
       {
         "type": "action",
@@ -736,56 +458,35 @@
       },
       {
         "type": "action",
-        "description": "Click the link to view medical history"
+        "description": "Click the link to the operational dashboard"
       },
       {
         "type": "action",
-        "description": "Review the list of past encounters"
+        "description": "Select a hospital site"
       },
       {
         "type": "action",
-        "description": "Open a specific encounter record"
+        "description": "Fill in the QR token field with a valid token value"
+      },
+      {
+        "type": "action",
+        "description": "Request the tracking lookup"
       },
       {
         "type": "assertion",
-        "description": "Verify details of attended care are visible"
+        "description": "Verify safe patient location information is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the lookup result includes the tracked patient context"
       }
     ],
     "priority": "High"
   },
   {
-    "id": "TC019",
-    "title": "Patient preliminary triage completes with guidance",
-    "description": "Verifies that a patient can review triage guidance, submit symptom information, and receive a preliminary triage result.",
-    "category": "Preliminary Patient Triage",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /patient/triage"
-      },
-      {
-        "type": "action",
-        "description": "Review the triage guidance"
-      },
-      {
-        "type": "action",
-        "description": "Provide the requested symptom information"
-      },
-      {
-        "type": "action",
-        "description": "Submit the triage responses"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify a preliminary triage result is displayed"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC020",
-    "title": "Validate an EPS import file before applying it",
-    "description": "An administrator can upload an XLSX file, review row validation results, and see both valid and invalid rows before applying the batch.",
+    "id": "TC013",
+    "title": "Validate an EPS import file",
+    "description": "An administrator can upload an XLSX file and review which rows are valid or invalid before applying the batch.",
     "category": "EPS Affiliation Bulk Import",
     "steps": [
       {
@@ -814,28 +515,24 @@
       },
       {
         "type": "action",
-        "description": "Upload an XLSX file"
-      },
-      {
-        "type": "action",
-        "description": "Review the row validation results"
+        "description": "Upload an XLSX file for validation"
       },
       {
         "type": "assertion",
-        "description": "Verify valid and invalid rows are displayed"
+        "description": "Verify row validation results are displayed"
       },
       {
         "type": "assertion",
-        "description": "Verify the batch is ready for review before applying"
+        "description": "Verify both valid and invalid rows are shown if present"
       }
     ],
     "priority": "High"
   },
   {
-    "id": "TC021",
-    "title": "View active prescription details",
-    "description": "A patient can open an active prescription and review the medication details and status.",
-    "category": "Patient Prescriptions",
+    "id": "TC014",
+    "title": "Open the patient dashboard after login",
+    "description": "A signed-in patient can open the main dashboard and see their care summary and upcoming care information.",
+    "category": "Patient Dashboard and Self-Service Care",
     "steps": [
       {
         "type": "action",
@@ -854,114 +551,20 @@
         "description": "Submit the login form"
       },
       {
-        "type": "action",
-        "description": "Click the link to view prescriptions"
-      },
-      {
-        "type": "action",
-        "description": "Review the active prescriptions list"
-      },
-      {
-        "type": "action",
-        "description": "Open a prescription entry"
+        "type": "assertion",
+        "description": "Verify patient summary information is displayed"
       },
       {
         "type": "assertion",
-        "description": "Verify medication details and current status are visible"
+        "description": "Verify upcoming care information is displayed"
       }
     ],
     "priority": "High"
   },
   {
-    "id": "TC022",
-    "title": "Look up safe patient location from a QR token",
-    "description": "Operational staff can enter a QR token and retrieve the patient's safe location information when the token is valid.",
-    "category": "Hospital Operational Dashboard and QR Tracking",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /operational/dashboard"
-      },
-      {
-        "type": "action",
-        "description": "Enter a valid QR token"
-      },
-      {
-        "type": "action",
-        "description": "Request the tracking lookup"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the patient's safe location information is displayed"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the lookup result includes tracking details"
-      }
-    ],
-    "priority": "High"
-  },
-  {
-    "id": "TC023",
-    "title": "Review the immutable audit log",
-    "description": "An administrator can open the audit area and review the immutable audit trail entries.",
-    "category": "Administrative Catalog Management and Audit Review",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /admin/dashboard"
-      },
-      {
-        "type": "action",
-        "description": "Open the audit section"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the immutable audit log is displayed"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify audit entries are visible"
-      }
-    ],
-    "priority": "Medium"
-  },
-  {
-    "id": "TC024",
-    "title": "Preserve selected booking details before submission",
-    "description": "A patient can review the chosen appointment information on the confirmation step before submitting the request.",
+    "id": "TC015",
+    "title": "Book an appointment from available schedules",
+    "description": "Verifies that a patient can review availability, choose a schedule, and successfully create an appointment confirmation.",
     "category": "Patient Appointment Booking",
     "steps": [
       {
@@ -982,68 +585,27 @@
       },
       {
         "type": "action",
-        "description": "Click the link to access appointment booking"
+        "description": "Click the link to the appointment booking area"
       },
       {
         "type": "action",
-        "description": "Select a preferred appointment schedule"
+        "description": "Select an available appointment schedule"
       },
       {
         "type": "action",
-        "description": "Proceed to the booking confirmation step"
+        "description": "Submit the booking request"
       },
       {
         "type": "assertion",
-        "description": "Verify the selected appointment details are displayed for review"
+        "description": "Verify an appointment confirmation is visible"
       }
     ],
-    "priority": "Medium"
+    "priority": "High"
   },
   {
-    "id": "TC025",
-    "title": "Navigate catalog sections in administration",
-    "description": "An administrator can move through the catalog sections and see each section load its management content.",
-    "category": "Administrative Catalog Management and Audit Review",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /admin/dashboard"
-      },
-      {
-        "type": "action",
-        "description": "Move between the administration catalog sections"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the catalog management content is displayed"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify multiple administration sections are available"
-      }
-    ],
-    "priority": "Medium"
-  },
-  {
-    "id": "TC026",
-    "title": "Show no beds available when census is full",
-    "description": "When no beds are available for the selected filters, the census shows an empty availability state instead of assignment options.",
+    "id": "TC016",
+    "title": "Review a bed census and assign an available bed",
+    "description": "Verifies that hospital staff can filter the census, choose an available bed, assign it to the active patient, and see the bed status update.",
     "category": "Hospital Bed Census and Assignment",
     "steps": [
       {
@@ -1064,7 +626,7 @@
       },
       {
         "type": "action",
-        "description": "Navigate to /hospital/census"
+        "description": "Click the link to the hospital census"
       },
       {
         "type": "action",
@@ -1072,23 +634,113 @@
       },
       {
         "type": "action",
-        "description": "Select a service filter with no available beds"
+        "description": "Filter the census by service"
+      },
+      {
+        "type": "action",
+        "description": "Choose an available bed"
+      },
+      {
+        "type": "action",
+        "description": "Assign the bed to the active patient"
       },
       {
         "type": "assertion",
-        "description": "Verify an empty availability state is shown"
+        "description": "Verify the census displays bed availability information"
       },
       {
         "type": "assertion",
-        "description": "Verify assignment actions are unavailable"
+        "description": "Verify the assigned bed status is updated"
       }
     ],
-    "priority": "Medium"
+    "priority": "High"
   },
   {
-    "id": "TC027",
+    "id": "TC017",
+    "title": "Open the clinician daily agenda",
+    "description": "This verifies that clinicians can access their schedule and review the consultations planned for the day.",
+    "category": "Professional Daily Agenda",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the credential fields with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /professional/agenda"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the daily agenda is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify scheduled consultations are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC018",
+    "title": "Book a patient appointment from availability",
+    "description": "Verifies that a patient can choose an appointment option from availability and complete the booking flow.",
+    "category": "Hospital Operational Dashboard and QR Tracking",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the appointment booking page"
+      },
+      {
+        "type": "action",
+        "description": "Select a valid specialty or service"
+      },
+      {
+        "type": "action",
+        "description": "Select an available appointment option"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the booking"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the appointment is booked"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the booked appointment appears in the patient flow"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC019",
     "title": "Download the EPS import template",
-    "description": "An administrator can open the import area, choose an EPS, and download the official spreadsheet template.",
+    "description": "An administrator can select an EPS and access the official spreadsheet template for bulk import preparation.",
     "category": "EPS Affiliation Bulk Import",
     "steps": [
       {
@@ -1121,60 +773,15 @@
       },
       {
         "type": "assertion",
-        "description": "Verify the import template download is available"
+        "description": "Verify the template download is available"
       }
     ],
-    "priority": "Medium"
+    "priority": "High"
   },
   {
-    "id": "TC028",
-    "title": "Reject an invalid nursing triage input",
-    "description": "Verifies that nursing staff cannot save a triage assessment when required values are missing or outside valid ranges and validation feedback is shown.",
-    "category": "Nursing Triage Assessment",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the email field with {{LOGIN_USER}}"
-      },
-      {
-        "type": "action",
-        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
-      },
-      {
-        "type": "action",
-        "description": "Submit the login form"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /nursing/assessment/:id"
-      },
-      {
-        "type": "action",
-        "description": "Leave one or more required triage fields empty"
-      },
-      {
-        "type": "action",
-        "description": "Submit the triage assessment"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify validation feedback is displayed"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify the assessment is not saved"
-      }
-    ],
-    "priority": "Medium"
-  },
-  {
-    "id": "TC029",
-    "title": "Prevent booking without required selection",
-    "description": "A patient cannot submit an appointment request until the required schedule details are completed.",
+    "id": "TC020",
+    "title": "Complete the appointment booking flow after reviewing details",
+    "description": "Verifies that a patient can review booking details before confirming and see the booked appointment reflected afterward.",
     "category": "Patient Appointment Booking",
     "steps": [
       {
@@ -1195,48 +802,35 @@
       },
       {
         "type": "action",
-        "description": "Click the link to access appointment booking"
+        "description": "Click the link to the appointment booking area"
       },
       {
         "type": "action",
-        "description": "Submit the booking request without selecting a schedule"
+        "description": "Select an available appointment schedule"
+      },
+      {
+        "type": "action",
+        "description": "Review the booking details"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the booking"
       },
       {
         "type": "assertion",
-        "description": "Verify a booking validation error is visible"
-      }
-    ],
-    "priority": "Medium"
-  },
-  {
-    "id": "TC030",
-    "title": "Patient triage validates required information",
-    "description": "Verifies that the preliminary triage form prevents submission when required symptom information is missing and shows a validation message.",
-    "category": "Preliminary Patient Triage",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /patient/triage"
-      },
-      {
-        "type": "action",
-        "description": "Review the triage guidance"
-      },
-      {
-        "type": "action",
-        "description": "Submit the triage responses without completing the required information"
+        "description": "Verify the booked appointment is displayed"
       },
       {
         "type": "assertion",
-        "description": "Verify a validation message is visible"
+        "description": "Verify a booking confirmation is visible"
       }
     ],
-    "priority": "Low"
+    "priority": "High"
   },
   {
-    "id": "TC031",
-    "title": "Show validation when QR token is missing or invalid",
-    "description": "Operational staff see a validation state when trying to look up tracking information without a usable QR token.",
+    "id": "TC021",
+    "title": "Acknowledge an operational alert with justification",
+    "description": "Verifies that an operational user can open an active alert, provide a justified acknowledgment, and see the alert recorded.",
     "category": "Hospital Operational Dashboard and QR Tracking",
     "steps": [
       {
@@ -1257,27 +851,392 @@
       },
       {
         "type": "action",
-        "description": "Navigate to /operational/dashboard"
+        "description": "Click the link to the operational dashboard"
       },
       {
         "type": "action",
-        "description": "Request the tracking lookup without a token"
+        "description": "Select a hospital site"
+      },
+      {
+        "type": "action",
+        "description": "Open an active alert"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the acknowledgment reason field with a clear operational justification"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the acknowledgment"
       },
       {
         "type": "assertion",
-        "description": "Verify a QR token validation error is visible"
+        "description": "Verify the alert is marked as acknowledged"
       },
       {
         "type": "assertion",
-        "description": "Verify no tracking result is shown"
+        "description": "Verify the acknowledgment appears in audit information"
       }
     ],
-    "priority": "Low"
+    "priority": "High"
   },
   {
-    "id": "TC032",
-    "title": "See an empty import state when no file is provided",
-    "description": "An administrator can open the import flow without uploading a file and see a clear empty or waiting state.",
+    "id": "TC022",
+    "title": "Complete a preliminary patient triage",
+    "description": "A patient can review triage guidance, submit symptom information, and receive a preliminary triage result.",
+    "category": "Preliminary Patient Triage",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open preliminary triage"
+      },
+      {
+        "type": "action",
+        "description": "Provide the requested symptom information"
+      },
+      {
+        "type": "action",
+        "description": "Submit the triage responses"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a preliminary triage result is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC023",
+    "title": "Open a scheduled consultation from the agenda",
+    "description": "This verifies that clinicians can drill into a scheduled consultation and view its details.",
+    "category": "Professional Daily Agenda",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the credential fields with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /professional/agenda"
+      },
+      {
+        "type": "action",
+        "description": "Open a scheduled consultation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the consultation details are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected appointment is opened"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC024",
+    "title": "Review active prescriptions from the patient prescriptions area",
+    "description": "Verifies that a patient can open the prescriptions area and see active prescriptions listed.",
+    "category": "Patient Prescriptions",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the patient prescriptions area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify active prescriptions are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC025",
+    "title": "Review past encounters from the patient history",
+    "description": "Verifies that a patient can open the history area and see previously attended encounters listed.",
+    "category": "Patient History and Medical Encounters",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the patient history area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify past encounters are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC026",
+    "title": "Review patient history and active prescriptions",
+    "description": "Verifies that a patient can open history and prescriptions views and see their recorded care and active medication information.",
+    "category": "Hospital Operational Dashboard and QR Tracking",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the patient history page"
+      },
+      {
+        "type": "action",
+        "description": "Verify patient care history is displayed"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the patient prescriptions page"
+      },
+      {
+        "type": "action",
+        "description": "Verify active prescriptions are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC027",
+    "title": "Review administration catalogs",
+    "description": "An administrator can move through the catalog sections and view the available hospital management lists.",
+    "category": "Administrative Catalog Management and Audit Review",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /admin/dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Move to the institutions section"
+      },
+      {
+        "type": "action",
+        "description": "Move to the sites section"
+      },
+      {
+        "type": "action",
+        "description": "Move to the specialties section"
+      },
+      {
+        "type": "action",
+        "description": "Move to the professionals section"
+      },
+      {
+        "type": "action",
+        "description": "Move to the slots section"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the administration catalogs are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC028",
+    "title": "Open a historical encounter and view its details",
+    "description": "Verifies that a patient can open one record from history and inspect the attended care details.",
+    "category": "Patient History and Medical Encounters",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the patient history area"
+      },
+      {
+        "type": "action",
+        "description": "Open a past encounter record"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify encounter details are displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC029",
+    "title": "Review the audit trail",
+    "description": "An administrator can open the audit section and view the immutable activity log.",
+    "category": "Administrative Catalog Management and Audit Review",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /admin/dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Open the audit section"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the immutable audit log is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC030",
+    "title": "Open a prescription and view medication details",
+    "description": "Verifies that a patient can inspect one prescription entry and see medication details and current status.",
+    "category": "Patient Prescriptions",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the patient prescriptions area"
+      },
+      {
+        "type": "action",
+        "description": "Open a prescription entry"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify medication details are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the prescription status is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC031",
+    "title": "Handle a malformed EPS import file",
+    "description": "An administrator can upload an invalid spreadsheet and see validation errors instead of import results.",
     "category": "EPS Affiliation Bulk Import",
     "steps": [
       {
@@ -1305,21 +1264,25 @@
         "description": "Select an EPS from the catalog"
       },
       {
-        "type": "assertion",
-        "description": "Verify an empty import state is displayed"
+        "type": "action",
+        "description": "Upload an XLSX file with malformed rows"
       },
       {
         "type": "assertion",
-        "description": "Verify row validation is not shown"
+        "description": "Verify validation errors are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify import results are not available yet"
       }
     ],
-    "priority": "Low"
+    "priority": "Medium"
   },
   {
-    "id": "TC033",
-    "title": "Show an empty prescriptions state when none are active",
-    "description": "A patient without active prescriptions sees an empty state instead of prescription entries.",
-    "category": "Patient Prescriptions",
+    "id": "TC032",
+    "title": "Show no availability when schedules are exhausted",
+    "description": "Verifies that the booking area clearly indicates when no appointment options are available.",
+    "category": "Patient Appointment Booking",
     "steps": [
       {
         "type": "action",
@@ -1339,19 +1302,23 @@
       },
       {
         "type": "action",
-        "description": "Click the link to view prescriptions"
+        "description": "Click the link to the appointment booking area"
+      },
+      {
+        "type": "action",
+        "description": "Scroll through the available schedules"
       },
       {
         "type": "assertion",
         "description": "Verify an empty state message is visible"
       }
     ],
-    "priority": "Low"
+    "priority": "Medium"
   },
   {
-    "id": "TC034",
-    "title": "Show an empty history state when no encounters exist",
-    "description": "A patient with no previous encounters sees an empty history message instead of a record list.",
+    "id": "TC033",
+    "title": "Show an empty patient history when no encounters exist",
+    "description": "Verifies that the history area shows an empty state when the patient has no attended encounters yet.",
     "category": "Patient History and Medical Encounters",
     "steps": [
       {
@@ -1372,7 +1339,40 @@
       },
       {
         "type": "action",
-        "description": "Click the link to view medical history"
+        "description": "Click the link to the patient history area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty state message is visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC034",
+    "title": "Show an empty prescriptions state when none are active",
+    "description": "Verifies that the prescriptions area clearly indicates when the patient has no active prescriptions.",
+    "category": "Patient Prescriptions",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the patient prescriptions area"
       },
       {
         "type": "assertion",
