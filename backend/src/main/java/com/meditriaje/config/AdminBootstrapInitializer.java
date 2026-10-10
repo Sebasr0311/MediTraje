@@ -69,7 +69,7 @@ public class AdminBootstrapInitializer implements CommandLineRunner {
                     log.info("AdminBootstrap: Intentos fallidos y bloqueo restablecidos para {}", adminEmail);
                 }
                 // Asegurar que tenga el rol ROLE_ADMINISTRADOR
-                List<String> roles = usuarioRepository.listarRolesPorUsuarioId(u.id());
+                List<String> roles = usuarioRepository.obtenerRoles(u.id());
                 if (!roles.contains("ROLE_ADMINISTRADOR")) {
                     usuarioRepository.asignarRol(u.id(), rolAdmin);
                     log.info("AdminBootstrap: Rol ROLE_ADMINISTRADOR asignado a {}", adminEmail);
