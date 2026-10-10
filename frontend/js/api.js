@@ -209,3 +209,16 @@ export const emergencyApi = {
 export const patientApi = {
   consultarDispensacionReceta: (publicId) => api.get(`/patients/me/prescriptions/${publicId}/dispensation`)
 };
+
+export const hospitalApi = {
+  asignarCama: (episodeId, data) => api.post(`/hospital/episodes/${episodeId}/beds/assign`, data),
+  trasladarPaciente: (episodeId, data) => api.post(`/hospital/episodes/${episodeId}/beds/transfer`, data),
+  cambiarEstadoCama: (camaId, nuevoEstado) => api.patch(`/hospital/beds/${camaId}/status`, null, { nuevoEstado }),
+  registrarProcedimiento: (episodeId, data) => api.post(`/hospital/episodes/${episodeId}/procedures`, data),
+  actualizarEstadoProcedimiento: (procedimientoId, data) => api.patch(`/hospital/procedures/${procedimientoId}/status`, data),
+  registrarEgreso: (episodeId, data) => api.post(`/hospital/episodes/${episodeId}/discharge`, data),
+  obtenerCenso: (sedeId) => api.get(`/hospital/census/${sedeId}`),
+  listarCamas: (sedeId) => api.get(`/hospital/beds/${sedeId}`),
+  listarMovimientos: (episodeId) => api.get(`/hospital/episodes/${episodeId}/movements`),
+  listarProcedimientos: (episodeId) => api.get(`/hospital/episodes/${episodeId}/procedures`)
+};

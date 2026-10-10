@@ -73,5 +73,19 @@ public enum AccionAuditable {
     /** Asignación de equipo asistencial a episodio de urgencias (Fase U, ADR-022). */
     ASIGNACION_ASISTENCIAL_REGISTRADA,
     /** Cierre o egreso de episodio de urgencias (Fase U, ADR-022). */
-    EPISODIO_CERRADO
+    EPISODIO_CERRADO,
+    /** Asignación u ocupación de cama hospitalaria (Fase H, ADR-024). */
+    ASIGNACION_CAMA_REGISTRADA,
+    /** Liberación y cambio a limpieza de cama hospitalaria (Fase H, ADR-024). */
+    LIBERACION_CAMA_REGISTRADA,
+    /** Traslado o movimiento intrahospitalario del paciente (Fase H, ADR-024). */
+    MOVIMIENTO_PACIENTE_REGISTRADO,
+    /** Solicitud o registro de procedimiento/cirugía hospitalaria (Fase H, ADR-024). */
+    PROCEDIMIENTO_HOSPITALARIO_REGISTRADO,
+    /** Transición de estado en procedimiento quirúrgico/recuperación (Fase H, ADR-024). */
+    PROCEDIMIENTO_ESTADO_ACTUALIZADO,
+    /** Egreso hospitalario con epicrisis y destino de alta (Fase H, ADR-024). */
+    EGRESO_HOSPITALARIO_REGISTRADO,
+    /** Actualización de estado operativo o mantenimiento de cama (Fase H, ADR-024). */
+    ESTADO_CAMA_ACTUALIZADO
 }

@@ -28,6 +28,9 @@ import { nursingDashboardView } from './views/nursing-dashboard.js';
 import { nursingAdmissionView } from './views/nursing-admission.js';
 import { nursingAssessmentView } from './views/nursing-assessment.js';
 import { nursingIdentityView } from './views/nursing-identity.js';
+import { hospitalCensusView } from './views/hospital-census.js';
+import { hospitalBedManagementView } from './views/hospital-bed-management.js';
+import { hospitalDischargeView } from './views/hospital-discharge.js';
 import { initSystemAssistantWidget } from './views/system-assistant-widget.js';
 
 // Inicialización de Tema Claro / Oscuro
@@ -209,6 +212,12 @@ function setupRoutes() {
   router.addRoute('/nursing/admission', nursingAdmissionView, { requiresAuth: true, requiredRole: 'ROLE_ENFERMERIA' });
   router.addRoute('/nursing/assessment/:id', nursingAssessmentView, { requiresAuth: true });
   router.addRoute('/nursing/identity/:id', nursingIdentityView, { requiresAuth: true, requiredRole: 'ROLE_ENFERMERIA' });
+
+  // Rutas Fase H: Gestión Hospitalaria, Camas, Movimientos y Egresos (H01-H06)
+  router.addRoute('/hospital/census', hospitalCensusView, { requiresAuth: true });
+  router.addRoute('/hospital', hospitalCensusView, { requiresAuth: true });
+  router.addRoute('/hospital/beds/:id', hospitalBedManagementView, { requiresAuth: true });
+  router.addRoute('/hospital/discharge/:id', hospitalDischargeView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
 
   // Manejador 404 No Encontrado
   router.notFound(async (container, { path }) => {

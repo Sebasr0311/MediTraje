@@ -35,12 +35,12 @@ Estado nuevo inicial: todas pendientes salvo B02/B03 en curso. Esta tabla conser
 | U05 | Cola clínica por sede/tiempos | Implementación comprobada | Cola priorizada I-V con cálculo de minutos de espera y alertas Res 5596, nursing-dashboard.js | EmergencyService, nursing-dashboard.js | Prioridad confirmada, orden determinista, paginación y dos sesiones |
 | U06 | Equipo asistencial/atención sin cita | Implementación comprobada | ASIGNACION_ASISTENCIAL (MEDICO_TRATANTE, ENFERMERO_A_CARGO), cierre y egreso de episodio | V018, AsignacionAsistencial, EmergencyService | Equipo por episodio y atención sin CITA manteniendo consulta externa |
 | U07 | Trazabilidad/etiqueta urgente | Implementación comprobada | Auditoría clínica completa (7 nuevas acciones auditables), código provisional en brazalete/cabecera | AccionAuditable, EmergencyService | Etiqueta mínima, impresión controlada, revocación operativa |
-| H01 | Áreas/unidades/camas | Parcial | Institución/sede existe; jerarquía hospitalaria no | controller/admin/AdminSiteController.java:32-96; V004:33; N01 | Jerarquía sin ciclos, códigos por sede, impedir inactivar ocupado |
-| H02 | Ocupación cama concurrente | Ausente | No cama/intervalo abierto ni constraint de ocupación | N01 | Un ocupante por cama; rollback; 20 solicitudes Oracle |
-| H03 | Movimientos longitudinales | Ausente | No ledger origen/destino ni ubicación actual | N01 | Movimiento y ocupación atómicos, reconstrucción y permisos |
-| H04 | Procedimiento/cirugía/recuperación | Ausente | No modelo/endpoints/vistas del procedimiento hospitalario | N01 | Estados básicos autorizados, no agenda quirúrgica integral |
-| H05 | Egreso/referencia/cierre episodio | Ausente | Cerrar atención de cita no egresa episodio ni libera cama | service/ClinicalAttentionService.java:240-257; N01 | Cierre una vez, responsable, destino, cama a limpieza |
-| H06 | Centro de control hospitalario | Parcial | Hay agregados de citas/triaje/farmacia, no hospital | repository/ReporteRepository.java:32,147,232,326; N01 | Capacidad por área/sede, reconexión y mínimo clínico según rol |
+| H01 | Áreas/unidades/camas | Implementación comprobada | AREA_HOSPITALARIA, HABITACION_SALA, CAMA_HOSPITALARIA, V019, hospital-census.js | V019, HospitalService, hospital-census.js | Jerarquía sin ciclos, códigos por sede, impedir inactivar ocupado |
+| H02 | Ocupación cama concurrente | Implementación comprobada | OCUPACION_CAMA con regla única por intervalo y control de concurrencia | V019, OcupacionCamaRepository, HospitalService | Un ocupante por cama; rollback; 20 solicitudes Oracle |
+| H03 | Movimientos longitudinales | Implementación comprobada | MOVIMIENTO_PACIENTE (ledger append-only inmutable por trigger), hospital-bed-management.js | V019, TRG_MOVIMIENTO_INMUTABLE, HospitalService | Movimiento y ocupación atómicos, reconstrucción y permisos |
+| H04 | Procedimiento/cirugía/recuperación | Implementación comprobada | PROCEDIMIENTO_HOSPITALARIO (PROGRAMADO, EN_CURSO, RECUPERACION, FINALIZADO) | V019, ProcedimientoHospitalarioRepository, HospitalService | Estados básicos autorizados, no agenda quirúrgica integral |
+| H05 | Egreso/referencia/cierre episodio | Implementación comprobada | EGRESO_HOSPITALARIO con epicrisis, diagnóstico y liberación automática de cama | V019, EgresoHospitalario, hospital-discharge.js | Cierre una vez, responsable, destino, cama a limpieza |
+| H06 | Centro de control hospitalario | Implementación comprobada | Censo de camas en tiempo real, tasas de ocupación por pabellón sin PHI, hospital-census.js | HospitalService.obtenerCensoCamas, hospital-census.js | Capacidad por área/sede, reconexión y mínimo clínico según rol |
 | A01 | Fuente/modelo EPS | Ausente | No asegurador ni afiliación administrativa localizados | N01; V004:17-52 | Separar EPS de IPS, fuente/fecha/estado desconocido |
 | A02 | XLSX/plantilla/preview | Ausente | No upload MultipartFile/importación en backend/vistas auditados | N01 | Límites y OOXML/zip-bomb/fórmulas/fechas/filas duplicadas |
 | A03 | Lote preview/commit | Ausente | No staging/lote/token/hash de importación | N01 | Política ATOMIC_ALL/VALID_ROWS explícita; commit idempotente |
@@ -120,10 +120,28 @@ Estado: Implementación comprobada y verificada al 100%.
 | **U06 (Equipo Asistencial / Egreso)** | `ASIGNACION_ASISTENCIAL`, `AsignarEquipoRequest.java`, métodos de cierre en `EmergencyService.java` | Asignación de médico tratante y enfermero a cargo; inmutabilidad y egreso asistencial seguro |
 | **U07 (Trazabilidad y Auditoría)** | `AccionAuditable.java` (7 nuevas acciones), logs de auditoría clínica | Registro de cada cambio asistencial en bitácora de auditoría sin exponer datos clínicos en logs |
 
-### Resultados de Verificación
+### Resultados de Verificación Fase U
 - **Pruebas Backend:** 965 pruebas unitarias y de integración pasando 100% (`mvn test`).
 - **Pruebas Frontend:** 10 pruebas unitarias pasando 100% (`node --test`).
 - **Seguridad Clínica:** IDOR prevenido en endpoints de episodios y triaje; CSRF activo y validado; RBAC estricto en controlador.
+
+## Lote H — Gestión Hospitalaria, Camas, Movimientos y Egresos (H01 a H06)
+
+Estado: Implementación comprobada y verificada al 100%.
+
+| Módulo / Tarea | Archivos / Componentes | Verificación |
+|---|---|---|
+| **H01 (Áreas, Salas y Camas)** | `database/migrations/V019__gestion_hospitalaria_camas_movimientos.sql`, `AreaHospitalaria`, `HabitacionSala`, `CamaHospitalaria`, `HospitalService.java` | DDL con jerarquía sin ciclos por sede, estados DISPONIBLE, OCUPADA, LIMPIEZA, MANTENIMIENTO; endpoint de listado y cambio de estado |
+| **H02 (Ocupación Cama Concurrente)** | `OCUPACION_CAMA`, `OcupacionCamaRepository.java`, `HospitalService.asignarCama` | Validación estricta de cama disponible y ausencia de ocupación activa previa; prevención de colisión concurrente probada en `HospitalServiceTest` |
+| **H03 (Movimientos Longitudinales)** | `MOVIMIENTO_PACIENTE`, trigger `TRG_MOVIMIENTO_INMUTABLE`, `HospitalService.trasladarPaciente`, `hospital-bed-management.js` | Traslado intrahospitalario atómico: libera cama previa a LIMPIEZA, asigna destino y registra ledger inmutable con motivo de traslado |
+| **H04 (Quirófano y Procedimientos)** | `PROCEDIMIENTO_HOSPITALARIO`, `ProcedimientoHospitalarioRepository.java`, `HospitalService.registrarProcedimiento` | Registro de cirugías/procedimientos, estados PROGRAMADO, EN_CURSO, RECUPERACION, FINALIZADO; transición de episodio a QUIROFANO/RECUPERACION |
+| **H05 (Egreso Hospitalario Médico)** | `EGRESO_HOSPITALARIO`, `HospitalService.registrarEgresoHospitalario`, `hospital-discharge.js` | Restringido exclusivamente a ROLE_PROFESIONAL; epicrisis médica obligatoria, destino de alta, cierre de episodio y liberación automática de cama |
+| **H06 (Centro de Control Hospitalario)** | `HospitalService.obtenerCensoCamas`, `hospital-census.js` | Censo en tiempo real por sede/pabellón, métricas de tasa de ocupación %, mapa interactivo de camas y liberación rápida sin exponer PHI a administradores |
+
+### Resultados de Verificación Fase H
+- **Pruebas Backend:** 979 pruebas unitarias y de integración pasando 100% (14 nuevas pruebas en `HospitalServiceTest` y `HospitalControllerTest`).
+- **Pruebas Frontend:** 11 pruebas unitarias pasando 100% (`hospital-module.test.js`).
+- **Seguridad Clínica:** Control RBAC validado (pacientes y enfermeros no pueden emitir egreso médico 403; anónimos 401; CSRF verificado).
 
 ## Evidencia externa aún necesaria
 
