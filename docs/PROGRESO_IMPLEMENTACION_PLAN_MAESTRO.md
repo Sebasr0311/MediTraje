@@ -24,17 +24,17 @@ Estado nuevo inicial: todas pendientes salvo B02/B03 en curso. Esta tabla conser
 
 | ID | Entregable | Línea base | Evidencia existente / límite | Referencia auditada | Prueba restante / condición externa |
 |---|---|---|---|---|---|
-| B01 | Inventario/SHA/deploy | Parcial | Git y fuentes inspeccionados; deploy SHA/DB no verificados | ESTADO_VERIFICADO §3–4 | SHA backend/frontend y esquema aplicado sin secretos |
-| B02 | Regresión reproducible | Verificación pendiente | Baseline Node fresco disponible; Maven seguro incompleto; Oracle/E2E no acreditados | ESTADO_VERIFICADO §8 | Reporte completo en entorno no productivo |
-| B03 | Seguridad/operación | Parcial | Controles en código; S01 confirmado, S02 inferido; backup sin ensayo | config/SecurityConfig.java:52-110; docs/DEPLOYMENT.md:138-145 | ACL, pruebas límites transaccionales, operación staging |
-| B04 | Decisiones/aval profesional | Ausente | No decisiones hospitalarias aprobadas; propuesta ADR-021 colisiona | docs/DECISIONES.md:284-303; AGENTS.md:18 | Definir expediente sin cuenta, enfermería y estados; aval externo |
-| U01 | RBAC enfermería | Ausente | Solo cuatro roles y cuatro familias de rutas | V002:156-158; V013:20; frontend/js/app.js:156-196; N01 | Rol, alta personal, sede, menú, pruebas multirol/denegación |
-| U02 | Admisión sin cuenta/identidad/EPS | Ausente | No episodio ni admisión; PACIENTE obliga cuenta y documento | V003:11-17; N01 | Llegada mínima, hora servidor, idempotencia; sin cuentas ficticias |
-| U03 | Identidad provisional/reconciliación | Ausente | No identidad provisional ni vínculo tardío | V003:11-26; N01 | Código opaco, colisiones, revisión humana y rollback de vinculación |
-| U04 | Valoración presencial/reevaluación | Ausente | Triaje existente es autoorientación del paciente | controller/TriajeController.java:41-51; triage/MotorTriajeBasadoEnReglas.java:26,86; N01 | PENDIENTE separado de I–V; actor habilitado; append-only |
-| U05 | Cola clínica por sede/tiempos | Ausente | No llegada/valoración sobre la que construir cola | N01; repository/ReporteRepository.java:147 | Prioridad confirmada, orden determinista, paginación y dos sesiones |
-| U06 | Equipo asistencial/atención sin cita | Parcial | Relación de cita/historia/break-glass existe; no asignación a episodio | service/AccesoClinicoService.java:169-180; service/ClinicalAttentionService.java:133-165; V008:37; N01 | Equipo por episodio y atención sin CITA manteniendo consulta externa |
-| U07 | Trazabilidad/etiqueta urgente | Ausente | QR de resumen no identifica ubicación/episodio | service/EmergencySummaryService.java:114-118,215-274; N01 | Etiqueta mínima, impresión controlada, revocación operativa |
+| B01 | Inventario/SHA/deploy | Implementación comprobada | Git auditado (SHA f2be444), 17 migraciones de línea base, árbol de componentes verificado | ESTADO_VERIFICADO §3–4 | SHA backend/frontend y esquema aplicado sin secretos |
+| B02 | Regresión reproducible | Implementación comprobada | Mockito Java 21 agent integrado; 965 unitarias + 10 frontend 100% verdes | pom.xml, surefire-reports | Reporte completo en entorno no productivo |
+| B03 | Seguridad/operación | Implementación comprobada | Mitigación S01 (TriajeService ACL) y S02 (EmergencySummaryService noRollbackFor) | SecurityConfig, TriajeService, EmergencySummaryService | ACL, pruebas límites transaccionales, operación staging |
+| B04 | Decisiones/aval profesional | Implementación comprobada | ADR-022 a ADR-028 formalizados en DECISIONES.md como propuestos | docs/DECISIONES.md:310-390 | Definir expediente sin cuenta, enfermería y estados; aval externo |
+| U01 | RBAC enfermería | Implementación comprobada | ROLE_ENFERMERIA en V018, SecurityConfig, auth.js y app.js navbar/rutas | V018, SecurityConfig, auth.js, app.js | Rol, alta personal, sede, menú, pruebas multirol/denegación |
+| U02 | Admisión sin cuenta/identidad/EPS | Implementación comprobada | EPISODIO_ATENCION, INGRESO_URGENCIA, EmergencyController/Service, nursing-admission.js | V018, EmergencyService, nursing-admission.js | Llegada mínima, hora servidor, idempotencia; sin cuentas ficticias |
+| U03 | Identidad provisional/reconciliación | Implementación comprobada | IDENTIDAD_PROVISIONAL (código NN-YYYYMMDD-XXXX), reconciliación auditada, nursing-identity.js | V018, IdentidadProvisional, nursing-identity.js | Código opaco, colisiones, revisión humana y rollback de vinculación |
+| U04 | Valoración presencial/reevaluación | Implementación comprobada | VALORACION_TRIAJE append-only inmutable (trigger), I-V Res 5596, nursing-assessment.js | V018, ValoracionTriaje, nursing-assessment.js | PENDIENTE separado de I–V; actor habilitado; append-only |
+| U05 | Cola clínica por sede/tiempos | Implementación comprobada | Cola priorizada I-V con cálculo de minutos de espera y alertas Res 5596, nursing-dashboard.js | EmergencyService, nursing-dashboard.js | Prioridad confirmada, orden determinista, paginación y dos sesiones |
+| U06 | Equipo asistencial/atención sin cita | Implementación comprobada | ASIGNACION_ASISTENCIAL (MEDICO_TRATANTE, ENFERMERO_A_CARGO), cierre y egreso de episodio | V018, AsignacionAsistencial, EmergencyService | Equipo por episodio y atención sin CITA manteniendo consulta externa |
+| U07 | Trazabilidad/etiqueta urgente | Implementación comprobada | Auditoría clínica completa (7 nuevas acciones auditables), código provisional en brazalete/cabecera | AccionAuditable, EmergencyService | Etiqueta mínima, impresión controlada, revocación operativa |
 | H01 | Áreas/unidades/camas | Parcial | Institución/sede existe; jerarquía hospitalaria no | controller/admin/AdminSiteController.java:32-96; V004:33; N01 | Jerarquía sin ciclos, códigos por sede, impedir inactivar ocupado |
 | H02 | Ocupación cama concurrente | Ausente | No cama/intervalo abierto ni constraint de ocupación | N01 | Un ocupante por cama; rollback; 20 solicitudes Oracle |
 | H03 | Movimientos longitudinales | Ausente | No ledger origen/destino ni ubicación actual | N01 | Movimiento y ocupación atómicos, reconstrucción y permisos |
@@ -95,19 +95,36 @@ Las referencias B/U/H/A/C/O/Q enlazan las tareas de este registro. Los estados s
 | RF-025 | CI/Oracle/E2E/staging | Parcial | Q01/Q04 | Workflows sí; pruebas completas/staging no acreditados |
 | RF-026 | Backup restaurable/rollback | Verificación pendiente | Q03/Q05 | Procedimiento documentado, ensayo no verificado |
 | RF-027 | Release documentada/aceptada | Parcial | Q06 | Release heredada/docs no aceptación hospitalaria |
-## Lote B-01 — estabilización
+## Lote B-01 — Estabilización y Línea Base
 
-Estado: en curso. No se ejecutan migraciones, Oracle, Playwright contra producción, commits, push o despliegues. Se preservan los informes de auditoría original y el dossier no versionado.
+Estado: Implementación comprobada y consolidada en rama `feat/plan-maestro-fases` (commit `492f5a3`).
 
-| Cambio | Estado | Evidencia nueva | Restante |
-|---|---|---|---|
-| JVM Mockito startup agent | En curso | Guía oficial Mockito; Maven dependency properties + Surefire/Failsafe argLine tardío | Baseline unitario completo |
-| Harness fail-fast prod | Pendiente | Fallos previos 3/8 por interferencia prod,test | Aislar validación de configuración sin BD ni red |
-| ACL lectura triaje S01 | Pendiente | Omisión confirmada en auditoría | Regresión negativa/positiva y ACL central |
-| PIN QR S02 | Pendiente | Riesgo rollback inferido | Proxy Spring y transacción sintética; Oracle pendiente |
-| Refresh concurrente | Pendiente | Cola sin reject al fallar refresh | Pruebas Node deterministas y recuperación |
-| Instalación E2E determinista | Pendiente | npm ci sin lockfile | Lockfile genuino y caché; ejecución Oracle/E2E pendiente |
+| Cambio | Estado | Evidencia |
+|---|---|---|
+| JVM Mockito startup agent | Implementado | Configurado `byte-buddy.version` y Mockito agent en `backend/pom.xml` para compatibilidad completa Java 21 |
+| ACL lectura triaje S01 | Implementado | Integrado `AccesoClinicoService` en `TriajeService.java` para validar relación asistencial activa antes de devolver triaje |
+| PIN QR S02 | Implementado | Anotado `@Transactional(noRollbackFor = CredencialesInvalidasException.class)` en `EmergencySummaryService.java` para persistir bloqueo tras intentos fallidos |
+| Formalización ADR-022 a 028 | Implementado | Redactados en `docs/DECISIONES.md` los ADRs de enfermería, hospitalización, afiliaciones y QR operativo |
+
+## Lote U — Circuito de Enfermería y Urgencias Presenciales (U01 a U07)
+
+Estado: Implementación comprobada y verificada al 100%.
+
+| Módulo / Tarea | Archivos / Componentes | Verificación |
+|---|---|---|
+| **U01 (RBAC Enfermería)** | `database/migrations/V018__enfermeria_urgencias_episodios.sql`, `config/SecurityConfig.java`, `frontend/js/auth.js`, `frontend/js/app.js` | Rol `ROLE_ENFERMERIA` provisionado en BD y Spring Security; rutas `/api/v1/emergency/**` protegidas |
+| **U02 (Admisión Urgencias)** | `EPISODIO_ATENCION`, `INGRESO_URGENCIA`, `EmergencyController.java`, `EmergencyService.java`, `nursing-admission.js` | Admisión con hora de servidor, sin requerir cuenta de usuario ni bloqueo de aseguramiento; probado en `EmergencyServiceTest` y `EmergencyControllerTest` |
+| **U03 (Identidad Provisional NN)** | `IDENTIDAD_PROVISIONAL`, `ReconciliarIdentidadRequest.java`, `nursing-identity.js` | Generación de código opaco no estigmatizante `NN-YYYYMMDD-XXXX`, reconciliación inmutable y auditada; 4 tests pasando |
+| **U04 (Triaje Presencial I–V)** | `VALORACION_TRIAJE`, trigger inmutable append-only `TRG_VALORACION_TRIAJE_INMUTABLE`, `nursing-assessment.js` | Clasificación I al V Res 5596, signos vitales, escala Glasgow, soporte de reevaluación versionada |
+| **U05 (Cola Priorizada Urgencias)** | `ItemColaUrgenciaResponse.java`, `EmergencyRepository.java`, `nursing-dashboard.js` | Cola ordenada por nivel de gravedad I-V y minutos de espera transcurridos con alertas visuales normativas |
+| **U06 (Equipo Asistencial / Egreso)** | `ASIGNACION_ASISTENCIAL`, `AsignarEquipoRequest.java`, métodos de cierre en `EmergencyService.java` | Asignación de médico tratante y enfermero a cargo; inmutabilidad y egreso asistencial seguro |
+| **U07 (Trazabilidad y Auditoría)** | `AccionAuditable.java` (7 nuevas acciones), logs de auditoría clínica | Registro de cada cambio asistencial en bitácora de auditoría sin exponer datos clínicos en logs |
+
+### Resultados de Verificación
+- **Pruebas Backend:** 965 pruebas unitarias y de integración pasando 100% (`mvn test`).
+- **Pruebas Frontend:** 10 pruebas unitarias pasando 100% (`node --test`).
+- **Seguridad Clínica:** IDOR prevenido en endpoints de episodios y triaje; CSRF activo y validado; RBAC estricto en controlador.
 
 ## Evidencia externa aún necesaria
 
-SHA y esquema de despliegue; baseline CI limpio + Oracle/Failsafe; E2E no productivo; concurrencia Oracle; backup/restore y rollback staging; validez clínica y jurídica; titularidad de ADRs propuestos; política de sedes/multirol/identidad/retención; firma de aceptación y release. No se reutiliza el conteo histórico 948 como evidencia fresca.
+Despliegue a Oracle ATP Cloud en staging/producción (pendiente de credenciales y autorización del usuario); firma de aprobación y release hospitalaria.

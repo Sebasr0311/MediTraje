@@ -24,6 +24,10 @@ import { professionalPatientHistoryView } from './views/professional-patient-his
 import { adminDashboardView } from './views/admin-views.js';
 import { pharmacyDispensationView } from './views/pharmacy-dispensation.js';
 import { landingView } from './views/landing-view.js';
+import { nursingDashboardView } from './views/nursing-dashboard.js';
+import { nursingAdmissionView } from './views/nursing-admission.js';
+import { nursingAssessmentView } from './views/nursing-assessment.js';
+import { nursingIdentityView } from './views/nursing-identity.js';
 import { initSystemAssistantWidget } from './views/system-assistant-widget.js';
 
 // Inicialización de Tema Claro / Oscuro
@@ -78,6 +82,10 @@ function updateNavbar() {
       roleName = 'Farmacia';
       roleBadgeClass = 'badge--confirmed';
       dashboardLink = '#/pharmacy/dispensation';
+    } else if (auth.isEnfermeria) {
+      roleName = 'Enfermería';
+      roleBadgeClass = 'badge--in-progress';
+      dashboardLink = '#/nursing/dashboard';
     }
 
     if (brandLink) {
@@ -194,6 +202,13 @@ function setupRoutes() {
   // Rutas F2.4: Ventanilla de Dispensación Farmacéutica (ADR-016)
   router.addRoute('/pharmacy/dispensation', pharmacyDispensationView, { requiresAuth: true, requiredRole: 'ROLE_FARMACEUTICO' });
   router.addRoute('/pharmacy', pharmacyDispensationView, { requiresAuth: true, requiredRole: 'ROLE_FARMACEUTICO' });
+
+  // Rutas Fase U: Circuito de Enfermería, Urgencias Presenciales y Triaje I-V (U01-U07)
+  router.addRoute('/nursing/dashboard', nursingDashboardView, { requiresAuth: true, requiredRole: 'ROLE_ENFERMERIA' });
+  router.addRoute('/nursing', nursingDashboardView, { requiresAuth: true, requiredRole: 'ROLE_ENFERMERIA' });
+  router.addRoute('/nursing/admission', nursingAdmissionView, { requiresAuth: true, requiredRole: 'ROLE_ENFERMERIA' });
+  router.addRoute('/nursing/assessment/:id', nursingAssessmentView, { requiresAuth: true });
+  router.addRoute('/nursing/identity/:id', nursingIdentityView, { requiresAuth: true, requiredRole: 'ROLE_ENFERMERIA' });
 
   // Manejador 404 No Encontrado
   router.notFound(async (container, { path }) => {

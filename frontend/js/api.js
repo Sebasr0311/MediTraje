@@ -194,6 +194,18 @@ export const pharmacyApi = {
   listarSedes: () => api.get('/pharmacy/sites')
 };
 
+export const emergencyApi = {
+  registrarAdmision: (data) => api.post('/emergency/admissions', data),
+  obtenerDetalleEpisodio: (episodePublicId) => api.get(`/emergency/episodes/${episodePublicId}`),
+  reconciliarIdentidad: (episodePublicId, data) => api.post(`/emergency/episodes/${episodePublicId}/reconcile-identity`, data),
+  registrarValoracionTriaje: (episodePublicId, data) => api.post(`/emergency/episodes/${episodePublicId}/triage-assessments`, data),
+  listarHistorialTriaje: (episodePublicId) => api.get(`/emergency/episodes/${episodePublicId}/triage-assessments`),
+  asignarEquipo: (episodePublicId, data) => api.post(`/emergency/episodes/${episodePublicId}/assignments`, data),
+  listarColaUrgencias: (sedePublicId, estado = null) => api.get(`/emergency/queue/${sedePublicId}`, estado ? { estado } : {}),
+  cerrarEpisodio: (episodePublicId) => api.post(`/emergency/episodes/${episodePublicId}/close`, {}),
+  listarSedes: () => api.get('/admin/sites')
+};
+
 export const patientApi = {
   consultarDispensacionReceta: (publicId) => api.get(`/patients/me/prescriptions/${publicId}/dispensation`)
 };

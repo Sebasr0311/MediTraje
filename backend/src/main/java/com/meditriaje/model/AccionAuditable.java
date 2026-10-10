@@ -61,5 +61,17 @@ public enum AccionAuditable {
     /** Inactivación de alergia por profesional o paciente con motivo obligatorio (D3, T4). */
     ALERGIA_INACTIVADA,
     /** Registro de inasistencia (no-show) del paciente a la cita médica por profesional o admin (D4, T5). */
-    CITA_NO_ASISTIO
+    CITA_NO_ASISTIO,
+    /** Registro de ingreso a urgencias y creación de episodio (Fase U, ADR-022). */
+    INGRESO_URGENCIA_REGISTRADO,
+    /** Registro de identidad provisional para paciente no identificado NN (Fase U, ADR-023). */
+    IDENTIDAD_PROVISIONAL_REGISTRADA,
+    /** Reconciliación de identidad provisional hacia paciente civil confirmado (Fase U, ADR-023). */
+    IDENTIDAD_PROVISIONAL_RECONCILIADA,
+    /** Registro o reevaluación de valoración de triaje presencial (Fase U, ADR-027). */
+    VALORACION_TRIAJE_REGISTRADA,
+    /** Asignación de equipo asistencial a episodio de urgencias (Fase U, ADR-022). */
+    ASIGNACION_ASISTENCIAL_REGISTRADA,
+    /** Cierre o egreso de episodio de urgencias (Fase U, ADR-022). */
+    EPISODIO_CERRADO
 }

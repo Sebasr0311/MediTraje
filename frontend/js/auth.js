@@ -13,9 +13,11 @@ class AuthService extends EventTarget {
     this.isInitialized = false;
 
     // Escuchar expiración global de sesión desde el cliente API
-    window.addEventListener('auth:session-expired', () => {
-      this.handleSessionExpired();
-    });
+    if (typeof window !== 'undefined') {
+      window.addEventListener('auth:session-expired', () => {
+        this.handleSessionExpired();
+      });
+    }
   }
 
   get isAuthenticated() {
@@ -48,6 +50,10 @@ class AuthService extends EventTarget {
 
   get isFarmaceutico() {
     return this.hasRole('ROLE_FARMACEUTICO');
+  }
+
+  get isEnfermeria() {
+    return this.hasRole('ROLE_ENFERMERIA');
   }
 
   /**
