@@ -1,0 +1,122 @@
+name: E2E — Playwright Critical Flows
+
+on:
+  push:
+    branches: [develop, main, "integration/**"]
+  pull_request:
+    branches: [develop, main, "integration/**"]
+  workflow_dispatch:
+
+jobs:
+  e2e-playwright:
+    name: Pruebas E2E (Oracle Free + Spring Boot + Playwright)
+    runs-on: ubuntu-latest
+
+    services:
+      oracle:
+        image: gvenzl/oracle-free:23-slim-faststart
+        env:
+          ORACLE_PASSWORD: testPassword1
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd "healthcheck.sh"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "e2e/package.json"
+
+      - name: Provisionar usuarios en Oracle Free
+        run: |
+          echo "Esperando que el contenedor de Oracle responda..."
+          sleep 10
+          docker exec ${{ job.services.oracle.id }} sqlplus -s system/testPassword1@//localhost:1521/FREEPDB1 << 'EOF'
+          ALTER SESSION SET CONTAINER = FREEPDB1;
+          CREATE USER MEDITRIAJE_OWNER IDENTIFIED BY "Owner_Pass1";
+          GRANT CONNECT, RESOURCE, CREATE SESSION TO MEDITRIAJE_OWNER;
+          ALTER USER MEDITRIAJE_OWNER QUOTA UNLIMITED ON USERS;
+
+          CREATE USER MEDITRIAJE_APP IDENTIFIED BY "App_Pass1";
+          GRANT CREATE SESSION TO MEDITRIAJE_APP;
+          EXIT;
+          EOF
+          echo "Usuarios MEDITRIAJE_OWNER y MEDITRIAJE_APP aprovisionados."
+
+      - name: Compilar backend y empaquetar JAR
+        working-directory: backend
+        run: mvn clean package -DskipTests --batch-mode --no-transfer-progress
+
+      - name: Iniciar Backend Spring Boot con Demo Seeder
+        run: |
+          java -jar backend/target/meditriaje-api-0.1.0-SNAPSHOT.jar \
+            --spring.profiles.active=dev \
+            --spring.datasource.url=jdbc:oracle:thin:@localhost:1521/FREEPDB1 \
+            --spring.datasource.username=MEDITRIAJE_APP \
+            --spring.datasource.password=App_Pass1 \
+            --spring.flyway.enabled=true \
+            --spring.flyway.url=jdbc:oracle:thin:@localhost:1521/FREEPDB1 \
+            --spring.flyway.user=MEDITRIAJE_OWNER \
+            --spring.flyway.password=Owner_Pass1 \
+            --meditriaje.demo.seed=true \
+            --meditriaje.demo.password="DemoSecretPass123!" \
+            --app.frontend-url=http://localhost:3000 \
+            --cors.origins=http://localhost:3000,http://127.0.0.1:3000 \
+            --server.port=8080 > backend.log 2>&1 &
+          
+          echo "Esperando inicialización de la API (healthcheck en puerto 8080)..."
+          timeout 90 bash -c 'until curl -s http://localhost:8080/actuator/health | grep "UP"; do sleep 3; done' || (cat backend.log && exit 1)
+          echo "Backend iniciado y saludable."
+
+      - name: Iniciar servidor Frontend estático
+        run: |
+          npx --yes serve frontend -p 3000 > frontend.log 2>&1 &
+          echo "Esperando frontend en puerto 3000..."
+          timeout 20 bash -c 'until curl -s http://localhost:3000/index.html | grep "<!DOCTYPE html>"; do sleep 1; done' || (cat frontend.log && exit 1)
+          echo "Frontend estático disponible en http://localhost:3000."
+
+      - name: Instalar dependencias y navegadores Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Ejecutar pruebas Playwright en modo headless
+        working-directory: e2e
+        run: npx playwright test
+        env:
+          E2E_BASE_URL: http://localhost:3000
+          DEMO_PASSWORD: DemoSecretPass123!
+          CI: "true"
+
+      - name: Subir reporte de Playwright (trazas, videos y capturas)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7
+
+      - name: Volcar logs de backend si hubo error
+        if: failure()
+        run: |
+          echo "=== LOGS DEL BACKEND ==="
+          cat backend.log

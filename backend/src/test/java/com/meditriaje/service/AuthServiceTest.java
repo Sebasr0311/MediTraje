@@ -18,6 +18,7 @@ import com.meditriaje.repository.RefreshTokenRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import com.meditriaje.security.JwtService;
 import com.meditriaje.security.TokenHashUtil;
+import com.meditriaje.service.email.ResultadoEnvio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -762,6 +763,46 @@ class AuthServiceTest {
         verify(codigoVerificacionRepository).invalidarCodigosPrevios(10L, CodigoVerificacion.TIPO_RECUPERACION_PASSWORD);
         verify(codigoVerificacionRepository).crear(any(CodigoVerificacion.class));
         verify(emailService).enviarCodigoRecuperacion(eq(email), eq("Carlos"), anyString(), eq(15));
+        verify(auditoriaService).registrarEvento(
+                eq(10L),
+                eq(AccionAuditable.SOLICITUD_RECUPERACION_PASSWORD),
+                eq("USUARIO"),
+                eq("usr-pub-1"),
+                eq(ResultadoAuditoria.EXITO),
+                eq("192.168.1.50")
+        );
+    }
+
+    @Test
+    void solicitarRecuperacionPassword_falloEnvioEmail_responde200GenericoYAuditaEmailFallido() {
+        String email = "carlos@hospital.com";
+        Usuario usuario = new Usuario(
+                10L, "usr-pub-1", email, "$argon2id$hash", "ACTIVO", 0, null, Instant.now(), false
+        );
+        Paciente paciente = new Paciente(
+                5L, 10L, "pac-pub-1", "CC", "12345678", "Carlos", "Perez",
+                LocalDate.of(1990, 1, 1), "3001234567", Instant.now(), null
+        );
+
+        when(usuarioRepository.buscarPorEmail(email)).thenReturn(Optional.of(usuario));
+        when(pacienteRepository.buscarPorUsuarioId(10L)).thenReturn(Optional.of(paciente));
+        when(emailService.enviarCodigoRecuperacion(eq(email), eq("Carlos"), anyString(), eq(15)))
+                .thenReturn(ResultadoEnvio.fallido("BREVO_401", "Clave de API inválida"));
+
+        SolicitarRecuperacionRequest req = new SolicitarRecuperacionRequest(email);
+        SolicitarRecuperacionResponse resp = authService.solicitarRecuperacionPassword(req, "192.168.1.50");
+
+        assertThat(resp.mensaje()).isEqualTo(SolicitarRecuperacionResponse.MENSAJE_DEFAULT);
+
+        verify(auditoriaService).registrarEvento(
+                eq(10L),
+                eq(AccionAuditable.EMAIL_FALLIDO),
+                eq("USUARIO"),
+                eq("usr-pub-1"),
+                eq(ResultadoAuditoria.FALLO),
+                eq("192.168.1.50")
+        );
+
         verify(auditoriaService).registrarEvento(
                 eq(10L),
                 eq(AccionAuditable.SOLICITUD_RECUPERACION_PASSWORD),

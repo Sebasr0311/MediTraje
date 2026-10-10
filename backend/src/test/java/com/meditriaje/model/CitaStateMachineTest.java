@@ -34,53 +34,61 @@ class CitaStateMachineTest {
     }
 
     // =========================================================================
-    // TRANSICIONES VÁLIDAS DESDE PROGRAMADA (ADR-006)
+    // TRANSICIONES VÁLIDAS DESDE PROGRAMADA (ADR-006, Decisión D2)
     // =========================================================================
 
     @ParameterizedTest
-    @EnumSource(value = EstadoCita.class, names = {"CONFIRMADA", "CANCELADA", "NO_ASISTIO", "REPROGRAMADA"})
-    @DisplayName("Transiciones válidas desde PROGRAMADA son permitidas")
+    @EnumSource(value = EstadoCita.class, names = {"ATENDIDA", "CANCELADA", "NO_ASISTIO"})
+    @DisplayName("Transiciones válidas desde PROGRAMADA son permitidas (D2)")
     void esTransicionValida_desdeProgramada_destinosValidos_retornaTrue(EstadoCita destino) {
         assertThat(CitaStateMachine.esTransicionValida(EstadoCita.PROGRAMADA, destino)).isTrue();
         assertThatCode(() -> CitaStateMachine.validarTransicion(EstadoCita.PROGRAMADA, destino))
                 .doesNotThrowAnyException();
     }
 
-    @Test
-    @DisplayName("PROGRAMADA no puede transicionar directamente a ATENDIDA ni a sí misma")
-    void esTransicionValida_desdeProgramada_destinosInvalidos_retornaFalse() {
-        assertThat(CitaStateMachine.esTransicionValida(EstadoCita.PROGRAMADA, EstadoCita.ATENDIDA)).isFalse();
-        assertThat(CitaStateMachine.esTransicionValida(EstadoCita.PROGRAMADA, EstadoCita.PROGRAMADA)).isFalse();
-        assertThat(CitaStateMachine.esTransicionValida(EstadoCita.PROGRAMADA, null)).isFalse();
-
-        assertThatThrownBy(() -> CitaStateMachine.validarTransicion(EstadoCita.PROGRAMADA, EstadoCita.ATENDIDA))
+    @ParameterizedTest
+    @EnumSource(value = EstadoCita.class, names = {"CONFIRMADA", "REPROGRAMADA", "PROGRAMADA"})
+    @DisplayName("PROGRAMADA no puede transicionar a estados reservados ni a sí misma")
+    void esTransicionValida_desdeProgramada_destinosInvalidos_retornaFalse(EstadoCita destinoInvalido) {
+        assertThat(CitaStateMachine.esTransicionValida(EstadoCita.PROGRAMADA, destinoInvalido)).isFalse();
+        assertThatThrownBy(() -> CitaStateMachine.validarTransicion(EstadoCita.PROGRAMADA, destinoInvalido))
                 .isInstanceOf(DatosInvalidosException.class)
-                .hasMessage("Transicion de estado no permitida de PROGRAMADA a ATENDIDA.");
+                .hasMessage("Transicion de estado no permitida de PROGRAMADA a " + destinoInvalido + ".");
+    }
+
+    @Test
+    @DisplayName("PROGRAMADA no puede transicionar a null")
+    void esTransicionValida_desdeProgramada_destinoNull_retornaFalse() {
+        assertThat(CitaStateMachine.esTransicionValida(EstadoCita.PROGRAMADA, null)).isFalse();
     }
 
     // =========================================================================
-    // TRANSICIONES VÁLIDAS DESDE CONFIRMADA (ADR-006)
+    // TRANSICIONES DESDE CONFIRMADA (COMPATIBILIDAD LEGACY D2)
     // =========================================================================
 
     @ParameterizedTest
-    @EnumSource(value = EstadoCita.class, names = {"ATENDIDA", "CANCELADA", "NO_ASISTIO", "REPROGRAMADA"})
-    @DisplayName("Transiciones válidas desde CONFIRMADA son permitidas")
+    @EnumSource(value = EstadoCita.class, names = {"ATENDIDA", "CANCELADA", "NO_ASISTIO"})
+    @DisplayName("Transiciones legacy válidas desde CONFIRMADA son permitidas (D2)")
     void esTransicionValida_desdeConfirmada_destinosValidos_retornaTrue(EstadoCita destino) {
         assertThat(CitaStateMachine.esTransicionValida(EstadoCita.CONFIRMADA, destino)).isTrue();
         assertThatCode(() -> CitaStateMachine.validarTransicion(EstadoCita.CONFIRMADA, destino))
                 .doesNotThrowAnyException();
     }
 
-    @Test
-    @DisplayName("CONFIRMADA no puede retroceder a PROGRAMADA ni a sí misma")
-    void esTransicionValida_desdeConfirmada_destinosInvalidos_retornaFalse() {
-        assertThat(CitaStateMachine.esTransicionValida(EstadoCita.CONFIRMADA, EstadoCita.PROGRAMADA)).isFalse();
-        assertThat(CitaStateMachine.esTransicionValida(EstadoCita.CONFIRMADA, EstadoCita.CONFIRMADA)).isFalse();
-        assertThat(CitaStateMachine.esTransicionValida(EstadoCita.CONFIRMADA, null)).isFalse();
-
-        assertThatThrownBy(() -> CitaStateMachine.validarTransicion(EstadoCita.CONFIRMADA, EstadoCita.PROGRAMADA))
+    @ParameterizedTest
+    @EnumSource(value = EstadoCita.class, names = {"PROGRAMADA", "REPROGRAMADA", "CONFIRMADA"})
+    @DisplayName("CONFIRMADA no puede retroceder a PROGRAMADA, REPROGRAMADA ni a sí misma")
+    void esTransicionValida_desdeConfirmada_destinosInvalidos_retornaFalse(EstadoCita destinoInvalido) {
+        assertThat(CitaStateMachine.esTransicionValida(EstadoCita.CONFIRMADA, destinoInvalido)).isFalse();
+        assertThatThrownBy(() -> CitaStateMachine.validarTransicion(EstadoCita.CONFIRMADA, destinoInvalido))
                 .isInstanceOf(DatosInvalidosException.class)
-                .hasMessage("Transicion de estado no permitida de CONFIRMADA a PROGRAMADA.");
+                .hasMessage("Transicion de estado no permitida de CONFIRMADA a " + destinoInvalido + ".");
+    }
+
+    @Test
+    @DisplayName("CONFIRMADA no puede transicionar a null")
+    void esTransicionValida_desdeConfirmada_destinoNull_retornaFalse() {
+        assertThat(CitaStateMachine.esTransicionValida(EstadoCita.CONFIRMADA, null)).isFalse();
     }
 
     // =========================================================================

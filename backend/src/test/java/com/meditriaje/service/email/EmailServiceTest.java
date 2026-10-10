@@ -12,6 +12,9 @@ import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -44,7 +47,7 @@ class EmailServiceTest {
     }
 
     @Test
-    @DisplayName("Debe renderizar la plantilla HTML y registrar el correo en el buffer")
+    @DisplayName("Debe renderizar la plantilla HTML y registrar el correo en el buffer con resultado exitoso")
     void debeEnviarCorreoRecuperacionConPlantillaHtml() {
         when(javaMailSender.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));
 
@@ -53,7 +56,10 @@ class EmailServiceTest {
         String codigo = "654321";
         int minutosExpiracion = 15;
 
-        emailService.enviarCodigoRecuperacion(email, nombre, codigo, minutosExpiracion);
+        ResultadoEnvio resultado = emailService.enviarCodigoRecuperacion(email, nombre, codigo, minutosExpiracion);
+
+        assertThat(resultado.exito()).isTrue();
+        assertThat(resultado.codigo()).isEqualTo("OK");
 
         Optional<CorreoEnviado> enviadoOpt = emailService.obtenerUltimoCorreoEnviado();
         assertThat(enviadoOpt).isPresent();
@@ -81,7 +87,10 @@ class EmailServiceTest {
         String rol = "Profesional Asistencial (Medicina General)";
         String passwordTemporal = "Temp$Pass1234!";
 
-        emailService.enviarCredencialesIniciales(email, nombre, rol, passwordTemporal);
+        ResultadoEnvio resultado = emailService.enviarCredencialesIniciales(email, nombre, rol, passwordTemporal);
+
+        assertThat(resultado.exito()).isTrue();
+        assertThat(resultado.codigo()).isEqualTo("OK");
 
         Optional<CorreoEnviado> enviadoOpt = emailService.obtenerUltimoCorreoEnviado();
         assertThat(enviadoOpt).isPresent();
@@ -101,13 +110,17 @@ class EmailServiceTest {
     }
 
     @Test
-    @DisplayName("Resiliencia: si el servidor SMTP falla, no se lanza excepción y el correo se conserva en buffer")
+    @DisplayName("Resiliencia: si el servidor SMTP falla, retorna ResultadoEnvio fallido visible sin lanzar excepción")
     void resilienciaAnteFalloSmtp() {
         when(javaMailSender.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));
         doThrow(new MailSendException("Error conectando con Brevo SMTP"))
                 .when(javaMailSender).send(any(MimeMessage.class));
 
-        emailService.enviarCredencialesIniciales("medico@test.com", "Dr. Pérez", "Médico", "Pass#12345");
+        ResultadoEnvio resultado = emailService.enviarCredencialesIniciales("medico@test.com", "Dr. Pérez", "Médico", "Pass#12345");
+
+        assertThat(resultado.exito()).isFalse();
+        assertThat(resultado.codigo()).isEqualTo("SMTP_ERROR");
+        assertThat(resultado.mensaje()).contains("Error conectando con Brevo SMTP");
 
         Optional<CorreoEnviado> enviadoOpt = emailService.obtenerUltimoCorreoEnviado();
         assertThat(enviadoOpt).isPresent();
@@ -119,7 +132,8 @@ class EmailServiceTest {
     void debeUsarNombrePorDefecto() {
         when(javaMailSender.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));
 
-        emailService.enviarCodigoRecuperacion("user@ejemplo.com", "   ", "123456", 15);
+        ResultadoEnvio resultado = emailService.enviarCodigoRecuperacion("user@ejemplo.com", "   ", "123456", 15);
+        assertThat(resultado.exito()).isTrue();
 
         Optional<CorreoEnviado> enviadoOpt = emailService.obtenerUltimoCorreoEnviado();
         assertThat(enviadoOpt).isPresent();
@@ -135,7 +149,8 @@ class EmailServiceTest {
         String asunto = "Prueba de notificación";
         String cuerpo = "<html><body>Hola</body></html>";
 
-        emailService.enviarCorreoHtml(email, asunto, cuerpo);
+        ResultadoEnvio resultado = emailService.enviarCorreoHtml(email, asunto, cuerpo);
+        assertThat(resultado.exito()).isTrue();
 
         Optional<CorreoEnviado> enviadoOpt = emailService.obtenerUltimoCorreoEnviado();
         assertThat(enviadoOpt).isPresent();
@@ -164,5 +179,40 @@ class EmailServiceTest {
                 "enlaceLogin", "http://localhost:5500/#/login"
         ));
         assertThat(htmlBienvenida).contains("Dr. Mario").contains("Pediatra").contains("Pass#12345");
+    }
+
+    @Test
+    @DisplayName("Garantía de privacidad: Ninguna plantilla de correo contiene variables ni terminología clínica sensible")
+    void plantillasHtml_noContienenVariablesNiTerminologiaClinica() throws Exception {
+        List<String> plantillas = List.of(
+                "templates/email/bienvenida-credenciales.html",
+                "templates/email/cancelacion-cita.html",
+                "templates/email/confirmacion-cita.html",
+                "templates/email/recuperacion-password.html",
+                "templates/email/resumen-atencion-seguimiento.html"
+        );
+
+        List<String> terminosSensibles = List.of(
+                "diagnostico", "diagnóstico",
+                "cie10", "cie-10", "cie_10",
+                "medicamento",
+                "signos vitales",
+                "presion arterial", "presión arterial",
+                "evolucion", "evolución"
+        );
+
+        DefaultResourceLoader loader = new DefaultResourceLoader();
+        for (String plantilla : plantillas) {
+            String contenido = new String(
+                    loader.getResource("classpath:" + plantilla).getInputStream().readAllBytes(),
+                    StandardCharsets.UTF_8
+            ).toLowerCase(Locale.ROOT);
+
+            for (String termino : terminosSensibles) {
+                assertThat(contenido)
+                        .as("La plantilla '%s' no debe contener el término clínico o variable sensible '%s'", plantilla, termino)
+                        .doesNotContain(termino);
+            }
+        }
     }
 }

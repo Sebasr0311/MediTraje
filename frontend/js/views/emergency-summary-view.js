@@ -241,7 +241,7 @@ function renderResumenClinico(container, data) {
           </div>
           <div class="text-xs leading-relaxed font-medium">
             <strong>AVISO CLÍNICO OBLIGATORIO:</strong>
-            ${esc(data.advertenciaLegal || 'Esta orientación es un prototipo médico prehospitalario. La información aquí presentada fue consolidada bajo autorización del paciente y no sustituye la historia clínica integral de un centro hospitalario.')}
+            Prototipo académico. Orienta, no diagnostica ni reemplaza la valoración de un profesional de la salud. ${esc(data.advertenciaLegal || 'Esta información consolidada no sustituye la historia clínica integral de un centro hospitalario ni el criterio de los equipos de urgencias.')}
           </div>
         </div>
       </div>
@@ -316,7 +316,10 @@ function renderResumenClinico(container, data) {
                 <div class="card p-4" style="background-color: var(--danger-bg); border-color: var(--danger-border, #FECACA);">
                   <div class="flex items-center justify-between mb-2">
                     <strong class="text-base font-bold text-danger">${esc(a.sustancia)}</strong>
-                    <span class="badge badge--danger">${esc(a.severidad || 'NO ESPECIFICADA')}</span>
+                    <div class="flex items-center gap-1">
+                      ${a.origen === 'PACIENTE' ? '<span class="badge badge--scheduled text-xs">Autorreportada</span>' : '<span class="badge badge--confirmed text-xs">Diagnóstico</span>'}
+                      <span class="badge badge--danger">${esc(a.severidad || 'NO ESPECIFICADA')}</span>
+                    </div>
                   </div>
                   <div class="text-xs text-muted">
                     <strong>Reacción adversa:</strong> ${esc(a.reaccion || 'Sin descripción')}

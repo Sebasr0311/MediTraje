@@ -82,4 +82,30 @@ public class AppointmentController {
 
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Endpoint para registrar la inasistencia (no-show) a una cita médica programada (D4, T5).
+     * Autorizado únicamente para el profesional asignado a la cita o administradores.
+     * Retorna HTTP 200 OK con el cuerpo consolidado de la cita actualizada a NO_ASISTIO.
+     */
+    @PatchMapping("/{publicId}/no-show")
+    @PreAuthorize("hasAnyAuthority('ROLE_PROFESIONAL', 'ROLE_ADMINISTRADOR')")
+    public ResponseEntity<CitaResponse> marcarNoAsistio(
+            @PathVariable String publicId,
+            Authentication authentication,
+            HttpServletRequest servletRequest
+    ) {
+        String usuarioPublicId = authentication.getName();
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+        String ipOrigen = IpUtil.extraerIp(servletRequest);
+
+        CitaResponse response = appointmentService.marcarNoAsistio(
+                publicId,
+                usuarioPublicId,
+                authorities,
+                ipOrigen
+        );
+
+        return ResponseEntity.ok(response);
+    }
 }

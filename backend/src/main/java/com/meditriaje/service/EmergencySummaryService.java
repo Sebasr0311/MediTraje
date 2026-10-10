@@ -27,6 +27,8 @@ import com.meditriaje.repository.RecetaRepository;
 import com.meditriaje.repository.UsuarioRepository;
 import com.meditriaje.security.TokenHashUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,10 +44,12 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Servicio de agregación y consulta controlada del resumen clínico de salud para emergencias (ADR-010, §5.17, §5.18).
+ * Servicio de agregación y consulta controlada del resumen clínico de salud para emergencias (ADR-010, §5.17, §5.18, SEC-002).
  */
 @Service
 public class EmergencySummaryService {
+
+    private static final Logger log = LoggerFactory.getLogger(EmergencySummaryService.class);
 
     public static final ZoneId ZONE_BOGOTA = ZoneId.of("America/Bogota");
     public static final String ADVERTENCIA_LEGAL = "El presente resumen clinico es un documento temporal de orientacion medica generado por el paciente bajo acceso controlado. No sustituye la historia clinica integral.";
@@ -133,11 +137,47 @@ public class EmergencySummaryService {
             throw new DatosInvalidosException("El acceso QR ha superado el limite maximo de lecturas permitidas.");
         }
 
-        // Validación de PIN de seguridad si el token lo requiere
+        // Validación de PIN de seguridad si el token lo requiere (SEC-002)
         if (acceso.requierePin()) {
             String pinProporcionado = (request != null && request.pin() != null) ? request.pin().trim() : "";
-            if (pinProporcionado.isBlank() || !passwordEncoder.matches(pinProporcionado, acceso.pinHash())) {
-                throw new CredencialesInvalidasException("El PIN de seguridad proporcionado es incorrecto.");
+            // Comparación de PIN en tiempo constante con Argon2id
+            String pinAValidar = pinProporcionado.isBlank() ? "----" : pinProporcionado;
+            boolean coincide = false;
+            try {
+                coincide = passwordEncoder.matches(pinAValidar, acceso.pinHash());
+            } catch (Exception ignored) {
+                coincide = false;
+            }
+            boolean pinValido = coincide && !pinProporcionado.isBlank();
+
+            if (!pinValido) {
+                // Registrar intento fallido: incrementa fallos, cuenta para MAX_ACCESOS y revoca tras 3 fallos
+                accesoTemporalQrRepository.registrarPinFallido(acceso.id());
+                int nuevosFallos = acceso.intentosPinFallidos() + 1;
+                boolean bloqueado = (nuevosFallos >= 3);
+
+                try {
+                    Paciente pac = pacienteRepository.buscarPorId(acceso.pacienteId()).orElse(null);
+                    Long usuarioId = (pac != null) ? pac.usuarioId() : null;
+                    if (usuarioId != null) {
+                        auditoriaService.auditar(new EventoAuditoria(
+                                usuarioId,
+                                AccionAuditable.ACCESO_EMERGENCIA_QR,
+                                "RESUMEN_SALUD",
+                                acceso.publicId(),
+                                bloqueado ? ResultadoAuditoria.BLOQUEADO : ResultadoAuditoria.FALLO,
+                                ipOrigen
+                        ));
+                    }
+                } catch (Exception ex) {
+                    log.warn("Fallo no bloqueante al auditar intento fallido de PIN QR: {}", ex.getMessage());
+                }
+
+                throw new CredencialesInvalidasException(
+                        bloqueado
+                                ? "El acceso QR ha sido revocado por superar el limite de intentos fallidos de PIN."
+                                : "El PIN de seguridad proporcionado es incorrecto o el acceso ha sido revocado."
+                );
             }
         }
 
@@ -187,7 +227,7 @@ public class EmergencySummaryService {
         if (acceso.incluirAlergias()) {
             List<Alergia> alergias = alergiaRepository.listarPorPacienteId(paciente.id());
             for (Alergia a : alergias) {
-                alergiasList.add(new AlergiaEmergenciaDto(a.sustancia(), a.reaccion(), a.severidad()));
+                alergiasList.add(new AlergiaEmergenciaDto(a.sustancia(), a.reaccion(), a.severidad(), a.origen()));
             }
         }
 

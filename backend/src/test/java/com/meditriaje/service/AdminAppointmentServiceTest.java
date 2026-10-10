@@ -99,12 +99,12 @@ class AdminAppointmentServiceTest {
     }
 
     @Test
-    @DisplayName("exportarCitasExcelCsv genera CSV con UTF-8 BOM y escapa fórmulas")
+    @DisplayName("exportarCitasExcelCsv genera CSV con UTF-8 BOM y escapa fórmulas (SEC-001: =, +, -, @, \\t, \\r)")
     void exportarCitasExcelCsv_formatoCorrecto() {
         AdminCitaDetalleResponse cita = new AdminCitaDetalleResponse(
                 "cita-1", "pac-1", "=SUM(A1:A2)", "CC", "+57300", "311", "email@test.com",
-                "prof-1", "Dr. Carlos", "RM-100", "esp-1", "Medicina General",
-                "sede-1", "Sede Centro", "Bogotá", Instant.parse("2026-10-15T13:00:00Z"),
+                "prof-1", "-DrCarlos", "@RM100", "esp-1", "\tMedicina General",
+                "sede-1", "\rSede Centro", "Bogotá", Instant.parse("2026-10-15T13:00:00Z"),
                 Instant.parse("2026-10-15T13:30:00Z"), "PRESENCIAL", "PROGRAMADA", null,
                 null, null, "Chequeo", Instant.parse("2026-10-10T10:00:00Z")
         );
@@ -125,8 +125,12 @@ class AdminAppointmentServiceTest {
         assertThat(csv.charAt(0)).isEqualTo('\uFEFF');
         // Encabezado presente
         assertThat(csv).contains("Fecha Cita;Hora Inicio;Hora Fin");
-        // Fórmula prevenida con comilla simple dentro de delimitador CSV
+        // Fórmula prevenida con comilla simple dentro de delimitador CSV para todos los caracteres SEC-001
         assertThat(csv).contains("\"'=SUM(A1:A2)\"");
         assertThat(csv).contains("\"'+57300\"");
+        assertThat(csv).contains("\"'-DrCarlos\"");
+        assertThat(csv).contains("\"'@RM100\"");
+        assertThat(csv).contains("\"'\tMedicina General\"");
+        assertThat(csv).contains("\"'\rSede Centro\"");
     }
 }

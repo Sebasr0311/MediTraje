@@ -66,6 +66,27 @@ public class CitaRepository {
         } catch (SQLException ignored) {
         }
 
+        boolean tieneAtencion = false;
+        try {
+            Object obj = rs.getObject("TIENE_ATENCION");
+            if (obj != null) {
+                tieneAtencion = rs.getInt("TIENE_ATENCION") > 0;
+            }
+        } catch (SQLException ignored) {
+        }
+
+        String atencionPublicId = null;
+        try {
+            atencionPublicId = rs.getString("ATENCION_PUBLIC_ID");
+        } catch (SQLException ignored) {
+        }
+
+        String atencionEstado = null;
+        try {
+            atencionEstado = rs.getString("ATENCION_ESTADO");
+        } catch (SQLException ignored) {
+        }
+
         return new CitaResponse(
                 rs.getString("CITA_PUBLIC_ID"),
                 rs.getString("SLOT_PUBLIC_ID"),
@@ -86,7 +107,10 @@ public class CitaRepository {
                 rs.getString("CITA_ORIGEN_PUBLIC_ID"),
                 triajeNivel,
                 motivoConsulta,
-                tsCreated != null ? tsCreated.toInstant() : null
+                tsCreated != null ? tsCreated.toInstant() : null,
+                tieneAtencion,
+                atencionPublicId,
+                atencionEstado
         );
     };
 
@@ -189,7 +213,10 @@ public class CitaRepository {
                    co.PUBLIC_ID AS CITA_ORIGEN_PUBLIC_ID,
                    t.NIVEL_PRIORIDAD AS TRIAJE_NIVEL,
                    COALESCE(t.OBSERVACIONES, 'Consulta médica general') AS MOTIVO_CONSULTA,
-                   c.CREATED_AT
+                   c.CREATED_AT,
+                   (CASE WHEN atn.ID IS NOT NULL THEN 1 ELSE 0 END) AS TIENE_ATENCION,
+                   atn.PUBLIC_ID AS ATENCION_PUBLIC_ID,
+                   atn.ESTADO AS ATENCION_ESTADO
             FROM CITA c
             JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
             JOIN PACIENTE p ON c.PACIENTE_ID = p.ID
@@ -198,6 +225,7 @@ public class CitaRepository {
             JOIN SEDE sd ON s.SEDE_ID = sd.ID
             LEFT JOIN TRIAJE t ON c.TRIAJE_ID = t.ID
             LEFT JOIN CITA co ON c.CITA_ORIGEN_ID = co.ID
+            LEFT JOIN ATENCION atn ON atn.CITA_ID = c.ID
             WHERE c.PUBLIC_ID = ?
             """;
         List<CitaResponse> resultados = jdbcTemplate.query(sql, citaResponseRowMapper, publicId);
@@ -299,7 +327,10 @@ public class CitaRepository {
                    co.PUBLIC_ID AS CITA_ORIGEN_PUBLIC_ID,
                    t.NIVEL_PRIORIDAD AS TRIAJE_NIVEL,
                    COALESCE(t.OBSERVACIONES, 'Consulta médica general') AS MOTIVO_CONSULTA,
-                   c.CREATED_AT
+                   c.CREATED_AT,
+                   (CASE WHEN atn.ID IS NOT NULL THEN 1 ELSE 0 END) AS TIENE_ATENCION,
+                   atn.PUBLIC_ID AS ATENCION_PUBLIC_ID,
+                   atn.ESTADO AS ATENCION_ESTADO
             FROM CITA c
             JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
             JOIN PACIENTE p ON c.PACIENTE_ID = p.ID
@@ -308,6 +339,7 @@ public class CitaRepository {
             JOIN SEDE sd ON s.SEDE_ID = sd.ID
             LEFT JOIN TRIAJE t ON c.TRIAJE_ID = t.ID
             LEFT JOIN CITA co ON c.CITA_ORIGEN_ID = co.ID
+            LEFT JOIN ATENCION atn ON atn.CITA_ID = c.ID
             WHERE s.PROFESIONAL_ID = ?
             """);
 
@@ -450,7 +482,10 @@ public class CitaRepository {
                 co.PUBLIC_ID AS CITA_ORIGEN_PUBLIC_ID,
                 t.NIVEL_PRIORIDAD AS TRIAJE_NIVEL,
                 COALESCE(t.OBSERVACIONES, 'Consulta médica general') AS MOTIVO_CONSULTA,
-                c.CREATED_AT
+                c.CREATED_AT,
+                (CASE WHEN atn.ID IS NOT NULL THEN 1 ELSE 0 END) AS TIENE_ATENCION,
+                atn.PUBLIC_ID AS ATENCION_PUBLIC_ID,
+                atn.ESTADO AS ATENCION_ESTADO
             FROM CITA c
             JOIN DISPONIBILIDAD_SLOT s ON c.SLOT_ID = s.ID
             JOIN PACIENTE p ON c.PACIENTE_ID = p.ID
@@ -459,6 +494,7 @@ public class CitaRepository {
             JOIN SEDE sd ON s.SEDE_ID = sd.ID
             LEFT JOIN TRIAJE t ON c.TRIAJE_ID = t.ID
             LEFT JOIN CITA co ON c.CITA_ORIGEN_ID = co.ID
+            LEFT JOIN ATENCION atn ON atn.CITA_ID = c.ID
             WHERE c.PACIENTE_ID = ?
             ORDER BY s.FECHA_HORA_INICIO DESC, c.ID DESC
             OFFSET ? ROWS FETCH NEXT ? ROWS ONLY

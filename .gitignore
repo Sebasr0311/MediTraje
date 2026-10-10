@@ -6,8 +6,12 @@
 # Oracle ATP Wallet & Conexiones seguras
 *wallet*
 *Wallet*
+!scripts/prepare-wallet.sh
 *.sso
 *.p12
+*.jks
+*.pem
+*.key
 cwallet.*
 ewallet.*
 tnsnames.ora
@@ -54,3 +58,7 @@ coverage/
 .nyc_output/
 test-output/
 .playwright-mcp/
+node_modules/
+playwright-report/
+test-results/
+.playwright/

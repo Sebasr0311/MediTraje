@@ -51,5 +51,15 @@ public enum AccionAuditable {
     /** Activación de acceso clínico excepcional de emergencia Break-Glass (F2.5, ADR-017). */
     ACCESO_BREAK_GLASS,
     /** Consulta de reportes y métricas operativas por administradores (F2.6, RF-30, ADR-018). */
-    CONSULTA_REPORTE_ADMINISTRATIVO
+    CONSULTA_REPORTE_ADMINISTRATIVO,
+    /** Fallo en el despacho de correo transaccional sin exponer datos sensibles (D1, T3). */
+    EMAIL_FALLIDO,
+    /** Registro de alergia o hipersensibilidad clínica o autorreportada (D3, T4). */
+    ALERGIA_REGISTRADA,
+    /** Consulta de alergias e historial de hipersensibilidades (D3, T4). */
+    ALERGIA_CONSULTADA,
+    /** Inactivación de alergia por profesional o paciente con motivo obligatorio (D3, T4). */
+    ALERGIA_INACTIVADA,
+    /** Registro de inasistencia (no-show) del paciente a la cita médica por profesional o admin (D4, T5). */
+    CITA_NO_ASISTIO
 }

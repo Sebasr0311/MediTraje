@@ -30,7 +30,7 @@ Para garantizar el principio de mínimos privilegios y la inmutabilidad clínica
 -- 1. Crear usuario propietario del esquema (MEDITRIAJE_OWNER)
 --    Utilizado exclusivamente por Flyway para migraciones y operaciones DDL
 -- =============================================================================
-CREATE USER MEDITRIAJE_OWNER IDENTIFIED BY "PasswordSeguroOwner_2026";
+CREATE USER MEDITRIAJE_OWNER IDENTIFIED BY "<password_owner>";
 
 -- Privilegios de conexión y creación de objetos
 GRANT CREATE SESSION TO MEDITRIAJE_OWNER;
@@ -49,7 +49,7 @@ ALTER USER MEDITRIAJE_OWNER QUOTA UNLIMITED ON DATA;
 -- 2. Crear usuario de runtime de la aplicación (MEDITRIAJE_APP)
 --    Utilizado por Spring Boot / HikariCP con mínimos privilegios
 -- =============================================================================
-CREATE USER MEDITRIAJE_APP IDENTIFIED BY "PasswordSeguroApp_2026";
+CREATE USER MEDITRIAJE_APP IDENTIFIED BY "<password_app>";
 
 -- Privilegio mínimo exclusivo de sesión
 GRANT CREATE SESSION TO MEDITRIAJE_APP;
@@ -78,17 +78,17 @@ jdbc:oracle:thin:@<alias_servicio>?TNS_ADMIN=<ruta_absoluta_al_wallet>
   ```bash
   export DB_URL="jdbc:oracle:thin:@meditriaje_tp?TNS_ADMIN=/Users/juan/oracle/wallet"
   export DB_USER="MEDITRIAJE_APP"
-  export DB_PASSWORD="PasswordSeguroApp_2026"
+  export DB_PASSWORD="<password_app>"
   export FLYWAY_USER="MEDITRIAJE_OWNER"
-  export FLYWAY_PASSWORD="PasswordSeguroOwner_2026"
+  export FLYWAY_PASSWORD="<password_owner>"
   ```
 * **Windows (PowerShell):**
   ```powershell
   $env:DB_URL = "jdbc:oracle:thin:@meditriaje_tp?TNS_ADMIN=C:/oracle/wallet"
   $env:DB_USER = "MEDITRIAJE_APP"
-  $env:DB_PASSWORD = "PasswordSeguroApp_2026"
+  $env:DB_PASSWORD = "<password_app>"
   $env:FLYWAY_USER = "MEDITRIAJE_OWNER"
-  $env:FLYWAY_PASSWORD = "PasswordSeguroOwner_2026"
+  $env:FLYWAY_PASSWORD = "<password_owner>"
   ```
 
 ---

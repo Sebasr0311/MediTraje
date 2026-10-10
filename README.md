@@ -1,13 +1,13 @@
 # MediTriaje 2.0 — Plataforma Web de Triaje, Atención Médica y Seguridad Clínica
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Tests](https://img.shields.io/badge/tests-740%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-940%20passing-brightgreen.svg)]()
 [![Java](https://img.shields.io/badge/Java-21%20LTS-orange.svg)]()
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-brightgreen.svg)]()
-[![Oracle Database](https://img.shields.io/badge/Database-Oracle%20ATP%20Cloud-red.svg)]()
-[![Migrations](https://img.shields.io/badge/Flyway-14%20migraciones-blue.svg)]()
+[![Database](https://img.shields.io/badge/Database-Oracle%20ATP%20Cloud-red.svg)]()
+[![Migrations](https://img.shields.io/badge/Flyway-16%20migraciones-blue.svg)]()
 [![Security](https://img.shields.io/badge/Security-Argon2id%20%7C%20JWT%20%7C%20MFA%20%7C%20CSP-blue.svg)]()
-[![Architecture](https://img.shields.io/badge/ADRs-19%20aprobados-teal.svg)]()
+[![Architecture](https://img.shields.io/badge/ADRs-ADR--001%20a%20020-teal.svg)]()
 [![Accessibility](https://img.shields.io/badge/WCAG-2.1%20AA-success.svg)]()
 
 > **Plataforma web integral de orientación médica preliminar, triaje clínico estructurado, agendamiento de citas, atención médica inmutable, prescripción farmacológica auditada, dispensación, seguimiento y contingencia de emergencia.**  
@@ -97,9 +97,9 @@ MediTriaje/
 │   │   ├── security/        # Filtros JWT y CSRF, JwtService, Argon2id, TotpService
 │   │   ├── service/         # Lógica de negocio, transacciones, correo y notificaciones
 │   │   └── triage/          # Motor puro determinista de triaje
-│   └── src/test/java/       # 740 pruebas unitarias y de integración (100% pasando)
+│   └── src/test/java/       # 940 pruebas unitarias y de integración (100% pasando)
 ├── database/                # Base de datos y migraciones
-│   ├── migrations/          # 14 scripts Flyway versionados (V001__baseline a V014__acceso_break_glass)
+│   ├── migrations/          # 16 scripts Flyway versionados (V001__baseline a V016__alergias_clinicas)
 │   └── seeds/               # Semillas ficticias de desarrollo y catálogos CIE-10/medicamentos
 ├── docs/                    # Documentación técnica completa
 │   ├── api/                 # API.md y 12 colecciones interactivas .http (M2 a M7, F2.1 a F2.7)
@@ -108,10 +108,10 @@ MediTriaje/
 │   ├── demo/                # GUION_DEMO.md (guion interactivo paso a paso)
 │   ├── requirements/        # DOCUMENTO_MAESTRO.md, CASOS_DE_USO.md, REGLAS_NEGOCIO.md
 │   ├── security/            # SECURITY.md y REVISION_FINAL.md (informe de hardening y auditoría)
-│   ├── DECISIONES.md        # Registro formal de 19 ADRs aprobados (ADR-001 a ADR-019)
+│   ├── DECISIONES.md        # Registro formal de 20 ADRs (ADR-001 a ADR-020)
 │   ├── DISENO_UI_UX.md      # Guía de diseño, accesibilidad WCAG y tokens CSS
 │   ├── MVP.md               # Alcance, historias de usuario y criterios de aceptación
-│   ├── PLAN_DE_TRABAJO.md   # Desglose en microtareas M0 a M8 y F2.1 a F2.7
+│   ├── PLAN_DE_TRABAJO.md   # Desglose en microtareas M0 a M8, F2.1 a F2.8 y Plan Post-Auditoría
 │   └── PROGRESO.md          # Bitácora viva de avance y sesiones de trabajo
 ├── frontend/                # Single Page Application (HTML/CSS/JS Vanilla ES Modules)
 │   ├── assets/icons/        # Iconos SVG vectoriales inline
@@ -132,7 +132,7 @@ MediTriaje/
 * **Navegador Web:** Chrome, Firefox, Edge o Safari moderno.
 
 ### 4.2 Ejecución de las Pruebas Automatizadas
-Para verificar la suite de **740 pruebas unitarias y de integración**:
+Para verificar la suite de **940 pruebas unitarias y de integración**:
 ```powershell
 cd backend
 mvn clean test
@@ -193,6 +193,16 @@ Las identidades de prueba provistas en los scripts de desarrollo son:
 
 ---
 
-## 7. Licencia y Contexto Académico
+## 7. Limitaciones Conocidas y Alcance del Prototipo
+
+MediTriaje 2.0 es un prototipo desarrollado en un marco académico y demostrativo. Presenta las siguientes limitaciones deliberadas de alcance:
+1. **Confirmación y reprogramación de citas:** Las funcionalidades de confirmación explícita (`CONFIRMADA`) y reprogramación (`REPROGRAMADA`) no están implementadas en el flujo activo; los estados correspondientes permanecen reservados en la base de datos y la máquina de estados para compatibilidad futura (Decisiones D2 y D5).
+2. **Reglas de triaje clínico de prototipo:** Las reglas del motor (`v1-prototipo`) y la ponderación de severidad son demostrativas y **no cuentan con validación clínica formal**. Ante cualquier síntoma de alarma o emergencia vital, el sistema corta infaliblemente hacia el canal de emergencias 123 y servicio presencial de urgencias.
+3. **Datos de demostración ficticios:** Todas las instituciones, sedes, medicamentos, usuarios, pacientes y diagnósticos precargados son estrictamente ficticios y de prueba.
+4. **Despliegue e infraestructura en capa gratuita:** Las instancias de demostración en la nube (Render Web Services y Oracle ATP Always Free) están sujetas a arranque en frío (*cold start*) y suspensión por inactividad, por lo que **no son aptas ni están autorizadas para uso en producción médica real**.
+
+---
+
+## 8. Licencia y Contexto Académico
 
 Proyecto desarrollado con fines académicos en el contexto del sistema general de seguridad social en salud de Colombia. Los algoritmos de triaje corresponden a prototipos deterministas para demostración y **no sustituyen la valoración ni el criterio de un profesional de la salud matriculado**.

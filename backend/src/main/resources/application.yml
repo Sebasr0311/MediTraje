@@ -2,7 +2,8 @@ spring:
   application:
     name: meditriaje-api
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+    active: ${SPRING_PROFILES_ACTIVE:}
+    default: dev
   flyway:
     enabled: ${FLYWAY_ENABLED:false}
     locations: classpath:database/migrations
@@ -12,9 +13,9 @@ spring:
     validate-on-migrate: true
 
   datasource:
-    url: ${DB_URL:}
-    username: ${DB_USER:MEDITRIAJE_APP}
-    password: ${DB_PASSWORD:}
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: oracle.jdbc.OracleDriver
     hikari:
       pool-name: MediTriajeHikariPool
@@ -45,14 +46,28 @@ spring:
           writetimeout: 5000
 
 mail:
-  from: ${SMTP_FROM:no-reply@meditriaje.com}
-  from-name: ${SMTP_FROM_NAME:MediTriaje 2.0}
+  from: ${MAIL_FROM:${SMTP_FROM:no-reply@meditriaje.com}}
+  from-name: ${MAIL_FROM_NAME:${SMTP_FROM_NAME:MediTriaje 2.0}}
+
+meditriaje:
+  mail:
+    transport: ${MAIL_TRANSPORT:brevo-api}
+    brevo:
+      api-url: ${BREVO_API_URL:https://api.brevo.com/v3/smtp/email}
+      api-key: ${BREVO_API_KEY:}
+    from: ${MAIL_FROM:${SMTP_FROM:no-reply@meditriaje.com}}
+    from-name: ${MAIL_FROM_NAME:${SMTP_FROM_NAME:MediTriaje 2.0}}
+  demo:
+    seed: ${DEMO_SEED:false}
+    password: ${DEMO_PASSWORD:}
+    reset: ${DEMO_RESET:false}
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5500}
 
 server:
   port: ${PORT:${SERVER_PORT:8080}}
+  forward-headers-strategy: framework
   servlet:
     context-path: /
 
@@ -69,7 +84,13 @@ management:
       enabled: false
 
 cors:
-  origins: ${CORS_ORIGINS:http://localhost:5500,http://127.0.0.1:5500}
+  origins: ${CORS_ORIGINS}
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-minutes: 15
+    refresh-expiration-days: 7
 
 logging:
   level:

@@ -36,7 +36,11 @@ import com.meditriaje.security.JwtService;
 import com.meditriaje.security.TokenHashUtil;
 import com.meditriaje.security.TotpService;
 import com.meditriaje.service.email.EmailService;
+import com.meditriaje.service.email.EmailUtil;
+import com.meditriaje.service.email.ResultadoEnvio;
 import com.meditriaje.util.NormaColombianaValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -60,6 +64,8 @@ import java.util.UUID;
  */
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UsuarioRepository usuarioRepository;
     private final PacienteRepository pacienteRepository;
@@ -615,7 +621,32 @@ public class AuthService {
             String destinatarioNombre = resolverNombreDestinatario(usuario);
 
             if (emailService != null) {
-                emailService.enviarCodigoRecuperacion(usuario.email(), destinatarioNombre, codigo, 15);
+                try {
+                    ResultadoEnvio resultado = emailService.enviarCodigoRecuperacion(usuario.email(), destinatarioNombre, codigo, 15);
+                    if (resultado != null && !resultado.exito()) {
+                        log.warn("Fallo no bloqueante al enviar código de recuperación a [{}]: {}",
+                                EmailUtil.enmascararEmail(usuario.email()), resultado.mensaje());
+                        auditoriaService.registrarEvento(
+                                usuario.id(),
+                                AccionAuditable.EMAIL_FALLIDO,
+                                "USUARIO",
+                                usuario.publicId(),
+                                ResultadoAuditoria.FALLO,
+                                ipOrigen
+                        );
+                    }
+                } catch (Exception ex) {
+                    log.warn("Excepción no bloqueante al enviar código de recuperación a [{}]: {}",
+                            EmailUtil.enmascararEmail(usuario.email()), ex.getMessage());
+                    auditoriaService.registrarEvento(
+                            usuario.id(),
+                            AccionAuditable.EMAIL_FALLIDO,
+                            "USUARIO",
+                            usuario.publicId(),
+                            ResultadoAuditoria.FALLO,
+                            ipOrigen
+                    );
+                }
             }
         }
 

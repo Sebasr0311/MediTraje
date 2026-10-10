@@ -7,6 +7,7 @@
 import { api } from '../api.js';
 import { router } from '../router.js';
 import { ui, esc } from '../ui.js';
+import { renderProfessionalAllergiesPanel } from '../components/professional-allergies-panel.js';
 
 function formatDateTime(iso) {
   if (!iso) return '—';
@@ -110,6 +111,9 @@ function renderOpenForm(container, atencion) {
     <div style="max-width: 52rem; margin: 0 auto; padding-bottom: var(--space-12);">
       ${header(atencion, `<span class="badge badge--confirmed">${ui.icon('activity', 'icon icon--sm')} Abierta</span>`)}
 
+      <!-- Panel de Alergias del Paciente (D3, T4) -->
+      <div id="panelAlergiasContainer"></div>
+
       <form id="attentionForm" novalidate>
         <details class="card mb-4" open>
           <summary class="card-title text-lg font-semibold" style="cursor: pointer; padding: var(--space-4);">Signos vitales (opcional)</summary>
@@ -176,6 +180,10 @@ function renderOpenForm(container, atencion) {
   `;
 
   const $ = (sel) => container.querySelector(sel);
+  renderProfessionalAllergiesPanel($('#panelAlergiasContainer'), {
+    patientPublicId: atencion.pacientePublicId,
+    atencionPublicId: atencion.publicId
+  });
   const evol = $('#f-evolucion');
   evol.addEventListener('input', () => { $('#evolCount').textContent = `${evol.value.length} / 4000`; });
 
@@ -289,6 +297,9 @@ function renderClosed(container, atencion) {
     <div style="max-width: 52rem; margin: 0 auto; padding-bottom: var(--space-12);">
       ${header(atencion, `<span class="badge badge--attended">${ui.icon('shield', 'icon icon--sm')} Cerrada · inmutable</span>`)}
 
+      <!-- Panel de Alergias del Paciente (D3, T4) -->
+      <div id="panelAlergiasContainerClosed" class="mb-4"></div>
+
       <div class="card p-6 mb-6" style="border-top: 4px solid var(--primary);">
         <p class="text-xs text-muted m-0 mb-3">Cerrada el ${formatDateTime(atencion.fechaCierre)}</p>
         <div class="p-3 mb-4" style="background: var(--teal-50); border-left: 4px solid var(--primary); border-radius: var(--radius-md);">
@@ -380,6 +391,11 @@ function renderClosed(container, atencion) {
       </details>
     </div>
   `;
+
+  renderProfessionalAllergiesPanel(container.querySelector('#panelAlergiasContainerClosed'), {
+    patientPublicId: atencion.pacientePublicId,
+    atencionPublicId: atencion.publicId
+  });
 
   // Lógica de seguimientos post-atención (F2.2.4)
   async function loadFollowUps() {
