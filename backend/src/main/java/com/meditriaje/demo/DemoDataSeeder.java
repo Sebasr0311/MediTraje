@@ -232,7 +232,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 Integer.class
         );
 
-        if (usuariosDemo != null && usuariosDemo >= 16) {
+        if (usuariosDemo != null && usuariosDemo >= 17) {
             log.info("DemoDataSeeder: Datos de demostración ya sembrados ({} usuarios '{}' detectados). Omitiendo siembra.",
                     usuariosDemo, DEMO_DOMAIN);
             return;
@@ -308,13 +308,16 @@ public class DemoDataSeeder implements CommandLineRunner {
         String espPediatria = obtenerOCrearEspecialidad("Pediatría", 20, adminPublicId);
         String espCardiologia = obtenerOCrearEspecialidad("Cardiología", 30, adminPublicId);
 
-        // E. 5 Profesionales Asistenciales
+        // E. 5 Profesionales Asistenciales y 1 Personal de Enfermería
         List<ProfesionalDemoInfo> profesionales = new ArrayList<>();
         profesionales.add(altaProfesionalDemo("dra.gomez" + DEMO_DOMAIN, "1018273645", "RM-102938", "María Paula", "Gómez Vargas", espMedGeneral, adminPublicId, hashDemo));
         profesionales.add(altaProfesionalDemo("dr.rodriguez" + DEMO_DOMAIN, "1029384756", "RM-203948", "Carlos Eduardo", "Rodríguez Peña", espMedGeneral, adminPublicId, hashDemo));
         profesionales.add(altaProfesionalDemo("dra.restrepo" + DEMO_DOMAIN, "1038475629", "RM-304958", "Ana Lucía", "Restrepo Mejia", espMedInterna, adminPublicId, hashDemo));
         profesionales.add(altaProfesionalDemo("dr.silva" + DEMO_DOMAIN, "1049586738", "RM-405968", "Felipe Andrés", "Silva Castro", espPediatria, adminPublicId, hashDemo));
         profesionales.add(altaProfesionalDemo("dr.martinez" + DEMO_DOMAIN, "1058674930", "RM-506978", "Jorge Hernán", "Martínez Osorio", espCardiologia, adminPublicId, hashDemo));
+
+        // E2. Personal de Enfermería y Triaje Presencial (Fase U, ADR-022, ADR-026)
+        altaProfesionalDemo("enfermera" + DEMO_DOMAIN, "1098765432", "ENF-102938", "Beatriz Elena", "Valencia Ramos", espMedGeneral, adminPublicId, hashDemo, "ROLE_ENFERMERIA");
 
         // F. Generar agendas de los próximos 14 días para los profesionales
         LocalDate fechaInicioSlots = LocalDate.now(ZONE_BOGOTA).plusDays(1);
@@ -681,9 +684,16 @@ public class DemoDataSeeder implements CommandLineRunner {
             String email, String numDoc, String regMed, String nombres, String apellidos,
             String especialidadPublicId, String adminPublicId, String hashDemo
     ) {
+        return altaProfesionalDemo(email, numDoc, regMed, nombres, apellidos, especialidadPublicId, adminPublicId, hashDemo, "ROLE_PROFESIONAL");
+    }
+
+    private ProfesionalDemoInfo altaProfesionalDemo(
+            String email, String numDoc, String regMed, String nombres, String apellidos,
+            String especialidadPublicId, String adminPublicId, String hashDemo, String rol
+    ) {
         if (!usuarioRepository.existePorEmail(email)) {
             var resp = adminProfessionalService.altaProfesional(
-                    new CrearProfesionalRequest("CC", numDoc, regMed, nombres, apellidos, email, "3109876543", especialidadPublicId),
+                    new CrearProfesionalRequest("CC", numDoc, regMed, nombres, apellidos, email, "3109876543", especialidadPublicId, rol),
                     adminPublicId, IP_LOCAL
             );
 
@@ -694,7 +704,7 @@ public class DemoDataSeeder implements CommandLineRunner {
             int duracion = especialidadRepository.buscarPorPublicId(especialidadPublicId)
                     .map(Especialidad::duracionSlotMin).orElse(20);
 
-            log.info("Demo: Profesional asistencial creado: {} ({})", email, nombres + " " + apellidos);
+            log.info("Demo: Personal asistencial creado con rol {}: {} ({})", rol, email, nombres + " " + apellidos);
             return new ProfesionalDemoInfo(resp.publicId(), u.publicId(), u.id(), email, duracion);
         } else {
             Usuario u = usuarioRepository.buscarPorEmail(email).orElseThrow();

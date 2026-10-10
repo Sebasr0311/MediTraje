@@ -1052,6 +1052,13 @@ async function renderProfessionals(container) {
         <form id="newProfForm" novalidate>
           <div class="grid grid-cols-1 grid-cols-2-md gap-4 mb-3">
             <div class="form-group m-0">
+              <label for="profRol" class="form-label text-xs">Rol / Perfil asistencial <span class="required">*</span></label>
+              <select id="profRol" class="form-select" required>
+                <option value="ROLE_PROFESIONAL" selected>Médico Asistencial (ROLE_PROFESIONAL)</option>
+                <option value="ROLE_ENFERMERIA">Personal de Enfermería / Triaje (ROLE_ENFERMERIA)</option>
+              </select>
+            </div>
+            <div class="form-group m-0">
               <label for="profTipoDoc" class="form-label text-xs">Tipo de documento (Ley 1164/2007) <span class="required">*</span></label>
               <select id="profTipoDoc" class="form-select" required>
                 <option value="CC" selected>CC — Cédula de Ciudadanía</option>
@@ -1363,6 +1370,8 @@ async function renderProfessionals(container) {
       return;
     }
 
+    const rol = container.querySelector('#profRol')?.value || 'ROLE_PROFESIONAL';
+
     const saveBtn = container.querySelector('#btnSaveNewProf');
     ui.setButtonLoading(saveBtn, true);
     try {
@@ -1374,7 +1383,8 @@ async function renderProfessionals(container) {
         apellidos,
         email,
         telefono,
-        especialidadPublicId
+        especialidadPublicId,
+        rol
       });
 
       newCard.style.display = 'none';

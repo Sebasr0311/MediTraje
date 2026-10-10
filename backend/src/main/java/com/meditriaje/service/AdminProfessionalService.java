@@ -147,9 +147,13 @@ public class AdminProfessionalService {
         String usuarioPublicId = UUID.randomUUID().toString();
         Long usuarioId = usuarioRepository.crear(usuarioPublicId, emailNormalizado, passwordHash, true);
 
-        // 8. Asignar rol ROLE_PROFESIONAL
-        Long rolId = usuarioRepository.buscarRolIdPorNombre("ROLE_PROFESIONAL")
-                .orElseThrow(() -> new IllegalStateException("El rol ROLE_PROFESIONAL no existe en el sistema."));
+        // 8. Asignar rol (ROLE_PROFESIONAL o ROLE_ENFERMERIA)
+        String rolSolicitado = (request.rol() != null && !request.rol().isBlank()) ? request.rol().trim() : "ROLE_PROFESIONAL";
+        String rolNombre = ("ROLE_ENFERMERIA".equalsIgnoreCase(rolSolicitado) || "ENFERMERIA".equalsIgnoreCase(rolSolicitado))
+                ? "ROLE_ENFERMERIA"
+                : "ROLE_PROFESIONAL";
+        Long rolId = usuarioRepository.buscarRolIdPorNombre(rolNombre)
+                .orElseThrow(() -> new IllegalStateException("El rol " + rolNombre + " no existe en el sistema."));
         usuarioRepository.asignarRol(usuarioId, rolId);
 
         // 9. Crear PROFESIONAL vinculado a usuarioId y especialidadId
