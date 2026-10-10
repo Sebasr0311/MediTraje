@@ -31,6 +31,8 @@ import { nursingIdentityView } from './views/nursing-identity.js';
 import { hospitalCensusView } from './views/hospital-census.js';
 import { hospitalBedManagementView } from './views/hospital-bed-management.js';
 import { hospitalDischargeView } from './views/hospital-discharge.js';
+import { renderAffiliationImport } from './views/affiliation-import.js';
+import { renderAffiliationSearch } from './views/affiliation-search.js';
 import { initSystemAssistantWidget } from './views/system-assistant-widget.js';
 
 // Inicialización de Tema Claro / Oscuro
@@ -218,6 +220,10 @@ function setupRoutes() {
   router.addRoute('/hospital', hospitalCensusView, { requiresAuth: true });
   router.addRoute('/hospital/beds/:id', hospitalBedManagementView, { requiresAuth: true });
   router.addRoute('/hospital/discharge/:id', hospitalDischargeView, { requiresAuth: true, requiredRole: 'ROLE_PROFESIONAL' });
+
+  // Rutas Fase A/C: Aseguramiento EPS, Importación Masiva y Verificación (A01-A06, C01-C04)
+  router.addRoute('/admin/affiliations/import', renderAffiliationImport, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
+  router.addRoute('/affiliations/search', renderAffiliationSearch, { requiresAuth: true });
 
   // Manejador 404 No Encontrado
   router.notFound(async (container, { path }) => {

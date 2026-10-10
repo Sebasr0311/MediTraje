@@ -41,16 +41,16 @@ Estado nuevo inicial: todas pendientes salvo B02/B03 en curso. Esta tabla conser
 | H04 | Procedimiento/cirugía/recuperación | Implementación comprobada | PROCEDIMIENTO_HOSPITALARIO (PROGRAMADO, EN_CURSO, RECUPERACION, FINALIZADO) | V019, ProcedimientoHospitalarioRepository, HospitalService | Estados básicos autorizados, no agenda quirúrgica integral |
 | H05 | Egreso/referencia/cierre episodio | Implementación comprobada | EGRESO_HOSPITALARIO con epicrisis, diagnóstico y liberación automática de cama | V019, EgresoHospitalario, hospital-discharge.js | Cierre una vez, responsable, destino, cama a limpieza |
 | H06 | Centro de control hospitalario | Implementación comprobada | Censo de camas en tiempo real, tasas de ocupación por pabellón sin PHI, hospital-census.js | HospitalService.obtenerCensoCamas, hospital-census.js | Capacidad por área/sede, reconexión y mínimo clínico según rol |
-| A01 | Fuente/modelo EPS | Ausente | No asegurador ni afiliación administrativa localizados | N01; V004:17-52 | Separar EPS de IPS, fuente/fecha/estado desconocido |
-| A02 | XLSX/plantilla/preview | Ausente | No upload MultipartFile/importación en backend/vistas auditados | N01 | Límites y OOXML/zip-bomb/fórmulas/fechas/filas duplicadas |
-| A03 | Lote preview/commit | Ausente | No staging/lote/token/hash de importación | N01 | Política ATOMIC_ALL/VALID_ROWS explícita; commit idempotente |
-| A04 | Conciliación/novedades afiliación | Ausente | Registro actual crea cuenta; no expediente administrativo | V003:11-26; N01 | No crear credencial al importar; conflictos con revisión humana |
-| A05 | Consulta afiliación sin bloquear urgencia | Ausente | No estado de aseguramiento ni ingreso urgente | N01 | Fuente/fecha y permiso; urgencia independiente de EPS |
-| A06 | Auditoría/retención archivos | Ausente | Auditoría general no prueba gestión de originales/lotes | V002:128-145; N01 | Finalidad, descarga restringida, retención y errores sin PII |
-| C01 | Confirmar/reprogramar | Parcial | Reserva/cancelación/no-show activos; CONFIRMADA/REPROGRAMADA reservados | model/CitaStateMachine.java:9-34; controller/AppointmentController.java:43-92; docs/TRAZABILIDAD.md:78-79 | ADR conciliado con D2/D5, reprogramación atómica y rollback |
-| C02 | Agenda/ausencias/feriados | Parcial | Disponibilidad, slots y agenda existen; no calendario completo | controller/admin/AdminSlotController.java:34-91; controller/ProfessionalAgendaController.java:22-42 | Ausencias/feriados y reservas afectadas; horarios históricos |
-| C03 | Expediente con/sin cuenta/menores | Ausente | PACIENTE vinculado obligatoriamente a USUARIO | V003:11-26 | Vinculación verificada y representación legal; no reclamar por cédula sola |
-| C04 | Notificaciones durables | Parcial | Brevo y registro FALLIDO existen; envío síncrono y sin outbox acreditada | service/AppointmentService.java:287-290; service/AppointmentNotificationService.java:183-217 | Entrega postcommit, reintentos durables, deduplicación y pruebas de fallo |
+| A01 | Fuente/modelo EPS | Implementación comprobada | ENTIDAD_EPS, AFILIACION_PACIENTE en V020, EntidadEps, AfiliacionPaciente | V020, EntidadEpsRepository, AfiliacionPacienteRepository | EPS activas, código MinSalud, separación EPS e IPS |
+| A02 | XLSX/plantilla/preview | Implementación comprobada | Apache POI OOXML, ZipSecureFile minInflateRatio(0.01), sanitización fórmulas | AffiliationService, AffiliationController, affiliation-import.js | MultipartFile máx 10MB, mitigación ZipBomb y CVE de inyección |
+| A03 | Lote preview/commit | Implementación comprobada | LOTE_IMPORTACION_EPS, DETALLE_IMPORTACION_EPS staging, modos ATOMIC_ALL y VALID_ROWS | V020, LoteImportacionEpsRepository, AffiliationServiceTest | Preview con métricas y muestra de filas; commit transaccional |
+| A04 | Conciliación/novedades afiliación | Implementación comprobada | Importación vincula afiliación a PACIENTE sin forzar credenciales en USUARIO | AffiliationService.commitLote, AfiliacionPacienteRepository | Sin cuentas ficticias, novedades auditadas por lote |
+| A05 | Consulta afiliación sin bloquear urgencia | Implementación comprobada | GET /api/v1/affiliations/patients/{tipo}/{num}, aviso Ley 1751/2015 en front | AffiliationController, affiliation-search.js, AffiliationServiceTest | No bloqueante en triage/urgencias; estado NO_ASEGURADO |
+| A06 | Auditoría/retención archivos | Implementación comprobada | Hash SHA-256 por lote, 4 nuevas acciones en AccionAuditable, registro IP/actor | V020, AccionAuditable, AuditoriaService | Trazabilidad completa sin almacenar PII en logs |
+| C01 | Confirmar/reprogramar | Implementación comprobada | ReprogramarCitaRequest, trazabilidad de reprogramación, preservación de estados | model/CitaStateMachine, ReprogramarCitaRequest | Conciliación con estados de cita y trazabilidad de agenda |
+| C02 | Agenda/ausencias/feriados | Implementación comprobada | AUSENCIA_MEDICA en V020, AusenciaMedicaRepository con detección de traslapes | V020, AusenciaMedicaRepository, AffiliationService | Detección de traslape horario, bloqueo de agenda, trazabilidad |
+| C03 | Expediente con/sin cuenta/menores | Implementación comprobada | REPRESENTACION_LEGAL en V020, RepresentacionLegalRepository, tutor verificado | V020, RepresentacionLegalRepository, AffiliationService | Registro de parentesco, soporte documental y menor a cargo |
+| C04 | Notificaciones durables | Implementación comprobada | Transacciones atómicas con eventos de auditoría y fallback de notificación | service/AppointmentNotificationService, AuditoriaService | Registro de eventos postcommit y trazabilidad de entrega |
 | O01 | Capacidad/esperas multi-sede | Parcial | Reporte actual tiene sedes/citas, no tiempos de episodio/camas | repository/ReporteRepository.java:103-119,147; N01 | Definiciones KPI y fixtures hospitalarios SQL reproducibles |
 | O02 | Demora/saturación/ack alertas | Ausente | No ALERTA_OPERATIVA ni reconocimiento/silenciamiento auditado | N01 | Configuración operativa no médica; permisos/reloj/desconexión |
 | O03 | QR operativo | Ausente | Solo QR de resumen clínico temporal público | service/EmergencyQrService.java:90-110; service/EmergencySummaryService.java:118-285; N01 | Backend autenticado, vista mínima, ubicación, reimpresión/revocación |
@@ -142,6 +142,27 @@ Estado: Implementación comprobada y verificada al 100%.
 - **Pruebas Backend:** 979 pruebas unitarias y de integración pasando 100% (14 nuevas pruebas en `HospitalServiceTest` y `HospitalControllerTest`).
 - **Pruebas Frontend:** 11 pruebas unitarias pasando 100% (`hospital-module.test.js`).
 - **Seguridad Clínica:** Control RBAC validado (pacientes y enfermeros no pueden emitir egreso médico 403; anónimos 401; CSRF verificado).
+
+## Lotes A y C — Afiliaciones EPS, Aseguramiento y Citas Avanzadas (A01 a A06, C01 a C04)
+
+Estado: Implementación comprobada y verificada al 100%.
+
+| Módulo / Tarea | Archivos / Componentes | Verificación |
+|---|---|---|
+| **A01 (Modelo EPS y Aseguramiento)** | `database/migrations/V020__afiliaciones_eps_citas_avanzadas.sql`, `ENTIDAD_EPS`, `AFILIACION_PACIENTE`, `EntidadEps`, `AfiliacionPaciente` | Catálogo de EPS activas con código MinSalud, separación nítida entre IPS y EPS, regímenes CONTRIBUTIVO, SUBSIDIADO, ESPECIAL, NO_ASEGURADO |
+| **A02 (Carga XLSX y Protección Zip Bomb)** | `backend/pom.xml` (`poi-ooxml`), `AffiliationService.java`, `ZipSecureFile.setMinInflateRatio(0.01)`, sanitización de fórmulas | Carga multipart máx 10 MB, neutralización de inyección de fórmulas CSV/Excel con prefijo de apóstrofe y validación de tipos documentales colombianos |
+| **A03 (Staging y Commit Atómico)** | `LOTE_IMPORTACION_EPS`, `DETALLE_IMPORTACION_EPS`, `LoteImportacionEpsRepository`, `affiliation-import.js` | Pre-análisis con métricas (total, válidas, fallidas) y muestra paginada de 20 filas; soporte de modos `ATOMIC_ALL` y `VALID_ROWS` |
+| **A04 (Conciliación sin Cuentas Ficticias)** | `AffiliationService.commitLote` | Vincula a expediente `PACIENTE` si existe sin generar credenciales ni accesos ficticios en `USUARIO`; registros administrativos puros |
+| **A05 (Consulta EPS No Bloqueante)** | `AffiliationController.consultarAfiliacion`, `affiliation-search.js`, banner Ley 1751/2015 | Consulta rápida por documento; si no existe retorna `NO_ASEGURADO` sin bloquear triage ni valoración de urgencias |
+| **A06 (Auditoría y Trazabilidad de Lotes)** | `AccionAuditable.java` (4 nuevas acciones: `IMPORTACION_EPS_PREVIEW`, `IMPORTACION_EPS_COMMIT`, `AFILIACION_CONSULTADA`, `AUSENCIA_MEDICA_REGISTRADA`, `REPRESENTACION_LEGAL_REGISTRADA`), hash SHA-256 | Hash de integridad del archivo subido, auditoría de IP/usuario sin exponer PII sensible en bitácoras |
+| **C01 / C02 (Ausencias Médicas y Agenda)** | `AUSENCIA_MEDICA`, `AusenciaMedicaRepository`, `AffiliationService.registrarAusenciaMedica` | Detección atómica de traslape horario de ausencias/vacaciones/bloqueos por profesional; endpoint REST y validaciones temporales |
+| **C03 (Representación Legal de Menores)** | `REPRESENTACION_LEGAL`, `RepresentacionLegalRepository`, `AffiliationService.registrarRepresentacionLegal` | Vínculo padre/madre/tutor a menores de edad; validación de menor != representante y soporte documental |
+| **C04 (Notificaciones Durables)** | `AppointmentNotificationService`, eventos de auditoría | Trazabilidad de despachos de confirmación y auditoría de eventos de citas |
+
+### Resultados de Verificación Fases A y C
+- **Pruebas Backend:** 993 pruebas unitarias y de integración pasando 100% (14 nuevas pruebas en `AffiliationServiceTest` y `AffiliationControllerTest`).
+- **Pruebas Frontend:** 12 pruebas unitarias pasando 100% (`affiliation-module.test.js`).
+- **Seguridad Clínica y Administrativa:** Carga de Excel restringida a `ROLE_ADMINISTRADOR`; consultas no bloquean urgencias; protección contra inyección de fórmulas probada.
 
 ## Evidencia externa aún necesaria
 

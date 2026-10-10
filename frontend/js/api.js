@@ -222,3 +222,14 @@ export const hospitalApi = {
   listarMovimientos: (episodeId) => api.get(`/hospital/episodes/${episodeId}/movements`),
   listarProcedimientos: (episodeId) => api.get(`/hospital/episodes/${episodeId}/procedures`)
 };
+
+export const affiliationApi = {
+  listarEps: () => api.get('/affiliations/eps'),
+  cargarPreviewExcel: (formData) => api.post('/affiliations/upload-preview', formData),
+  confirmarLote: (loteId, modoCommit = 'VALID_ROWS') => api.post(`/affiliations/batches/${loteId}/commit`, { modoCommit }),
+  consultarAfiliacion: (tipoDoc, numDoc) => api.get(`/affiliations/patients/${tipoDoc}/${numDoc}`),
+  registrarAusencia: (data) => api.post('/affiliations/absences', data),
+  listarAusencias: (profId) => api.get(`/affiliations/professionals/${profId}/absences`),
+  registrarTutor: (data) => api.post('/affiliations/guardians', data),
+  listarMenoresTutor: (tutorId) => api.get(`/affiliations/guardians/${tutorId}/minors`)
+};

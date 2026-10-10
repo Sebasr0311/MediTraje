@@ -87,5 +87,17 @@ public enum AccionAuditable {
     /** Egreso hospitalario con epicrisis y destino de alta (Fase H, ADR-024). */
     EGRESO_HOSPITALARIO_REGISTRADO,
     /** Actualización de estado operativo o mantenimiento de cama (Fase H, ADR-024). */
-    ESTADO_CAMA_ACTUALIZADO
+    ESTADO_CAMA_ACTUALIZADO,
+    /** Previsualización y validación de lote de afiliados EPS en Excel (Fase A, ADR-025). */
+    IMPORTACION_EPS_PREVIEW,
+    /** Confirmación e importación atómica de lote de afiliados EPS (Fase A, ADR-025). */
+    IMPORTACION_EPS_COMMIT,
+    /** Consulta de aseguramiento y estado de afiliación EPS (Fase A, ADR-025). */
+    AFILIACION_CONSULTADA,
+    /** Registro de ausencia médica o bloqueo de agenda (Fase C, ADR-026). */
+    AUSENCIA_MEDICA_REGISTRADA,
+    /** Reprogramación atómica de cita médica (Fase C, ADR-026). */
+    CITA_REPROGRAMADA,
+    /** Registro de representación legal o tutor para menor de edad (Fase C, ADR-026). */
+    REPRESENTACION_LEGAL_REGISTRADA
 }
