@@ -99,5 +99,11 @@ public enum AccionAuditable {
     /** Reprogramación atómica de cita médica (Fase C, ADR-026). */
     CITA_REPROGRAMADA,
     /** Registro de representación legal o tutor para menor de edad (Fase C, ADR-026). */
-    REPRESENTACION_LEGAL_REGISTRADA
+    REPRESENTACION_LEGAL_REGISTRADA,
+    /** Reconocimiento/atención de alerta operativa de saturación hospitalaria (Fase O, ADR-027). */
+    ALERTA_OPERATIVA_RECONOCIDA,
+    /** Generación de código QR seguro para seguimiento intrahospitalario del paciente (Fase O, ADR-028). */
+    QR_SEGUIMIENTO_GENERADO,
+    /** Lectura o escaneo de código QR de seguimiento de paciente (Fase O, ADR-028). */
+    QR_SEGUIMIENTO_ESCANEADO
 }

@@ -233,3 +233,11 @@ export const affiliationApi = {
   registrarTutor: (data) => api.post('/affiliations/guardians', data),
   listarMenoresTutor: (tutorId) => api.get(`/affiliations/guardians/${tutorId}/minors`)
 };
+
+export const operationalApi = {
+  obtenerDashboard: (sedePublicId = null) => api.get('/operational/dashboard', sedePublicId ? { sedePublicId } : {}),
+  listarAlertas: (sedePublicId = null, estado = null) => api.get('/operational/alerts', { ...(sedePublicId && { sedePublicId }), ...(estado && { estado }) }),
+  reconocerAlerta: (alertaId, motivo) => api.post(`/operational/alerts/${alertaId}/acknowledge`, { motivo }),
+  generarTrackingQr: (episodioId) => api.post(`/operational/episodes/${episodioId}/tracking-qr`, {}),
+  consultarTrackingQr: (token) => api.get(`/operational/tracking-qr/${token}`)
+};

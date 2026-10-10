@@ -33,6 +33,7 @@ import { hospitalBedManagementView } from './views/hospital-bed-management.js';
 import { hospitalDischargeView } from './views/hospital-discharge.js';
 import { renderAffiliationImport } from './views/affiliation-import.js';
 import { renderAffiliationSearch } from './views/affiliation-search.js';
+import { renderOperationalDashboard } from './views/operational-dashboard.js';
 import { initSystemAssistantWidget } from './views/system-assistant-widget.js';
 
 // Inicialización de Tema Claro / Oscuro
@@ -224,6 +225,10 @@ function setupRoutes() {
   // Rutas Fase A/C: Aseguramiento EPS, Importación Masiva y Verificación (A01-A06, C01-C04)
   router.addRoute('/admin/affiliations/import', renderAffiliationImport, { requiresAuth: true, requiredRole: 'ROLE_ADMINISTRADOR' });
   router.addRoute('/affiliations/search', renderAffiliationSearch, { requiresAuth: true });
+
+  // Rutas Fase O: Centro de Mando, Analítica Hospitalaria, Alertas y QR (O01-O05)
+  router.addRoute('/operational/dashboard', renderOperationalDashboard, { requiresAuth: true });
+  router.addRoute('/operational', renderOperationalDashboard, { requiresAuth: true });
 
   // Manejador 404 No Encontrado
   router.notFound(async (container, { path }) => {

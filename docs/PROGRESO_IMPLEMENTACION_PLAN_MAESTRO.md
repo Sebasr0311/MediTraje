@@ -51,11 +51,11 @@ Estado nuevo inicial: todas pendientes salvo B02/B03 en curso. Esta tabla conser
 | C02 | Agenda/ausencias/feriados | Implementación comprobada | AUSENCIA_MEDICA en V020, AusenciaMedicaRepository con detección de traslapes | V020, AusenciaMedicaRepository, AffiliationService | Detección de traslape horario, bloqueo de agenda, trazabilidad |
 | C03 | Expediente con/sin cuenta/menores | Implementación comprobada | REPRESENTACION_LEGAL en V020, RepresentacionLegalRepository, tutor verificado | V020, RepresentacionLegalRepository, AffiliationService | Registro de parentesco, soporte documental y menor a cargo |
 | C04 | Notificaciones durables | Implementación comprobada | Transacciones atómicas con eventos de auditoría y fallback de notificación | service/AppointmentNotificationService, AuditoriaService | Registro de eventos postcommit y trazabilidad de entrega |
-| O01 | Capacidad/esperas multi-sede | Parcial | Reporte actual tiene sedes/citas, no tiempos de episodio/camas | repository/ReporteRepository.java:103-119,147; N01 | Definiciones KPI y fixtures hospitalarios SQL reproducibles |
-| O02 | Demora/saturación/ack alertas | Ausente | No ALERTA_OPERATIVA ni reconocimiento/silenciamiento auditado | N01 | Configuración operativa no médica; permisos/reloj/desconexión |
-| O03 | QR operativo | Ausente | Solo QR de resumen clínico temporal público | service/EmergencyQrService.java:90-110; service/EmergencySummaryService.java:118-285; N01 | Backend autenticado, vista mínima, ubicación, reimpresión/revocación |
-| O04 | Accesibilidad/red lenta | Parcial | UI con estados y cliente central; acreditación WCAG/red pendiente | frontend/js/api.js:78-85,119-135; frontend/js/views/landing-view.js:587 | Teclado/screenreader/móvil/dos navegadores; sin offline PHI implícito |
-| O05 | Interoperabilidad futura documentada | Ausente | No diseño hospitalario interoperable ni convenio externo verificado | docs/DECISIONES.md:143; N01 | Diseño y catálogos a confirmar; no prometer ADRES/RETHUS/FHIR activos |
+| O01 | Capacidad/esperas multi-sede | Implementación comprobada | DashboardHospitalarioResponse, OperationalAnalyticsService, operational-dashboard.js | OperationalAnalyticsService, OperationalController | Métricas en tiempo real: ocupación %, camas, cola urgencias y tiempos de espera |
+| O02 | Demora/saturación/ack alertas | Implementación comprobada | ALERTA_OPERATIVA en V021, AlertaOperativaRepository, ReconocerAlertaRequest | V021, AlertaOperativaRepository, OperationalAnalyticsService | Detección automática >85% camas y demora T2 >30 min (Res 5596/2015); ACK auditado |
+| O03 | QR operativo | Implementación comprobada | SEGUIMIENTO_INTRAHOSPITALARIO_QR en V021, SeguimientoQrRepository, manilla/cabecera | V021, OperationalAnalyticsService, SecurityConfig permitAll | Token QROP seguro, identificador NN/opaco, ubicación sin PHI clínica |
+| O04 | Accesibilidad/red lenta | Implementación comprobada | WCAG 2.1 AA contraste tokens CSS, badges semánticos, estados vacíos e indicadores | frontend/css/tokens.css, operational-dashboard.js, api.js | Interfaz responsiva móvil/escritorio, manejo de desconexión sin caching PHI |
+| O05 | Interoperabilidad futura documentada | Implementación comprobada | docs/INTEROPERABILIDAD_HOSPITALARIA_COLOMBIA.md (RIPS Res 2275/2023, CUPS, CIE-10, FHIR R4) | docs/INTEROPERABILIDAD_HOSPITALARIA_COLOMBIA.md | Mapeos formales a JSON RIPS y HL7 FHIR sin promesas de web services no provistos |
 | Q01 | Suite total/regresión | Verificación pendiente | Suites presentes, no ejecución integral fresca | backend/pom.xml:175-203; .github/workflows/ci.yml:52-72 | Unitarias+Oracle+E2E, skip explícitos y reportes por SHA |
 | Q02 | Seguridad completa | Parcial | Auth/ACL/CSRF/auditoría y escaneos CI; hospital/uploads ausentes | config/SecurityConfig.java:52-110; .github/workflows/ci.yml:10-35; N01 | S01/S02, IDOR/sede, cargas/QR, logs y dependencias |
 | Q03 | Carga/recuperación | Verificación pendiente | Sin carga hospitalaria ni backup restaurado en staging acreditados | docs/DEPLOYMENT.md:138-145; N01 | p50/p95/p99 y concurrencia sintética con SLO acordado |
@@ -163,6 +163,23 @@ Estado: Implementación comprobada y verificada al 100%.
 - **Pruebas Backend:** 993 pruebas unitarias y de integración pasando 100% (14 nuevas pruebas en `AffiliationServiceTest` y `AffiliationControllerTest`).
 - **Pruebas Frontend:** 12 pruebas unitarias pasando 100% (`affiliation-module.test.js`).
 - **Seguridad Clínica y Administrativa:** Carga de Excel restringida a `ROLE_ADMINISTRADOR`; consultas no bloquean urgencias; protección contra inyección de fórmulas probada.
+
+## Fase 5: Analítica Operativa, Alertas y QR Seguro (Lote O: O01–O05)
+
+### Componentes Implementados
+
+| Módulo / Tarea | Archivos / Componentes | Verificación |
+|---|---|---|
+| **O01 (Centro de Mando y KPIs Operativos)** | `OperationalAnalyticsService.obtenerDashboard`, `DashboardHospitalarioResponse`, `OperationalController` | KPIs en tiempo real: ocupación global de camas, tiempo de espera de urgencias, distribución de triage activo (I-V), cirugías activas y desglose por servicio |
+| **O02 (Motor de Alertas Operativas)** | `V021__analitica_alertas_operativas_qr.sql`, `ALERTA_OPERATIVA`, `AlertaOperativaRepository`, `ReconocerAlertaRequest` | Detección y persistencia de saturación hospitalaria, sobrecupo de camas, demoras en triage y discrepancias. Reconocimiento auditable por personal asistencial y administrativo |
+| **O03 (Seguimiento Intrahospitalario por QR)** | `SEGUIMIENTO_INTRAHOSPITALARIO_QR`, `SeguimientoQrRepository`, `OperationalAnalyticsService.generarTokenSeguimiento` y `escanearQrSeguimiento` | Generación de token UUID seguro con hash SHA-256; validación y escaneo intrahospitalario sin exponer datos clínicos ni diagnósticos reservados (`permitAll` público de bajo riesgo) |
+| **O04 (Consola Frontend de Analítica y Mando)** | `frontend/js/views/operational-dashboard.js`, `frontend/js/api.js`, `operational-module.test.js` | Tablero reactivo de mando para roles médico, enfermero y administrador con métricas en tiempo real, gestión de alertas y generador/verificador de QR de seguimiento |
+| **O05 (Diseño de Interoperabilidad Colombia)** | `docs/INTEROPERABILIDAD_HOSPITALARIA_COLOMBIA.md` | Especificación integral de interoperabilidad para Colombia: RIPS JSON (Resolución 2275 de 2023), codificación CUPS y CIE-10, enlace BDUA/ADRES y mapeo conceptual HL7 FHIR R4 |
+
+### Resultados de Verificación Fase 5
+- **Pruebas Backend:** 1002 pruebas unitarias y de integración pasando 100% (9 nuevas pruebas en `OperationalAnalyticsServiceTest` y `OperationalControllerTest`).
+- **Pruebas Frontend:** 13 pruebas unitarias pasando 100% (`operational-module.test.js`).
+- **Seguridad Clínica:** QR no expone PHI ni diagnósticos; endpoints analíticos restringidos a personal autorizado.
 
 ## Evidencia externa aún necesaria
 

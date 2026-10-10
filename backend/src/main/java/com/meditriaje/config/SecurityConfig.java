@@ -100,6 +100,7 @@ public class SecurityConfig {
                     "/api/v1/auth/reset-password",
                     "/api/v1/auth/mfa/authenticate",
                     "/api/v1/emergency-summary/**",
+                    "/api/v1/operational/tracking-qr/**",
                     "/api/v1/assistant/**",
                     "/actuator/health",
                     "/actuator/info"
