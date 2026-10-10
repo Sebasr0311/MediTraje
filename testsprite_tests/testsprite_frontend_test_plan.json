@@ -1,0 +1,1420 @@
+[
+  {
+    "id": "TC001",
+    "title": "Acceder con MFA y ver el perfil",
+    "description": "Verifica que un usuario pueda iniciar sesión con credenciales válidas, completar MFA TOTP y acceder a su perfil autenticado.",
+    "category": "Autenticación y seguridad",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid TOTP code into the MFA field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the MFA verification form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the profile page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user profile is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the session is authenticated"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Atender una admisión de urgencias y clasificar triaje",
+    "description": "Verifica que enfermería pueda crear una admisión de urgencias, registrar signos vitales y obtener una clasificación de triaje.",
+    "category": "Circuito asistencial de urgencias y triaje presencial",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid TOTP code into the MFA field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the MFA verification form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the emergency admission flow"
+      },
+      {
+        "type": "action",
+        "description": "Fill in patient data into the admission form"
+      },
+      {
+        "type": "action",
+        "description": "Submit the admission form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in valid vital signs into the triage form"
+      },
+      {
+        "type": "action",
+        "description": "Submit the triage form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the emergency admission is created"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a triage classification is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Asignar una cama libre a un paciente",
+    "description": "Verifica que se pueda asignar una cama disponible a un paciente y que la asignación quede registrada como atómica.",
+    "category": "Gestión hospitalaria, camas y traslados",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid TOTP code into the MFA field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the MFA verification form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the bed census"
+      },
+      {
+        "type": "action",
+        "description": "Select a free bed"
+      },
+      {
+        "type": "action",
+        "description": "Assign the bed to a patient encounter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the bed assignment is recorded"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the bed is no longer available"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Bloquear la edición de una atención cerrada",
+    "description": "Verifies that a closed clinical encounter cannot be edited and remains protected from changes.",
+    "category": "Historia clínica inmutable y farmacia",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the clinical encounters list"
+      },
+      {
+        "type": "action",
+        "description": "Open a closed clinical encounter"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to edit the encounter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify editing is blocked for the closed encounter"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Trasladar y dar de alta un paciente hospitalizado",
+    "description": "Verifica que un paciente pueda ser trasladado dentro del hospital y luego dado de alta liberando la cama.",
+    "category": "Gestión hospitalaria, camas y traslados",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid TOTP code into the MFA field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the MFA verification form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the bed census"
+      },
+      {
+        "type": "action",
+        "description": "Select an occupied patient encounter"
+      },
+      {
+        "type": "action",
+        "description": "Open the transfer flow"
+      },
+      {
+        "type": "action",
+        "description": "Fill in valid transfer details"
+      },
+      {
+        "type": "action",
+        "description": "Submit the transfer form"
+      },
+      {
+        "type": "action",
+        "description": "Open the discharge flow"
+      },
+      {
+        "type": "action",
+        "description": "Submit the discharge form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the transfer is recorded"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the bed is released after discharge"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Registrar un paciente NN y clasificarlo",
+    "description": "Verifica que enfermería pueda crear una admisión sin documento para un paciente NN y completar su triaje con un identificador provisional.",
+    "category": "Circuito asistencial de urgencias y triaje presencial",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid TOTP code into the MFA field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the MFA verification form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the emergency admission flow"
+      },
+      {
+        "type": "action",
+        "description": "Fill in anonymous intake details without a document"
+      },
+      {
+        "type": "action",
+        "description": "Submit the admission form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in valid vital signs into the triage form"
+      },
+      {
+        "type": "action",
+        "description": "Submit the triage form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a provisional NN identifier is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the triage classification is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Crear y cerrar una atención clínica",
+    "description": "Verifies that a clinician can open a clinical encounter and close it so the record becomes immutable.",
+    "category": "Historia clínica inmutable y farmacia",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create a clinical encounter"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the encounter data fields with valid clinical values"
+      },
+      {
+        "type": "action",
+        "description": "Submit the encounter creation"
+      },
+      {
+        "type": "action",
+        "description": "Close the clinical encounter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the closed encounter is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the encounter is marked immutable"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Registrar una cuenta con datos válidos",
+    "description": "Verifica que un usuario pueda completar el registro con datos de documento colombiano, consentimiento y contraseña fuerte, y quedar listo para iniciar sesión.",
+    "category": "Autenticación y seguridad",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the registration form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in valid Colombian document data into the document fields"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid name into the name field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid email address into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a strong password into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Confirm consent in the consent control"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an account creation confirmation is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user can proceed to sign in"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "Prescribir y dispensar un medicamento con trazabilidad",
+    "description": "Verifies that a clinician can issue a prescription from a closed encounter and pharmacy can record the dispensing with traceability.",
+    "category": "Historia clínica inmutable y farmacia",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the clinical encounters list"
+      },
+      {
+        "type": "action",
+        "description": "Open a closed clinical encounter"
+      },
+      {
+        "type": "action",
+        "description": "Create a prescription with valid medication details"
+      },
+      {
+        "type": "action",
+        "description": "Submit the prescription"
+      },
+      {
+        "type": "action",
+        "description": "Open the prescription in the pharmacy workflow"
+      },
+      {
+        "type": "action",
+        "description": "Record the dispensing with valid batch details"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the prescription is issued"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the dispensing record is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Ver la cola priorizada de urgencias por sede",
+    "description": "Verifica que enfermería pueda consultar la cola de urgencias priorizada para una sede después de iniciar sesión.",
+    "category": "Circuito asistencial de urgencias y triaje presencial",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid TOTP code into the MFA field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the MFA verification form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the emergency queue"
+      },
+      {
+        "type": "action",
+        "description": "Select a site"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the prioritized queue is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify patients are ordered by priority"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC011",
+    "title": "Confirmar una importación EPS aprobada",
+    "description": "Verifies that an administrative user can commit a previously reviewed EPS import and complete the atomic import successfully.",
+    "category": "Aseguramiento EPS y citas médicas avanzadas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the EPS import preview"
+      },
+      {
+        "type": "action",
+        "description": "Upload a valid XLSX file for EPS affiliates"
+      },
+      {
+        "type": "action",
+        "description": "Continue to the import confirmation step"
+      },
+      {
+        "type": "action",
+        "description": "Select atomic all as the import mode"
+      },
+      {
+        "type": "action",
+        "description": "Confirm the import"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the import result is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the import is completed atomically"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC012",
+    "title": "Consultar el censo de camas",
+    "description": "Verifica que el personal clínico autenticado pueda consultar el estado actual del censo de camas y sus ocupaciones.",
+    "category": "Gestión hospitalaria, camas y traslados",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid TOTP code into the MFA field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the MFA verification form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the bed census"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the bed census is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify bed statuses are visible"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC013",
+    "title": "Previsualizar una carga de afiliados EPS válida",
+    "description": "Verifies that an administrative user can upload a valid XLSX file and review the import preview with validation results before committing.",
+    "category": "Aseguramiento EPS y citas médicas avanzadas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the EPS import preview"
+      },
+      {
+        "type": "action",
+        "description": "Upload a valid XLSX file for EPS affiliates"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a paginated validation preview is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify import metrics are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC014",
+    "title": "Bloquear el acceso tras varios intentos fallidos",
+    "description": "Verifica que múltiples intentos de inicio de sesión fallidos activen la protección contra fuerza bruta o el bloqueo de cuenta.",
+    "category": "Autenticación y seguridad",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with an invalid password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Repeat the failed login attempt until the protection threshold is reached"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an account protection message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login is temporarily restricted"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC015",
+    "title": "Consultar el panel operativo con permisos",
+    "description": "Verifies that an authorized operational user can open the dashboard and see current KPIs and active alerts.",
+    "category": "Centro de mando, analítica y QR de seguimiento",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the operational dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify KPI data is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify active operational alerts are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC016",
+    "title": "Agendar una cita cuando no existen restricciones",
+    "description": "Verifies that a patient or scheduler can create an appointment successfully when the selected slot is allowed.",
+    "category": "Aseguramiento EPS y citas médicas avanzadas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create an appointment"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the patient data fields with valid values"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the scheduling fields with valid values"
+      },
+      {
+        "type": "action",
+        "description": "Submit the appointment request"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the appointment is created"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC017",
+    "title": "Reconocer una alerta operativa con justificación",
+    "description": "Verifies that an authorized user can acknowledge an operational alert by providing a valid justification and see the acknowledgment recorded.",
+    "category": "Centro de mando, analítica y QR de seguimiento",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the operational alerts list"
+      },
+      {
+        "type": "action",
+        "description": "Choose an active alert to acknowledge"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the justification field with a valid justification"
+      },
+      {
+        "type": "action",
+        "description": "Submit the acknowledgment"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the alert acknowledgment is recorded"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the acknowledgment remains visible in the alert detail"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC018",
+    "title": "Consultar el catálogo activo de EPS",
+    "description": "Verifies that an authenticated administrative user can open the EPS catalog and see active insurer options.",
+    "category": "Aseguramiento EPS y citas médicas avanzadas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the EPS catalog"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify active EPS entries are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC019",
+    "title": "Recuperar una cuenta con OTP válido",
+    "description": "Verifica que un usuario pueda iniciar una solicitud de recuperación de cuenta y completar la confirmación con un OTP válido.",
+    "category": "Autenticación y seguridad",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the account recovery flow"
+      },
+      {
+        "type": "action",
+        "description": "Fill in an unregistered email or identifier into the recovery field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the recovery request"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid OTP into the recovery confirmation field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the recovery confirmation form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a recovery confirmation is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user can continue the account recovery process"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC020",
+    "title": "Solicitar acceso Break-Glass con justificación válida",
+    "description": "Verifies that a short-term emergency access request can be created when a sufficiently detailed justification is provided.",
+    "category": "Historia clínica inmutable y farmacia",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the emergency access request form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the justification field with a valid emergency reason"
+      },
+      {
+        "type": "action",
+        "description": "Submit the emergency access request"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify emergency access is granted"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the emergency access request is recorded"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC021",
+    "title": "Bloquear una cita por ausencia o restricción legal",
+    "description": "Verifies that scheduling is prevented when the selected doctor has an absence or legal restriction that blocks the appointment.",
+    "category": "Aseguramiento EPS y citas médicas avanzadas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create an appointment"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the patient data fields with valid values"
+      },
+      {
+        "type": "action",
+        "description": "Select a doctor schedule that is blocked by an absence or legal restriction"
+      },
+      {
+        "type": "action",
+        "description": "Submit the appointment request"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a scheduling blocked validation error is visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC022",
+    "title": "Registrar una enmienda append-only en una atención cerrada",
+    "description": "Verifies that a clinician can add an amendment to a closed encounter and preserve the audit trail.",
+    "category": "Historia clínica inmutable y farmacia",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the clinical encounters list"
+      },
+      {
+        "type": "action",
+        "description": "Open a closed clinical encounter"
+      },
+      {
+        "type": "action",
+        "description": "Choose to add an amendment"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the amendment note with a valid clinical correction"
+      },
+      {
+        "type": "action",
+        "description": "Submit the amendment"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the amendment is recorded"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the audit trail remains visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC023",
+    "title": "Rechazar el registro sin consentimiento o con documento inválido",
+    "description": "Verifica que el formulario de registro muestre errores de validación cuando faltan el consentimiento o el documento no es válido.",
+    "category": "Autenticación y seguridad",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the registration form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in invalid document data into the document fields"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid name into the name field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid email address into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a strong password into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the account is not created"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC024",
+    "title": "Bloquear archivos EPS maliciosos o dañados",
+    "description": "Verifies that the EPS import preview rejects malicious or malformed spreadsheet files with a file security validation error.",
+    "category": "Aseguramiento EPS y citas médicas avanzadas",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the EPS import preview"
+      },
+      {
+        "type": "action",
+        "description": "Upload a malformed or malicious XLSX file"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a file security validation error is visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC025",
+    "title": "Consultar seguimiento QR no clínico con token válido",
+    "description": "Verifies that a valid tracking QR token opens the non-clinical tracking payload without exposing clinical information.",
+    "category": "Centro de mando, analítica y QR de seguimiento",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the QR tracking lookup"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid tracking token"
+      },
+      {
+        "type": "action",
+        "description": "Submit the QR lookup"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the non-clinical tracking payload is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC026",
+    "title": "Rechazar el triaje con signos vitales incompletos",
+    "description": "Verifica que el formulario de triaje muestre errores de validación cuando faltan signos vitales o valores obligatorios.",
+    "category": "Circuito asistencial de urgencias y triaje presencial",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid TOTP code into the MFA field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the MFA verification form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the emergency admission flow"
+      },
+      {
+        "type": "action",
+        "description": "Fill in patient data into the admission form"
+      },
+      {
+        "type": "action",
+        "description": "Submit the admission form"
+      },
+      {
+        "type": "action",
+        "description": "Submit the triage form without required vital signs"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a triage validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the triage is not completed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC027",
+    "title": "Rechazar un reconocimiento de alerta con justificación insuficiente",
+    "description": "Verifies that the system blocks acknowledgement when the justification is too short or missing.",
+    "category": "Centro de mando, analítica y QR de seguimiento",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the operational alerts list"
+      },
+      {
+        "type": "action",
+        "description": "Choose an active alert to acknowledge"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the justification field with a short justification"
+      },
+      {
+        "type": "action",
+        "description": "Submit the acknowledgment"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a justification validation error is visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC028",
+    "title": "Bloquear una asignación de cama ocupada",
+    "description": "Verifica que el sistema muestre un conflicto cuando se intenta asignar una cama ya ocupada.",
+    "category": "Gestión hospitalaria, camas y traslados",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid TOTP code into the MFA field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the MFA verification form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the bed census"
+      },
+      {
+        "type": "action",
+        "description": "Select an occupied bed"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to assign the occupied bed to a patient encounter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a bed occupancy conflict is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the assignment is not completed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC029",
+    "title": "Rechazar una solicitud Break-Glass con justificación corta",
+    "description": "Verifies that emergency access requests with insufficient justification are rejected.",
+    "category": "Historia clínica inmutable y farmacia",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the emergency access request form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the justification field with a short justification"
+      },
+      {
+        "type": "action",
+        "description": "Submit the emergency access request"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a justification validation error is visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC030",
+    "title": "Rechazar un token QR inválido o expirado",
+    "description": "Verifies that an invalid or expired tracking token is rejected and no tracking payload is shown.",
+    "category": "Centro de mando, analítica y QR de seguimiento",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to the QR tracking lookup"
+      },
+      {
+        "type": "action",
+        "description": "Fill in an invalid or expired tracking token"
+      },
+      {
+        "type": "action",
+        "description": "Submit the QR lookup"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a token validation error is visible"
+      }
+    ],
+    "priority": "Low"
+  }
+]

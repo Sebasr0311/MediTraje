@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "postapiauthregisterwithvalidcolombiandocumentdataandconsent",
+    "description": "Verify that POST /api/auth/register successfully creates an account when provided with valid Colombian document data, user consent, and a strong password, returning HTTP 201."
+  },
+  {
+    "id": "TC002",
+    "title": "postapiauthloginwithvalidcredentials",
+    "description": "Verify that POST /api/auth/login with valid credentials returns HTTP 200 and sets an HttpOnly session cookie for secure authentication."
+  },
+  {
+    "id": "TC003",
+    "title": "postapiauthmfaverifywithvalidtotp",
+    "description": "Verify that POST /api/auth/mfa/verify with a valid TOTP code returns HTTP 200 and upgrades the session to fully authenticated status."
+  },
+  {
+    "id": "TC004",
+    "title": "postapiauthregisterwithinvaliddocumentormissingconsent",
+    "description": "Verify that POST /api/auth/register with invalid document type or missing user consent returns HTTP 400 with appropriate validation error messages."
+  },
+  {
+    "id": "TC005",
+    "title": "postapiauthloginwithinvalidpasswordmultipletimes",
+    "description": "Verify that multiple failed login attempts via POST /api/auth/login with invalid passwords trigger account lockout or brute-force protection, returning HTTP 423 or 429."
+  },
+  {
+    "id": "TC006",
+    "title": "postapiauthrecoveryrequestwithunregisteredemail",
+    "description": "Verify that POST /api/auth/recovery/request with an unregistered email or identifier returns HTTP 404 or 400 with a generic recovery failure message."
+  },
+  {
+    "id": "TC007",
+    "title": "postapiauthrecoveryconfirmwithexpiredotp",
+    "description": "Verify that POST /api/auth/recovery/confirm with an expired OTP returns HTTP 400 with an expired token error."
+  },
+  {
+    "id": "TC008",
+    "title": "postemergencyadmissionswithpatientdataoranonymousintake",
+    "description": "Verify that POST /api/emergency/admissions accepts patient data or anonymous intake and returns HTTP 201 with an emergency admission record."
+  },
+  {
+    "id": "TC009",
+    "title": "postemergencytriagewithvitalsignsandglasgowscore",
+    "description": "Verify that POST /api/emergency/triage with valid vital signs and Glasgow score returns HTTP 200 with an assigned triage level."
+  },
+  {
+    "id": "TC010",
+    "title": "getemergencyqueuewithnursesession",
+    "description": "Verify that GET /api/emergency/queue with a nurse session returns HTTP 200 with a prioritized queue filtered by site."
+  }
+]
