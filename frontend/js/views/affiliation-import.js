@@ -19,7 +19,7 @@ export async function renderAffiliationImport(container) {
         <div>
           <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
             <span style="font-size: 1.25rem;" aria-hidden="true">📥</span>
-            <h2 style="font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--text-main);">Plantilla Oficial de Afiliados (.xlsx)</h2>
+            <h2 style="font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--text);">Plantilla Oficial de Afiliados (.xlsx)</h2>
           </div>
           <p style="margin: 0; font-size: 0.875rem; color: var(--text-muted);">
             Descargue el formato estándar preconfigurado con columnas requeridas (TIPO_DOCUMENTO, NUMERO_DOCUMENTO, NOMBRES, APELLIDOS, REGIMEN, TIPO_AFILIADO), ejemplos reales y guía técnica MinSalud.
@@ -135,7 +135,12 @@ export async function renderAffiliationImport(container) {
       });
     }
   } catch (err) {
-    console.error('Error cargando lista de EPS:', err);
+    console.warn('Lista de EPS en sincronización o no disponible:', err);
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.disabled = true;
+    opt.textContent = '-- En sincronización con el servidor --';
+    selectEps.appendChild(opt);
   }
 
   // Descarga de plantilla oficial Excel (.xlsx)

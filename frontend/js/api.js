@@ -143,7 +143,18 @@ class ApiClient {
 
     if (!response.ok) {
       const code = data?.codigo || `HTTP_${response.status}`;
-      const message = data?.mensaje || (typeof data === 'string' ? data : 'Ocurrio un error al procesar la solicitud.');
+      let message = data?.mensaje;
+      if (!message) {
+        if (typeof data === 'string' && (data.includes('<html') || data.includes('<!DOCTYPE'))) {
+          message = response.status === 404 
+            ? 'El recurso o servicio solicitado no fue encontrado (404).' 
+            : `El servidor respondió con código HTTP ${response.status}.`;
+        } else if (typeof data === 'string' && data.trim()) {
+          message = data.trim();
+        } else {
+          message = 'Ocurrió un error al procesar la solicitud.';
+        }
+      }
       throw new ApiError(response.status, code, message, data, data?.traceId);
     }
 

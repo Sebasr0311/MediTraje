@@ -657,8 +657,9 @@ export async function renderOperationalDashboard(container) {
       }
     } catch (err) {
       if (!isBackground) {
-        console.error('Error al cargar datos del Centro de Mando:', err);
-        ui.showToast('Error de comunicación con el servicio de analítica.', 'error');
+        console.warn('Servicio de analítica en sincronización:', err);
+        bannerAlerta.style.display = 'flex';
+        textoAlerta.textContent = 'Centro de Mando: El servicio de analítica hospitalaria en tiempo real se encuentra en inicialización o sincronización con la base de datos central.';
       }
     }
   }

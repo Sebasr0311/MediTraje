@@ -201,7 +201,19 @@ async function loadData() {
     updateAreaFilter(census.areas);
     renderBeds();
   } catch (err) {
-    ui.showToast('Error al obtener censo hospitalario: ' + err.message, 'error');
+    ui.showToast('Censo hospitalario en sincronización.', 'info');
+    const areaGrid = document.getElementById('areaSummaryGrid');
+    if (areaGrid) {
+      areaGrid.innerHTML = `
+        <div class="alert alert--info" style="grid-column: 1 / -1;">
+          ${ui.icon('info', 'icon alert-icon')}
+          <div class="alert-content">
+            <div class="alert-title">Capacidad hospitalaria en sincronización</div>
+            <div>El módulo de censo en tiempo real para esta sede se encuentra en inicialización o sin camas activas registradas aún.</div>
+          </div>
+        </div>
+      `;
+    }
   }
 }
 

@@ -12,7 +12,7 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
   flyway:
-    enabled: ${FLYWAY_ENABLED:false}
+    enabled: ${FLYWAY_ENABLED:true}
     user: ${FLYWAY_USER:${DB_USER}}
     password: ${FLYWAY_PASSWORD:${DB_PASSWORD}}
 
