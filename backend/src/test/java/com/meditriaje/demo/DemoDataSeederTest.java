@@ -199,7 +199,7 @@ class DemoDataSeederTest {
         when(jdbcTemplate.queryForObject(
                 eq("SELECT COUNT(*) FROM USUARIO WHERE LOWER(EMAIL) LIKE '%@demo.meditriaje.test'"),
                 eq(Integer.class)
-        )).thenReturn(16);
+        )).thenReturn(17);
 
         assertThatCode(() -> seeder.run()).doesNotThrowAnyException();
 

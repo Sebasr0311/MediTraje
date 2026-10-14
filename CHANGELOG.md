@@ -7,6 +7,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+- **Remediación de Integridad de Esquema y Repositorios JDBC (Gate G1 / P0-01, P0-02, P0-03)**:
+  - Migración `V022__correccion_auditoria_integridad.sql`: índices condicionales de unicidad `UQ_OCUP_CAMA_ACTIVA`, `UQ_OCUP_EPISODIO_ACTIVA`, `UQ_ALERTA_SEDE_TIPO_ACTIVA` y reconciliación PL/SQL de FKs hacia `PROFESIONAL(ID)` en procedimientos, egresos y ausencias.
+  - Corrección de proyecciones JDBC en 5 repositorios clave: `AfiliacionPacienteRepository`, `CamaHospitalariaRepository`, `EpisodioAtencionRepository`, `ProcedimientoHospitalarioRepository` y `ValoracionTriajeRepository`, erradicando discrepancias de esquema ORA-00904 (`NOMBRE/APELLIDO` -> `NOMBRES/APELLIDOS`, `PROFESIONAL_SALUD` -> `PROFESIONAL`).
+  - Implementación de reserva atómica compare-and-set `reservarCamaSiDisponible` en `CamaHospitalariaRepository` previniendo condiciones de carrera en ocupación hospitalaria.
+
+- **Blindaje de Privacidad, Censo Admin, Auditoría sin PII y QR Seguro (Gate G2 / P0-04, P1-05, P1-08, F-03)**:
+  - Anonimización estricta del censo de camas (`pacienteNombre` y `episodioPublicId` enmascarados) para usuarios con rol `ROLE_ADMINISTRADOR` (S-02).
+  - Trazabilidad y consulta pública de QR intrahospitalario con validación de expiración, validación de estado activo, anonimización de triaje a `NO_DIVULGABLE` y auditoría referenciando `publicId` en lugar del token criptográfico (S-03).
+  - Saneamiento de eventos de auditoría en afiliaciones EPS registrando identificador público (`publicId`) en lugar de tipo y número de documento del paciente (S-04).
+  - Desacoplamiento de efectos colaterales de peticiones `GET`: `obtenerDashboardHospitalario` es estrictamente idempotente; evaluación de alertas operativas aislada en `evaluarAlertasAutomaticas` (F-03).
+
+- **Reprogramación Atómica de Citas End-to-End (Gate G3 / F-01 [P1])**:
+  - Máquina de estados `CitaStateMachine`: incorporación de transiciones válidas desde `PROGRAMADA` y `CONFIRMADA` hacia `REPROGRAMADA`.
+  - Endpoint `PATCH /api/v1/appointments/{publicId}/reschedule` en `AppointmentController` y `AppointmentService` con compare-and-set del slot destino, liberación del slot original, vinculación de trazabilidad `citaOrigenId` y registro inmutable en auditoría.
+  - Frontend de paciente en `patient-appointments.js`: modal interactivo de reprogramación de fecha, hora y motivo con actualización reactiva de la agenda.
+
 - **Rediseño del Dashboard de Administración y Reubicación de Apartados al Menú Lateral**:
   - Reemplazo integral de la vista genérica "Administración del Sistema" por un **Dashboard** auténtico en `#/admin/dashboard` y `#/admin`:
     - Métricas ejecutivas en tiempo real: Sedes Hospitalarias, Cuerpo Médico, Especialidades Médicas y Turnos Programados.

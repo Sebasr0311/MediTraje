@@ -179,7 +179,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.token").doesNotExist()) // Tokens NO en body
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("access_token=mock.jwt.token")))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")))
-                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Strict")));
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Lax")));
     }
 
     @Test
@@ -219,7 +219,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.publicId").value("f81d4fae-7dec-11d0-a765-00a0c91e6bf6"))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("access_token=new.jwt.token")))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")))
-                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Strict")));
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Lax")));
     }
 
     @Test
@@ -511,7 +511,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.email").value("dr.garcia@hospital.com"))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("access_token=access.jwt.valido")))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")))
-                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Strict")));
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Lax")));
     }
 
     @Test

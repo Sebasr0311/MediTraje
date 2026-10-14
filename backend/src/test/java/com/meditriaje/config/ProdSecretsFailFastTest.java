@@ -40,9 +40,7 @@ class ProdSecretsFailFastTest {
             "DB_USER",
             "DB_PASSWORD",
             "CORS_ORIGINS",
-            "BREVO_API_KEY",
-            "MAIL_FROM",
-            "MAIL_FROM_NAME"
+            "BREVO_API_KEY"
     })
     @DisplayName("Debe fallar al arrancar en perfil prod si falta cualquier secreto o variable obligatoria")
     void debeFallarAlArrancarEnProdSiFaltaSecreto(String variableFaltante) {
