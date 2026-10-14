@@ -135,7 +135,7 @@ public class EpisodioAtencionRepository {
         String sql = """
                 SELECT e.PUBLIC_ID AS EPISODIO_PUB_ID,
                        p.PUBLIC_ID AS PACIENTE_PUB_ID,
-                       CASE WHEN p.ID IS NOT NULL THEN (u.NOMBRE || ' ' || u.APELLIDO) ELSE NULL END AS PACIENTE_NOMBRE,
+                       CASE WHEN p.ID IS NOT NULL THEN (p.NOMBRES || ' ' || p.APELLIDOS) ELSE NULL END AS PACIENTE_NOMBRE,
                        s.PUBLIC_ID AS SEDE_PUB_ID,
                        s.NOMBRE AS SEDE_NOMBRE,
                        e.TIPO,
@@ -145,9 +145,8 @@ public class EpisodioAtencionRepository {
                        iu.MEDIO_LLEGADA,
                        iu.MOTIVO_RESUMIDO,
                        (SELECT vt.NIVEL FROM VALORACION_TRIAJE vt WHERE vt.EPISODIO_ID = e.ID ORDER BY vt.VERSION DESC FETCH FIRST 1 ROWS ONLY) AS NIVEL_TRIAJE,
-                       (SELECT up.NOMBRE || ' ' || up.APELLIDO FROM ASIGNACION_ASISTENCIAL aa
+                       (SELECT prof.NOMBRES || ' ' || prof.APELLIDOS FROM ASIGNACION_ASISTENCIAL aa
                         JOIN PROFESIONAL prof ON aa.PROFESIONAL_ID = prof.ID
-                        JOIN USUARIO up ON prof.USUARIO_ID = up.ID
                         WHERE aa.EPISODIO_ID = e.ID AND aa.ACTIVO = 1 AND aa.FUNCION = 'MEDICO_TRATANTE'
                         FETCH FIRST 1 ROWS ONLY) AS MEDICO_TRATANTE_NOMBRE,
                        e.INGRESO_AT,
@@ -156,7 +155,6 @@ public class EpisodioAtencionRepository {
                 FROM EPISODIO_ATENCION e
                 JOIN SEDE s ON e.SEDE_ID = s.ID
                 LEFT JOIN PACIENTE p ON e.PACIENTE_ID = p.ID
-                LEFT JOIN USUARIO u ON p.USUARIO_ID = u.ID
                 LEFT JOIN INGRESO_URGENCIA iu ON e.ID = iu.EPISODIO_ID
                 LEFT JOIN IDENTIDAD_PROVISIONAL ip ON e.ID = ip.EPISODIO_ID
                 WHERE e.PUBLIC_ID = ?
@@ -203,7 +201,7 @@ public class EpisodioAtencionRepository {
                 SELECT e.PUBLIC_ID AS EPISODIO_PUB_ID,
                        p.PUBLIC_ID AS PACIENTE_PUB_ID,
                        CASE 
-                         WHEN p.ID IS NOT NULL THEN (u.NOMBRE || ' ' || u.APELLIDO)
+                         WHEN p.ID IS NOT NULL THEN (p.NOMBRES || ' ' || p.APELLIDOS)
                          WHEN ip.CODIGO_PROVISIONAL IS NOT NULL THEN ('NN (' || ip.CODIGO_PROVISIONAL || ')')
                          ELSE 'Paciente no identificado'
                        END AS IDENTIFICADOR_VISIBLE,
@@ -216,15 +214,13 @@ public class EpisodioAtencionRepository {
                        COALESCE(iu.MOTIVO_RESUMIDO, e.MOTIVO_INGRESO) AS MOTIVO_LLEGADA,
                        ROUND((CAST(CURRENT_TIMESTAMP AS DATE) - CAST(e.INGRESO_AT AS DATE)) * 1440) AS MINUTOS_ESPERA,
                        e.INGRESO_AT,
-                       (SELECT up.NOMBRE || ' ' || up.APELLIDO FROM ASIGNACION_ASISTENCIAL aa
+                       (SELECT prof.NOMBRES || ' ' || prof.APELLIDOS FROM ASIGNACION_ASISTENCIAL aa
                         JOIN PROFESIONAL prof ON aa.PROFESIONAL_ID = prof.ID
-                        JOIN USUARIO up ON prof.USUARIO_ID = up.ID
                         WHERE aa.EPISODIO_ID = e.ID AND aa.ACTIVO = 1 AND aa.FUNCION = 'MEDICO_TRATANTE'
                         FETCH FIRST 1 ROWS ONLY) AS MEDICO_TRATANTE_NOMBRE
                 FROM EPISODIO_ATENCION e
                 JOIN SEDE s ON e.SEDE_ID = s.ID
                 LEFT JOIN PACIENTE p ON e.PACIENTE_ID = p.ID
-                LEFT JOIN USUARIO u ON p.USUARIO_ID = u.ID
                 LEFT JOIN INGRESO_URGENCIA iu ON e.ID = iu.EPISODIO_ID
                 LEFT JOIN IDENTIDAD_PROVISIONAL ip ON e.ID = ip.EPISODIO_ID
                 WHERE e.TIPO = 'URGENCIA'

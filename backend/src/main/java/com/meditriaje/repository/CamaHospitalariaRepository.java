@@ -93,6 +93,15 @@ public class CamaHospitalariaRepository {
         jdbcTemplate.update(sql, nuevoEstado, camaId);
     }
 
+    /**
+     * Intenta reservar de manera atómica una cama pasando su estado de DISPONIBLE a OCUPADA.
+     * Retorna true si se reservó exitosamente (1 fila afectada), o false si ya no estaba DISPONIBLE (O-03).
+     */
+    public boolean reservarCamaSiDisponible(Long camaId) {
+        String sql = "UPDATE CAMA_HOSPITALARIA SET ESTADO = 'OCUPADA', UPDATED_AT = CURRENT_TIMESTAMP WHERE ID = ? AND ESTADO = 'DISPONIBLE'";
+        return jdbcTemplate.update(sql, camaId) == 1;
+    }
+
     public List<CamaDetalleResponse> listarDetallePorSedeId(Long sedeId) {
         String sql = """
                 SELECT c.PUBLIC_ID AS CAMA_PUB_ID,
@@ -106,7 +115,7 @@ public class CamaHospitalariaRepository {
                        s.NOMBRE AS SEDE_NOMBRE,
                        ep.PUBLIC_ID AS EPISODIO_PUB_ID,
                        CASE
-                           WHEN p.ID IS NOT NULL THEN (p.NOMBRE || ' ' || p.APELLIDO)
+                           WHEN p.ID IS NOT NULL THEN (p.NOMBRES || ' ' || p.APELLIDOS)
                            WHEN ip.CODIGO_PROVISIONAL IS NOT NULL THEN ('NN (' || ip.CODIGO_PROVISIONAL || ')')
                            ELSE NULL
                        END AS PACIENTE_NOMBRE,
@@ -138,7 +147,7 @@ public class CamaHospitalariaRepository {
                        s.NOMBRE AS SEDE_NOMBRE,
                        ep.PUBLIC_ID AS EPISODIO_PUB_ID,
                        CASE
-                           WHEN p.ID IS NOT NULL THEN (p.NOMBRE || ' ' || p.APELLIDO)
+                           WHEN p.ID IS NOT NULL THEN (p.NOMBRES || ' ' || p.APELLIDOS)
                            WHEN ip.CODIGO_PROVISIONAL IS NOT NULL THEN ('NN (' || ip.CODIGO_PROVISIONAL || ')')
                            ELSE NULL
                        END AS PACIENTE_NOMBRE,

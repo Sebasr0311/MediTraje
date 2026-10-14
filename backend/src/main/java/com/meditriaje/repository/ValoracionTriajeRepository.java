@@ -154,13 +154,14 @@ public class ValoracionTriajeRepository {
                        vt.SATURACION_OXIGENO,
                        vt.TEMPERATURA,
                        vt.ESCALA_GLASGOW,
-                       u.NOMBRE || ' ' || u.APELLIDO AS EVALUADOR_NOMBRE,
+                       COALESCE(prof.NOMBRES || ' ' || prof.APELLIDOS, u.EMAIL) AS EVALUADOR_NOMBRE,
                        vt.ES_REEVALUACION,
                        vt.MOTIVO_REEVALUACION,
                        vt.CREADO_AT
                 FROM VALORACION_TRIAJE vt
                 JOIN EPISODIO_ATENCION e ON vt.EPISODIO_ID = e.ID
                 JOIN USUARIO u ON vt.EVALUADOR_USUARIO_ID = u.ID
+                LEFT JOIN PROFESIONAL prof ON prof.USUARIO_ID = u.ID
                 WHERE vt.EPISODIO_ID = ?
                 ORDER BY vt.VERSION ASC
                 """;

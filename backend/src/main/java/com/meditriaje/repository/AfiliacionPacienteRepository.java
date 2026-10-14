@@ -134,7 +134,7 @@ public class AfiliacionPacienteRepository {
                        a.TIPO_DOCUMENTO,
                        a.NUMERO_DOCUMENTO,
                        CASE
-                           WHEN p.ID IS NOT NULL THEN (p.NOMBRE || ' ' || p.APELLIDO)
+                           WHEN p.ID IS NOT NULL THEN (p.NOMBRES || ' ' || p.APELLIDOS)
                            ELSE NULL
                        END AS PACIENTE_NOMBRE,
                        eps.CODIGO_MINSALUD AS EPS_CODIGO,
@@ -160,7 +160,7 @@ public class AfiliacionPacienteRepository {
                        p.PUBLIC_ID AS PACIENTE_PUB_ID,
                        a.TIPO_DOCUMENTO,
                        a.NUMERO_DOCUMENTO,
-                       (p.NOMBRE || ' ' || p.APELLIDO) AS PACIENTE_NOMBRE,
+                       (p.NOMBRES || ' ' || p.APELLIDOS) AS PACIENTE_NOMBRE,
                        eps.CODIGO_MINSALUD AS EPS_CODIGO,
                        eps.NOMBRE AS EPS_NOMBRE,
                        a.REGIMEN,

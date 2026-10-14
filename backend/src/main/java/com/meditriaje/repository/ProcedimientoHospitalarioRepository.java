@@ -116,7 +116,7 @@ public class ProcedimientoHospitalarioRepository {
                        e.PUBLIC_ID AS EPISODIO_PUB_ID,
                        ph.TIPO_PROCEDIMIENTO,
                        ph.DESCRIPCION,
-                       (prof.NOMBRE || ' ' || prof.APELLIDO) AS PROFESIONAL_NOMBRE,
+                       (prof.NOMBRES || ' ' || prof.APELLIDOS) AS PROFESIONAL_NOMBRE,
                        hs.CODIGO AS SALA_CODIGO,
                        ph.ESTADO,
                        ph.INICIO_AT,
@@ -125,7 +125,7 @@ public class ProcedimientoHospitalarioRepository {
                        ph.CREADO_AT
                 FROM PROCEDIMIENTO_HOSPITALARIO ph
                 JOIN EPISODIO_ATENCION e ON ph.EPISODIO_ID = e.ID
-                JOIN PROFESIONAL_SALUD prof ON ph.PROFESIONAL_ID = prof.ID
+                JOIN PROFESIONAL prof ON ph.PROFESIONAL_ID = prof.ID
                 LEFT JOIN HABITACION_SALA hs ON ph.SALA_ID = hs.ID
                 WHERE ph.EPISODIO_ID = ?
                 ORDER BY ph.CREADO_AT DESC
