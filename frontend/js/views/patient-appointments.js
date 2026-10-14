@@ -286,17 +286,27 @@ function renderAppointmentsList(container) {
               <div class="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t">
                 ${cancelCheck.canCancel ? `
                   <span class="text-xs text-muted">
-                    Puedes cancelar esta cita hasta 2 horas antes del inicio programado.
+                    Puedes cancelar o reprogramar esta cita hasta 2 horas antes del inicio programado.
                   </span>
-                  <button 
-                    type="button" 
-                    class="btn btn-secondary btn--sm btn-cancel-appointment" 
-                    data-cita-id="${cita.publicId}"
-                    style="color: var(--danger); border-color: var(--danger-bg);"
-                  >
-                    ${ui.icon('x', 'icon icon--sm')}
-                    <span>Cancelar cita</span>
-                  </button>
+                  <div class="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      class="btn btn-secondary btn--sm btn-reschedule-appointment" 
+                      data-cita-id="${cita.publicId}"
+                    >
+                      ${ui.icon('calendar', 'icon icon--sm')}
+                      <span>Reprogramar</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn btn-secondary btn--sm btn-cancel-appointment" 
+                      data-cita-id="${cita.publicId}"
+                      style="color: var(--danger); border-color: var(--danger-bg);"
+                    >
+                      ${ui.icon('x', 'icon icon--sm')}
+                      <span>Cancelar cita</span>
+                    </button>
+                  </div>
                 ` : `
                   <div class="flex items-center gap-2 text-xs text-muted" role="note">
                     ${ui.icon('info', 'icon icon--sm')}
@@ -313,6 +323,17 @@ function renderAppointmentsList(container) {
       }).join('')}
     </div>
   `;
+
+  // Asignar listeners de reprogramación
+  listContainer.querySelectorAll('.btn-reschedule-appointment').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const citaId = btn.getAttribute('data-cita-id');
+      const cita = appointmentsState.citas.find(c => c.publicId === citaId);
+      if (!cita) return;
+
+      promptReschedule(container, cita);
+    });
+  });
 
   // Asignar listeners de cancelación
   listContainer.querySelectorAll('.btn-cancel-appointment').forEach(btn => {
@@ -389,5 +410,109 @@ async function executeCancellation(container, citaPublicId, motivo) {
     }
   } catch (err) {
     ui.showToast(err.message || 'No fue posible cancelar la cita médica.', 'danger');
+  }
+}
+
+/**
+ * Muestra el modal interactivo de reprogramación de cita (F-01 [P1])
+ */
+function promptReschedule(container, cita) {
+  const fechaTexto = formatAppointmentDate(cita.fechaHoraInicio);
+
+  const manana = new Date();
+  manana.setDate(manana.getDate() + 1);
+  const minDate = manana.toISOString().split('T')[0];
+
+  const modalHtml = `
+    <div>
+      <p class="mb-3">
+        Reprogramar cita actual del <strong class="capitalize">${fechaTexto}</strong> con <strong>${cita.profesionalNombre || 'Profesional'}</strong>.
+      </p>
+
+      <div class="form-group mb-3">
+        <label for="rescheduleDateInput" class="form-label text-xs font-bold">Nueva Fecha *</label>
+        <input 
+          type="date" 
+          id="rescheduleDateInput" 
+          class="form-input" 
+          min="${minDate}" 
+          required
+        />
+      </div>
+
+      <div class="form-group mb-3">
+        <label for="rescheduleTimeInput" class="form-label text-xs font-bold">Nueva Hora *</label>
+        <select id="rescheduleTimeInput" class="form-input" required>
+          <option value="">Selecciona una hora</option>
+          <option value="08:00">08:00 AM</option>
+          <option value="08:30">08:30 AM</option>
+          <option value="09:00">09:00 AM</option>
+          <option value="09:30">09:30 AM</option>
+          <option value="10:00">10:00 AM</option>
+          <option value="10:30">10:30 AM</option>
+          <option value="11:00">11:00 AM</option>
+          <option value="11:30">11:30 AM</option>
+          <option value="14:00">02:00 PM</option>
+          <option value="14:30">02:30 PM</option>
+          <option value="15:00">03:00 PM</option>
+          <option value="15:30">03:30 PM</option>
+          <option value="16:00">04:00 PM</option>
+          <option value="16:30">04:30 PM</option>
+        </select>
+      </div>
+
+      <div class="form-group mb-3">
+        <label for="rescheduleReasonInput" class="form-label text-xs">Motivo de reprogramación (opcional):</label>
+        <textarea 
+          id="rescheduleReasonInput" 
+          class="form-input" 
+          rows="2" 
+          maxlength="255" 
+          placeholder="Ej. Cambio de turno laboral, compromiso imprevisto..."
+        ></textarea>
+      </div>
+
+      <p class="text-xs text-muted m-0">
+        La cita original pasará a estado REPROGRAMADA y tu turno anterior quedará liberado.
+      </p>
+    </div>
+  `;
+
+  ui.showModal({
+    title: 'Reprogramar cita médica',
+    message: modalHtml,
+    confirmText: 'Confirmar reprogramación',
+    cancelText: 'Volver',
+    onConfirm: async () => {
+      const fecha = document.getElementById('rescheduleDateInput')?.value;
+      const hora = document.getElementById('rescheduleTimeInput')?.value;
+      const motivo = document.getElementById('rescheduleReasonInput')?.value?.trim() || null;
+
+      if (!fecha || !hora) {
+        ui.showToast('Debes seleccionar fecha y hora para reprogramar.', 'warning');
+        return;
+      }
+
+      await executeReschedule(container, cita.publicId, fecha, hora, motivo);
+    }
+  });
+}
+
+/**
+ * Ejecuta la reprogramación contra el backend PATCH /api/v1/appointments/{id}/reschedule (F-01 [P1])
+ */
+async function executeReschedule(container, citaPublicId, fecha, hora, motivo) {
+  try {
+    ui.showToast('Reprogramando cita médica...', 'info');
+    await api.patch(`/appointments/${citaPublicId}/reschedule`, {
+      nuevaFecha: fecha,
+      nuevaHora: hora.length === 5 ? `${hora}:00` : hora,
+      motivo: motivo || undefined
+    });
+
+    ui.showToast('Tu cita médica ha sido reprogramada con éxito.', 'success');
+    await loadAppointments(container);
+  } catch (err) {
+    ui.showToast(err.message || 'No fue posible reprogramar la cita médica.', 'danger');
   }
 }

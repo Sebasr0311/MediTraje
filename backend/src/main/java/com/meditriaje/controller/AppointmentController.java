@@ -1,5 +1,6 @@
 package com.meditriaje.controller;
 
+import com.meditriaje.dto.affiliation.ReprogramarCitaRequest;
 import com.meditriaje.dto.appointment.CancelarCitaRequest;
 import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.dto.appointment.ReservarCitaRequest;
@@ -101,6 +102,34 @@ public class AppointmentController {
 
         CitaResponse response = appointmentService.marcarNoAsistio(
                 publicId,
+                usuarioPublicId,
+                authorities,
+                ipOrigen
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint para reprogramar una cita médica agendada a un nuevo slot de disponibilidad (F-01 [P1], ADR-006, ADR-026).
+     * Autorizado para el paciente titular, el profesional asignado o administradores.
+     * Retorna HTTP 200 OK con el cuerpo consolidado de la nueva cita creada.
+     */
+    @PatchMapping("/{publicId}/reschedule")
+    @PreAuthorize("hasAnyAuthority('ROLE_PACIENTE', 'ROLE_PROFESIONAL', 'ROLE_ADMINISTRADOR')")
+    public ResponseEntity<CitaResponse> reprogramarCita(
+            @PathVariable String publicId,
+            @Valid @RequestBody ReprogramarCitaRequest request,
+            Authentication authentication,
+            HttpServletRequest servletRequest
+    ) {
+        String usuarioPublicId = authentication.getName();
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+        String ipOrigen = IpUtil.extraerIp(servletRequest);
+
+        CitaResponse response = appointmentService.reprogramarCita(
+                publicId,
+                request,
                 usuarioPublicId,
                 authorities,
                 ipOrigen

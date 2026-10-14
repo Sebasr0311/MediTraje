@@ -25,12 +25,14 @@ public final class CitaStateMachine {
             EstadoCita.PROGRAMADA, Set.of(
                     EstadoCita.ATENDIDA,
                     EstadoCita.CANCELADA,
-                    EstadoCita.NO_ASISTIO
+                    EstadoCita.NO_ASISTIO,
+                    EstadoCita.REPROGRAMADA
             ),
             EstadoCita.CONFIRMADA, Set.of(
                     EstadoCita.ATENDIDA,
                     EstadoCita.CANCELADA,
-                    EstadoCita.NO_ASISTIO
+                    EstadoCita.NO_ASISTIO,
+                    EstadoCita.REPROGRAMADA
             )
     );
 

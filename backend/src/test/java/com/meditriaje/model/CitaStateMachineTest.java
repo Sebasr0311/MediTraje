@@ -38,7 +38,7 @@ class CitaStateMachineTest {
     // =========================================================================
 
     @ParameterizedTest
-    @EnumSource(value = EstadoCita.class, names = {"ATENDIDA", "CANCELADA", "NO_ASISTIO"})
+    @EnumSource(value = EstadoCita.class, names = {"ATENDIDA", "CANCELADA", "NO_ASISTIO", "REPROGRAMADA"})
     @DisplayName("Transiciones válidas desde PROGRAMADA son permitidas (D2)")
     void esTransicionValida_desdeProgramada_destinosValidos_retornaTrue(EstadoCita destino) {
         assertThat(CitaStateMachine.esTransicionValida(EstadoCita.PROGRAMADA, destino)).isTrue();
@@ -47,7 +47,7 @@ class CitaStateMachineTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = EstadoCita.class, names = {"CONFIRMADA", "REPROGRAMADA", "PROGRAMADA"})
+    @EnumSource(value = EstadoCita.class, names = {"CONFIRMADA", "PROGRAMADA"})
     @DisplayName("PROGRAMADA no puede transicionar a estados reservados ni a sí misma")
     void esTransicionValida_desdeProgramada_destinosInvalidos_retornaFalse(EstadoCita destinoInvalido) {
         assertThat(CitaStateMachine.esTransicionValida(EstadoCita.PROGRAMADA, destinoInvalido)).isFalse();
@@ -67,7 +67,7 @@ class CitaStateMachineTest {
     // =========================================================================
 
     @ParameterizedTest
-    @EnumSource(value = EstadoCita.class, names = {"ATENDIDA", "CANCELADA", "NO_ASISTIO"})
+    @EnumSource(value = EstadoCita.class, names = {"ATENDIDA", "CANCELADA", "NO_ASISTIO", "REPROGRAMADA"})
     @DisplayName("Transiciones legacy válidas desde CONFIRMADA son permitidas (D2)")
     void esTransicionValida_desdeConfirmada_destinosValidos_retornaTrue(EstadoCita destino) {
         assertThat(CitaStateMachine.esTransicionValida(EstadoCita.CONFIRMADA, destino)).isTrue();
@@ -76,8 +76,8 @@ class CitaStateMachineTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = EstadoCita.class, names = {"PROGRAMADA", "REPROGRAMADA", "CONFIRMADA"})
-    @DisplayName("CONFIRMADA no puede retroceder a PROGRAMADA, REPROGRAMADA ni a sí misma")
+    @EnumSource(value = EstadoCita.class, names = {"PROGRAMADA", "CONFIRMADA"})
+    @DisplayName("CONFIRMADA no puede retroceder a PROGRAMADA ni a sí misma")
     void esTransicionValida_desdeConfirmada_destinosInvalidos_retornaFalse(EstadoCita destinoInvalido) {
         assertThat(CitaStateMachine.esTransicionValida(EstadoCita.CONFIRMADA, destinoInvalido)).isFalse();
         assertThatThrownBy(() -> CitaStateMachine.validarTransicion(EstadoCita.CONFIRMADA, destinoInvalido))

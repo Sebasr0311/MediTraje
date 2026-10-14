@@ -1,5 +1,7 @@
 package com.meditriaje.service;
 
+import com.meditriaje.dto.affiliation.ReprogramarCitaRequest;
+import com.meditriaje.dto.admin.SlotResponse;
 import com.meditriaje.dto.appointment.CancelarCitaRequest;
 import com.meditriaje.dto.appointment.CitaResponse;
 import com.meditriaje.dto.appointment.ReservarCitaRequest;
@@ -607,6 +609,165 @@ public class AppointmentService {
         int total = citaRepository.contarPorPacienteId(paciente.id());
 
         return PaginatedResponse.of(citas, page, size, (long) total);
+    }
+
+    /**
+     * Reprograma una cita médica agendada a un nuevo slot de disponibilidad (F-01 [P1], ADR-006, ADR-026).
+     * Ejecuta en una única transacción atómica:
+     * 1. Validación de cita original y antelación.
+     * 2. Reserva compare-and-set del nuevo slot.
+     * 3. Inserción de la nueva cita vinculando CITA_ORIGEN_ID.
+     * 4. Transición de la cita anterior a REPROGRAMADA y liberación del slot anterior.
+     * 5. Registro de auditoría inmutable CITA_REPROGRAMADA.
+     */
+    @Transactional
+    public CitaResponse reprogramarCita(
+            String citaPublicId,
+            ReprogramarCitaRequest request,
+            String usuarioAutenticadoPublicId,
+            Collection<? extends GrantedAuthority> authorities,
+            String ipOrigen
+    ) {
+        Objects.requireNonNull(citaPublicId, "El identificador de la cita no puede ser nulo");
+        Objects.requireNonNull(request, "El request de reprogramación no puede ser nulo");
+        Objects.requireNonNull(usuarioAutenticadoPublicId, "El usuario público no puede ser nulo");
+
+        Usuario usuario = usuarioRepository.buscarPorPublicId(usuarioAutenticadoPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado."));
+
+        Cita citaOriginal = citaRepository.buscarEntidadPorPublicId(citaPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Cita no encontrada."));
+
+        if (atencionRepository != null && atencionRepository.existePorCitaId(citaOriginal.id())) {
+            throw new ConflictoOperacionException("No es posible reprogramar una cita que ya cuenta con una atencion clinica vinculada.");
+        }
+
+        EstadoCita estadoActual;
+        try {
+            estadoActual = EstadoCita.valueOf(citaOriginal.estado());
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            throw new DatosInvalidosException("Estado de cita no reconocido: " + citaOriginal.estado());
+        }
+        CitaStateMachine.validarTransicion(estadoActual, EstadoCita.REPROGRAMADA);
+
+        DisponibilidadSlot slotOriginal = disponibilidadSlotRepository.buscarPorId(citaOriginal.slotId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("Slot original no encontrado."));
+
+        Set<String> roles = authorities != null
+                ? authorities.stream().map(GrantedAuthority::getAuthority).collect(Collectors.toSet())
+                : Set.of();
+
+        if (roles.contains("ROLE_ADMINISTRADOR")) {
+            // Administrador autorizado
+        } else if (roles.contains("ROLE_PROFESIONAL")) {
+            Profesional profesional = profesionalRepository.buscarPorUsuarioId(usuario.id())
+                    .orElseThrow(() -> new AccesoNoAutorizadoException("El profesional no tiene autorizacion para reprogramar citas de otro colega."));
+            if (!Objects.equals(slotOriginal.profesionalId(), profesional.id())) {
+                throw new AccesoNoAutorizadoException("El profesional no tiene autorizacion para reprogramar citas de otro colega.");
+            }
+        } else if (roles.contains("ROLE_PACIENTE")) {
+            Paciente paciente = pacienteRepository.buscarPorUsuarioId(usuario.id())
+                    .orElseThrow(() -> new AccesoNoAutorizadoException("Solo pacientes registrados pueden reprogramar citas."));
+            if (!Objects.equals(citaOriginal.pacienteId(), paciente.id())) {
+                throw new AccesoNoAutorizadoException("No tiene autorizacion para reprogramar una cita ajena.");
+            }
+            // Regla de las 2 horas de anticipación
+            Instant limite = slotOriginal.fechaHoraInicio().minus(2, ChronoUnit.HOURS);
+            if (Instant.now(clock).isAfter(limite)) {
+                throw new DatosInvalidosException("La reprogramacion por parte del paciente solo esta permitida hasta 2 horas antes de la cita.");
+            }
+        } else {
+            throw new AccesoNoAutorizadoException("No tiene autorizacion para reprogramar citas.");
+        }
+
+        // Resolver el nuevo slot
+        DisponibilidadSlot nuevoSlot;
+        if (request.nuevoSlotPublicId() != null && !request.nuevoSlotPublicId().isBlank()) {
+            nuevoSlot = disponibilidadSlotRepository.buscarEntidadPorPublicId(request.nuevoSlotPublicId().trim())
+                    .orElseThrow(() -> new RecursoNoEncontradoException("Nuevo slot de disponibilidad no encontrado: " + request.nuevoSlotPublicId()));
+        } else if (request.nuevaFecha() != null && request.nuevaHora() != null) {
+            Instant nuevoInicio = request.nuevaFecha().atTime(request.nuevaHora()).atZone(ZONE_BOGOTA).toInstant();
+            Instant nuevoFin = nuevoInicio.plus(30, ChronoUnit.MINUTES);
+            List<SlotResponse> slots = disponibilidadSlotRepository.listar(0, 10, null, null, null, nuevoInicio.minusSeconds(60), nuevoFin.plusSeconds(60), "LIBRE");
+            SlotResponse coincidente = slots.stream().findFirst()
+                    .orElseThrow(() -> new CitaNoDisponibleException("No se encontro slot disponible en el horario solicitado."));
+            nuevoSlot = disponibilidadSlotRepository.buscarEntidadPorPublicId(coincidente.publicId())
+                    .orElseThrow(() -> new RecursoNoEncontradoException("Slot de disponibilidad no encontrado."));
+        } else {
+            throw new DatosInvalidosException("Debe proporcionar nuevoSlotPublicId o nuevaFecha y nuevaHora.");
+        }
+
+        if (Objects.equals(nuevoSlot.id(), slotOriginal.id())) {
+            throw new DatosInvalidosException("El nuevo slot no puede ser identico al slot actual.");
+        }
+
+        if (nuevoSlot.fechaHoraInicio().isBefore(Instant.now(clock))) {
+            throw new DatosInvalidosException("No es posible reprogramar una cita en un horario pasado.");
+        }
+
+        // 1. Reservar nuevo slot con compare-and-set
+        int reservado = disponibilidadSlotRepository.reservarSlot(nuevoSlot.id());
+        if (reservado == 0) {
+            throw new CitaNoDisponibleException("El nuevo slot de atencion ya ha sido reservado o no esta disponible.");
+        }
+
+        // 2. Insertar nueva cita enlazada
+        String nuevaCitaPublicId = UUID.randomUUID().toString();
+        Cita nuevaCita = new Cita(
+                null,
+                nuevaCitaPublicId,
+                nuevoSlot.id(),
+                citaOriginal.pacienteId(),
+                citaOriginal.triajeId(),
+                citaOriginal.id(), // CITA_ORIGEN_ID
+                "PROGRAMADA",
+                null,
+                null,
+                null
+        );
+
+        Long nuevaCitaId;
+        try {
+            nuevaCitaId = citaRepository.crear(nuevaCita);
+        } catch (DataIntegrityViolationException ex) {
+            disponibilidadSlotRepository.liberarSlot(nuevoSlot.id());
+            throw new CitaNoDisponibleException("El nuevo slot de atencion ya cuenta con una cita activa.");
+        }
+
+        // 3. Transicionar cita original a REPROGRAMADA
+        String motivo = request.motivo() != null && !request.motivo().isBlank()
+                ? request.motivo()
+                : "Reprogramada hacia nueva cita: " + nuevaCitaPublicId;
+        citaRepository.actualizarEstado(citaOriginal.id(), EstadoCita.REPROGRAMADA.name(), motivo);
+
+        // 4. Liberar slot original
+        disponibilidadSlotRepository.liberarSlot(citaOriginal.slotId());
+
+        // 5. Auditar evento exitoso inmutable
+        auditoriaService.auditar(new EventoAuditoria(
+                usuario.id(),
+                AccionAuditable.CITA_REPROGRAMADA,
+                "CITA",
+                nuevaCitaPublicId,
+                ResultadoAuditoria.EXITO,
+                ipOrigen
+        ));
+
+        // 6. Retornar vista consolidada de la nueva cita
+        CitaResponse response = citaRepository.buscarPorPublicId(nuevaCitaPublicId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Cita reprogramada no encontrada tras creacion."));
+
+        if (appointmentNotificationService != null) {
+            Paciente paciente = pacienteRepository.buscarPorId(citaOriginal.pacienteId()).orElse(null);
+            if (paciente != null) {
+                Usuario uPac = usuarioRepository.buscarPorId(paciente.usuarioId()).orElse(null);
+                if (uPac != null) {
+                    appointmentNotificationService.enviarConfirmacionReserva(nuevaCitaId, paciente.id(), uPac.email(), response);
+                }
+            }
+        }
+
+        return response;
     }
 }
 
