@@ -100,7 +100,11 @@ class OperationalAnalyticsServiceTest {
         assertEquals(1, resp.episodiosUrgenciasActivos());
         assertEquals(1L, resp.episodiosPorNivelTriaje().get("II"));
 
-        // Alerta generada por ocupación >= 85% y demora Triaje II > 30 min (40 min)
+        // F-03: GET es estrictamente idempotente y no genera alertas como efecto colateral
+        verify(alertaRepository, never()).guardar(any(AlertaOperativa.class));
+
+        // Proceso desacoplado de evaluación de alertas operativas
+        service.evaluarAlertasAutomaticas(sede, resp.tasaOcupacionPorcentaje(), resp.episodiosPorNivelTriaje(), resp.tiemposPromedioEsperaMinutos());
         verify(alertaRepository, atLeastOnce()).guardar(any(AlertaOperativa.class));
     }
 
@@ -136,7 +140,7 @@ class OperationalAnalyticsServiceTest {
         when(seguimientoQrRepository.buscarActivoPorEpisodioId(50L)).thenReturn(Optional.empty());
 
         SeguimientoIntrahospitalarioQr qrGuardado = new SeguimientoIntrahospitalarioQr(
-                1L, "qr-pub", 50L, "QROP-1234567890", "URGENCIAS / SALA DE OBSERVACION", "ACTIVO", now, now.plusSeconds(86400)
+                1L, "qr-pub", 50L, "QROP-1234567890", "URGENCIAS / SALA DE OBSERVACION", "ACTIVA", now, now.plusSeconds(86400)
         );
         when(seguimientoQrRepository.guardar(any(SeguimientoIntrahospitalarioQr.class))).thenReturn(qrGuardado);
         when(identidadRepository.buscarPorEpisodioId(50L)).thenReturn(Optional.empty());
@@ -167,7 +171,6 @@ class OperationalAnalyticsServiceTest {
                 1L, "id-prov-uuid", 50L, "NN-20260330-0001", "Físico", 30, "M", "ALERTA", "PENDIENTE", null, null, null, now
         );
         when(identidadRepository.buscarPorEpisodioId(50L)).thenReturn(Optional.of(idProv));
-        when(triajeRepository.buscarUltimaPorEpisodioId(50L)).thenReturn(Optional.empty());
 
         QrSeguimientoResponse resp = service.consultarPorTokenQr("QROP-TEST", "127.0.0.1");
 

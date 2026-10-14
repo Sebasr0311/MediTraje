@@ -93,8 +93,9 @@ class HospitalServiceTest {
         when(episodioRepository.buscarPorPublicId("ep-pub")).thenReturn(Optional.of(episodioMock));
         when(usuarioRepository.buscarPorPublicId("enf-pub-id")).thenReturn(Optional.of(enfermeroMock));
         when(camaRepository.buscarPorPublicId("cama-pub")).thenReturn(Optional.of(camaDispMock));
-        when(ocupacionRepository.buscarActivaPorCamaId(3L)).thenReturn(Optional.empty());
+        when(camaRepository.reservarCamaSiDisponible(3L)).thenReturn(true);
         when(habitacionRepository.buscarPorId(2L)).thenReturn(Optional.of(habitacionMock));
+        when(areaRepository.buscarPorId(1L)).thenReturn(Optional.of(areaMock));
         when(ocupacionRepository.buscarActivaPorEpisodioId(100L)).thenReturn(Optional.empty());
 
         OcupacionCama ocCreada = new OcupacionCama(1L, "oc-pub", 100L, 3L, AHORA, null, "ACTIVA", 10L, "Obs", AHORA);
@@ -107,7 +108,7 @@ class HospitalServiceTest {
 
         assertThat(resp).isNotNull();
         assertThat(resp.estado()).isEqualTo("OCUPADA");
-        verify(camaRepository).actualizarEstado(3L, "OCUPADA");
+        verify(camaRepository).reservarCamaSiDisponible(3L);
         verify(movimientoRepository).guardar(any());
         verify(episodioRepository).actualizarEstado(100L, "OBSERVACION");
         verify(auditoriaService).auditar(any());
@@ -139,15 +140,17 @@ class HospitalServiceTest {
         when(usuarioRepository.buscarPorPublicId("enf-pub-id")).thenReturn(Optional.of(enfermeroMock));
         when(ocupacionRepository.buscarActivaPorEpisodioId(100L)).thenReturn(Optional.of(ocupActual));
         when(camaRepository.buscarPorPublicId("cama-dest-pub")).thenReturn(Optional.of(camaDest));
+        when(camaRepository.reservarCamaSiDisponible(4L)).thenReturn(true);
         when(camaRepository.buscarPorId(3L)).thenReturn(Optional.of(camaDispMock));
         when(habitacionRepository.buscarPorId(2L)).thenReturn(Optional.of(habitacionMock));
+        when(areaRepository.buscarPorId(1L)).thenReturn(Optional.of(areaMock));
 
         MovimientoResponse resp = hospitalService.trasladarPaciente("ep-pub", req, "enf-pub-id", "127.0.0.1");
 
         assertThat(resp).isNotNull();
         verify(ocupacionRepository).finalizarOcupacion(1L, AHORA);
         verify(camaRepository).actualizarEstado(3L, "LIMPIEZA");
-        verify(camaRepository).actualizarEstado(4L, "OCUPADA");
+        verify(camaRepository).reservarCamaSiDisponible(4L);
         verify(movimientoRepository).guardar(any());
     }
 

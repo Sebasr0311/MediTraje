@@ -308,11 +308,14 @@ public class AffiliationService {
 
         Optional<AfiliacionResponse> detalle = afiliacionRepository.buscarDetallePorDocumento(tipoDocumento, numeroDocumento);
 
+        // S-04: Registrar identificador seudónimo en auditoría para no exponer documento de identidad en bitácora
+        String idRecursoAuditoria = detalle.map(AfiliacionResponse::publicId).orElse("SIN_REGISTRO_PREVIO");
+
         auditoriaService.auditar(new EventoAuditoria(
                 usuario.id(),
                 AccionAuditable.AFILIACION_CONSULTADA,
                 "AFILIACION_PACIENTE",
-                tipoDocumento + ":" + numeroDocumento,
+                idRecursoAuditoria,
                 ResultadoAuditoria.EXITO,
                 ipOrigen
         ));

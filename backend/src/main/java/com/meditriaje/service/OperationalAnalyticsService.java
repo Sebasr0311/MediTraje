@@ -6,6 +6,7 @@ import com.meditriaje.dto.operational.*;
 import com.meditriaje.exception.RecursoNoEncontradoException;
 import com.meditriaje.model.*;
 import com.meditriaje.repository.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -102,9 +103,7 @@ public class OperationalAnalyticsService {
             tiemposPromedioEspera.put(k, Math.round(avg * 10.0) / 10.0);
         });
 
-        // O02: Evaluar y disparar alertas automáticas de saturación
-        evaluarAlertasAutomaticas(sede, tasaOcupacion, episodiosPorTriaje, tiemposPromedioEspera);
-
+        // F-03: GET es estrictamente idempotente de consulta; no muta estado en base de datos.
         List<AlertaOperativaResponse> alertasActivas = alertaRepository.listarPorSede(sede.id(), "ACTIVA");
 
         return new DashboardHospitalarioResponse(
@@ -123,7 +122,11 @@ public class OperationalAnalyticsService {
         );
     }
 
-    private void evaluarAlertasAutomaticas(
+    /**
+     * Proceso desacoplado para evaluación y disparo idempotente de alertas operativas (F-03).
+     */
+    @Transactional
+    public void evaluarAlertasAutomaticas(
             Sede sede,
             double tasaOcupacion,
             Map<String, Long> episodiosPorTriaje,
@@ -147,19 +150,23 @@ public class OperationalAnalyticsService {
         List<AlertaOperativaResponse> existentes = alertaRepository.listarPorSede(sedeId, "ACTIVA");
         boolean yaExiste = existentes.stream().anyMatch(a -> tipo.equals(a.tipoAlerta()));
         if (!yaExiste) {
-            alertaRepository.guardar(new AlertaOperativa(
-                    null,
-                    UUID.randomUUID().toString(),
-                    sedeId,
-                    tipo,
-                    severidad,
-                    mensaje,
-                    "ACTIVA",
-                    null,
-                    null,
-                    null,
-                    Instant.now(clock)
-            ));
+            try {
+                alertaRepository.guardar(new AlertaOperativa(
+                        null,
+                        UUID.randomUUID().toString(),
+                        sedeId,
+                        tipo,
+                        severidad,
+                        mensaje,
+                        "ACTIVA",
+                        null,
+                        null,
+                        null,
+                        Instant.now(clock)
+                ));
+            } catch (DataIntegrityViolationException ignored) {
+                // Deduplicado de forma segura por el índice único UQ_ALERTA_SEDE_TIPO_ACTIVA
+            }
         }
     }
 
@@ -220,10 +227,15 @@ public class OperationalAnalyticsService {
                 .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado."));
 
         Optional<SeguimientoIntrahospitalarioQr> existenteOpt = seguimientoQrRepository.buscarActivoPorEpisodioId(ep.id());
-        SeguimientoIntrahospitalarioQr qr = existenteOpt.orElseGet(() -> {
-            String token = "QROP-" + UUID.randomUUID().toString().substring(0, 18).toUpperCase();
+        boolean esVencido = existenteOpt.map(q -> q.expiraAt() != null && q.expiraAt().isBefore(Instant.now(clock))).orElse(false);
+
+        SeguimientoIntrahospitalarioQr qr;
+        if (existenteOpt.isPresent() && !esVencido) {
+            qr = existenteOpt.get();
+        } else {
+            String token = "QROP-" + UUID.randomUUID().toString().replace("-", "").toUpperCase();
             Instant expira = Instant.now(clock).plus(Duration.ofDays(7));
-            return seguimientoQrRepository.guardar(new SeguimientoIntrahospitalarioQr(
+            qr = seguimientoQrRepository.guardar(new SeguimientoIntrahospitalarioQr(
                     null,
                     UUID.randomUUID().toString(),
                     ep.id(),
@@ -233,13 +245,13 @@ public class OperationalAnalyticsService {
                     Instant.now(clock),
                     expira
             ));
-        });
+        }
 
         auditoriaService.auditar(new EventoAuditoria(
                 usuario.id(),
                 AccionAuditable.QR_SEGUIMIENTO_GENERADO,
                 "SEGUIMIENTO_INTRAHOSPITALARIO_QR",
-                qr.codigoQrToken(),
+                qr.publicId(), // S-03: Auditar publicId de recurso, jamás el token secreto
                 ResultadoAuditoria.EXITO,
                 ipOrigen
         ));
@@ -265,29 +277,42 @@ public class OperationalAnalyticsService {
     }
 
     /**
-     * O03: Consulta la ubicación y estado básico mediante escaneo de QR (sin PHI médica).
+     * O03: Consulta la ubicación y estado básico mediante escaneo de QR (sin PHI médica ni nivel clínico, S-03).
      */
     public QrSeguimientoResponse consultarPorTokenQr(String token, String ipOrigen) {
-        SeguimientoIntrahospitalarioQr qr = seguimientoQrRepository.buscarPorToken(token)
+        if (token == null || token.isBlank()) {
+            throw new RecursoNoEncontradoException("Token QR de seguimiento no válido o expirado.");
+        }
+
+        SeguimientoIntrahospitalarioQr qr = seguimientoQrRepository.buscarPorToken(token.trim())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Token QR de seguimiento no válido o expirado."));
+
+        // S-03: Validar que el QR se encuentre ACTIVO y no haya expirado
+        if (!"ACTIVO".equals(qr.estado()) || (qr.expiraAt() != null && qr.expiraAt().isBefore(Instant.now(clock)))) {
+            throw new RecursoNoEncontradoException("Token QR de seguimiento no válido o expirado.");
+        }
 
         EpisodioAtencion ep = episodioRepository.buscarPorId(qr.episodioId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("Episodio asociado no encontrado."));
 
+        // S-03: Rechazar acceso si el episodio ya egresó o fue cancelado
+        if ("EGRESADO".equals(ep.estado()) || "CANCELADO".equals(ep.estado())) {
+            throw new RecursoNoEncontradoException("Token QR de seguimiento no válido o expirado.");
+        }
+
         String codIdentidad = identidadRepository.buscarPorEpisodioId(ep.id())
                 .map(IdentidadProvisional::codigoProvisional).orElse("PACIENTE_IDENTIFICADO");
-
-        Optional<ValoracionTriaje> ultTriaje = triajeRepository.buscarUltimaPorEpisodioId(ep.id());
 
         auditoriaService.auditar(new EventoAuditoria(
                 null,
                 AccionAuditable.QR_SEGUIMIENTO_ESCANEADO,
                 "SEGUIMIENTO_INTRAHOSPITALARIO_QR",
-                token,
+                qr.publicId(), // S-03: Auditar publicId de recurso, jamás el token secreto
                 ResultadoAuditoria.EXITO,
                 ipOrigen
         ));
 
+        // S-03: En la respuesta pública no divulgar dato clínico sensible (nivelTriaje -> NO_DIVULGABLE)
         return new QrSeguimientoResponse(
                 qr.publicId(),
                 ep.publicId(),
@@ -296,7 +321,7 @@ public class OperationalAnalyticsService {
                 "/operational/tracking/" + qr.codigoQrToken(),
                 qr.ubicacionActualTexto(),
                 ep.estado(),
-                ultTriaje.map(ValoracionTriaje::nivel).orElse("PENDIENTE"),
+                "NO_DIVULGABLE",
                 qr.estado(),
                 qr.creadoAt(),
                 qr.expiraAt()

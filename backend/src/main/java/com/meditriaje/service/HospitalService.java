@@ -6,6 +6,7 @@ import com.meditriaje.exception.ConflictoOperacionException;
 import com.meditriaje.exception.RecursoNoEncontradoException;
 import com.meditriaje.model.*;
 import com.meditriaje.repository.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,14 +95,23 @@ public class HospitalService {
             throw new ConflictoOperacionException("La cama seleccionada no está disponible (Estado actual: " + cama.estado() + ").");
         }
 
-        Optional<OcupacionCama> ocupacionActivaExistente = ocupacionRepository.buscarActivaPorCamaId(cama.id());
-        if (ocupacionActivaExistente.isPresent()) {
-            throw new ConflictoOperacionException("Conflicto de concurrencia: La cama ya tiene una ocupación activa.");
+        HabitacionSala habDestino = habitacionRepository.buscarPorId(cama.habitacionId())
+                .orElseThrow(() -> new IllegalStateException("Habitación de destino no encontrada"));
+
+        AreaHospitalaria areaDestino = areaRepository.buscarPorId(habDestino.areaId())
+                .orElseThrow(() -> new IllegalStateException("Área de destino no encontrada"));
+
+        if (!Objects.equals(areaDestino.sedeId(), episodio.sedeId())) {
+            throw new ConflictoOperacionException("La cama seleccionada pertenece a una sede diferente a la del episodio.");
+        }
+
+        // Reserva atómica compare-and-set: DISPONIBLE -> OCUPADA (O-03)
+        boolean reservada = camaRepository.reservarCamaSiDisponible(cama.id());
+        if (!reservada) {
+            throw new ConflictoOperacionException("Conflicto de concurrencia: La cama seleccionada ya no está disponible.");
         }
 
         Instant ahora = Instant.now(clock);
-        HabitacionSala habDestino = habitacionRepository.buscarPorId(cama.habitacionId())
-                .orElseThrow(() -> new IllegalStateException("Habitación de destino no encontrada"));
 
         // Si el episodio ya tenía otra cama asignada, se finaliza la anterior y se traslada
         Optional<OcupacionCama> ocupacionPrevia = ocupacionRepository.buscarActivaPorEpisodioId(episodio.id());
@@ -123,7 +133,7 @@ public class HospitalService {
             }
         }
 
-        // Crear nueva ocupación
+        // Crear nueva ocupación protegida por índice único condicional
         String ocupacionPubId = UUID.randomUUID().toString();
         OcupacionCama nuevaOcupacion = new OcupacionCama(
                 null,
@@ -137,10 +147,13 @@ public class HospitalService {
                 request.motivoAsignacion(),
                 ahora
         );
-        ocupacionRepository.guardar(nuevaOcupacion);
-
-        // Actualizar estado de la cama a OCUPADA
-        camaRepository.actualizarEstado(cama.id(), "OCUPADA");
+        try {
+            ocupacionRepository.guardar(nuevaOcupacion);
+        } catch (DataIntegrityViolationException ex) {
+            // Revertir la reserva de la cama si la base de datos detecta ocupación concurrente
+            camaRepository.actualizarEstado(cama.id(), "DISPONIBLE");
+            throw new ConflictoOperacionException("Conflicto de concurrencia: La cama o el episodio ya tienen una ocupación activa.");
+        }
 
         // Registrar movimiento intrahospitalario
         String movPubId = UUID.randomUUID().toString();
@@ -208,6 +221,22 @@ public class HospitalService {
             throw new ConflictoOperacionException("La cama de destino no está disponible (Estado: " + camaDestino.estado() + ").");
         }
 
+        HabitacionSala habDestino = habitacionRepository.buscarPorId(camaDestino.habitacionId())
+                .orElseThrow(() -> new IllegalStateException("Habitación destino no encontrada"));
+
+        AreaHospitalaria areaDestino = areaRepository.buscarPorId(habDestino.areaId())
+                .orElseThrow(() -> new IllegalStateException("Área de destino no encontrada"));
+
+        if (!Objects.equals(areaDestino.sedeId(), episodio.sedeId())) {
+            throw new ConflictoOperacionException("La cama de destino pertenece a una sede diferente a la del episodio.");
+        }
+
+        // Reserva atómica compare-and-set: DISPONIBLE -> OCUPADA sobre cama destino (O-03)
+        boolean reservada = camaRepository.reservarCamaSiDisponible(camaDestino.id());
+        if (!reservada) {
+            throw new ConflictoOperacionException("La cama de destino ya no está disponible (conflicto de concurrencia).");
+        }
+
         Instant ahora = Instant.now(clock);
 
         // Finalizar ocupación previa y pasar cama a LIMPIEZA
@@ -227,14 +256,16 @@ public class HospitalService {
                 request.motivoTraslado(),
                 ahora
         );
-        ocupacionRepository.guardar(nuevaOcupacion);
-        camaRepository.actualizarEstado(camaDestino.id(), "OCUPADA");
+        try {
+            ocupacionRepository.guardar(nuevaOcupacion);
+        } catch (DataIntegrityViolationException ex) {
+            camaRepository.actualizarEstado(camaDestino.id(), "DISPONIBLE");
+            throw new ConflictoOperacionException("Conflicto de concurrencia: La cama de destino o el episodio ya cuentan con ocupación activa.");
+        }
 
         // Obtener áreas de origen y destino
         CamaHospitalaria camaOrigen = camaRepository.buscarPorId(ocupacionActual.camaId()).orElse(null);
         HabitacionSala habOrigen = camaOrigen != null ? habitacionRepository.buscarPorId(camaOrigen.habitacionId()).orElse(null) : null;
-        HabitacionSala habDestino = habitacionRepository.buscarPorId(camaDestino.habitacionId())
-                .orElseThrow(() -> new IllegalStateException("Habitación destino no encontrada"));
 
         Long areaOrigenId = habOrigen != null ? habOrigen.areaId() : null;
         Long areaDestinoId = habDestino.areaId();
@@ -558,9 +589,30 @@ public class HospitalService {
     }
 
     public List<CamaDetalleResponse> listarCamasDetalle(String sedePublicId) {
+        return listarCamasDetalle(sedePublicId, false);
+    }
+
+    public List<CamaDetalleResponse> listarCamasDetalle(String sedePublicId, boolean anonimizarPaciente) {
         Sede sede = sedeRepository.buscarPorPublicId(sedePublicId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Sede no encontrada: " + sedePublicId));
-        return camaRepository.listarDetallePorSedeId(sede.id());
+        List<CamaDetalleResponse> camas = camaRepository.listarDetallePorSedeId(sede.id());
+        if (anonimizarPaciente) {
+            return camas.stream().map(c -> new CamaDetalleResponse(
+                    c.publicId(),
+                    c.habitacionPublicId(),
+                    c.habitacionCodigo(),
+                    c.areaPublicId(),
+                    c.areaNombre(),
+                    c.sedePublicId(),
+                    c.sedeNombre(),
+                    c.codigo(),
+                    c.estado(),
+                    null, // episodioPublicId anonimizado para admin (S-02)
+                    null, // pacienteNombre anonimizado para admin (S-02)
+                    c.ocupacionPublicId()
+            )).toList();
+        }
+        return camas;
     }
 
     public List<MovimientoResponse> listarMovimientosEpisodio(String episodePublicId) {
