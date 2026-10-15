@@ -16,7 +16,7 @@ services:
       - key: DB_PASSWORD
         sync: false
       - key: FLYWAY_ENABLED
-        value: "false"
+        value: "true"
       - key: FLYWAY_USER
         value: MEDITRIAJE_OWNER
       - key: FLYWAY_PASSWORD
